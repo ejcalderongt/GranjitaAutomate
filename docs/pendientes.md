@@ -14,5 +14,6 @@
 - [x] Mostrar estado de servidores ADB, puertos, PID disponible y conexiones por servidor.
 - [x] Proponer nombres por serial físico, preservar alias y verificar correspondencias antes de asociar cambios de IP.
 - [ ] Revisar manualmente las fichas con serial repetido y la conexión con identidad en conflicto detectadas en v2.1.
+- [ ] Validar docs/modelo-gestion-social.md y elegir primera plataforma/capacidad para el adaptador; proponer primero grupos y trabajos simulados.
 - [ ] Evaluar piloto de tareas mediante ADB/Automate frente a agente Android propio en una aplicación de prueba.
 - [ ] Fase 3: definir proveedor de IA, manejo de credenciales, contexto permitido y ejecución supervisada.

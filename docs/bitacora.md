@@ -25,3 +25,4 @@
 - Se agregó respaldo previo a migración SQLite v3, recuperación de seriales de capturas existentes y alertas por seriales repetidos o cambios de identidad en una IP.
 - Pasaron 15 pruebas y se verificó la interfaz con datos reales. Se observaron un serial compartido entre dos fichas y una conexión con identidad en conflicto; no se fusionaron ni sobrescribieron automáticamente.
 - Se incorporó a AGENTS.md la instrucción de hacer commit y push después de cada avance funcional verificado.
+- Se documentó una propuesta de gestión social con cuentas separadas de placas, grupos, trabajos persistentes, estadísticas verificables, adaptadores API y ejecución Android de laboratorio. Se recomienda Appium/UiAutomator2 para el piloto y evaluar Automate para flujos sencillos. No se instalaron herramientas ni se ejecutaron acciones sociales.
