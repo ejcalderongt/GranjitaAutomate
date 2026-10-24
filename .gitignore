@@ -21,3 +21,5 @@ data/
 *.lnk
 dist/
 build/
+.tools/
+*.apk
