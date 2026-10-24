@@ -6,3 +6,4 @@
 - Se vinculó la carpeta de trabajo AGX con el repositorio GranjitaAutomate.
 - Se creó la estructura inicial de documentación y las instrucciones de mantenimiento.
 - No se ejecutaron cambios sobre las placas Android.
+- Se documentó una propuesta inicial de asistente de conexión con Python, PySide6, ADB y scrcpy opcional. Falta confirmar conexión física y versiones Android; la tecnología aún no fue aprobada por el usuario.
