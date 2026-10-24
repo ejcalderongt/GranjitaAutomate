@@ -13,13 +13,18 @@ Fuente: historial de los chats «Consultar paquete VIP de Panda» y «Automatiza
 
 El 2026-10-23 el usuario solicitó respaldar y organizar el conocimiento y lo que se cree en https://github.com/ejcalderongt/GranjitaAutomate.
 
-## Por confirmar
-
 ## Decisiones confirmadas el 2026-10-23
 
 - El usuario aprobó Python + PySide6, ADB, scrcpy opcional y SQLite como arquitectura propuesta.
 - La intención es mantener las placas conectadas vía OTG mediante el proceso de Panda.
 - La compatibilidad concreta entre ese proceso y el acceso ADB de nuestra aplicación todavía requiere inspección.
+- El usuario autorizó construir v1, dejar acceso directo y utilizar SQLite portable.
+
+## Inspección del 2026-10-23
+
+- Se encontró ADB 34.0.1 incluido en la instalación de Panda y un servidor escuchando localmente en el puerto 5037. No se pudo atribuir con certeza el proceso del servidor a un ejecutable mediante la inspección disponible.
+- Mediante el protocolo del servidor se detectaron y validaron 17 dispositivos que reportaron Android 12. No se verificó físicamente el tipo de transporte de cada placa.
+- Los identificadores observados fueron direcciones TCP/IP. Esto confirma el acceso ADB por red expuesto actualmente, no que el flujo físico OTG solicitado ya esté configurado. Se distingue en la interfaz.
 
 ## Datos técnicos por confirmar
 

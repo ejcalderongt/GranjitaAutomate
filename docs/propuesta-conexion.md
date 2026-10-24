@@ -1,6 +1,6 @@
 # Propuesta: asistente de conexión
 
-Fecha: 2026-10-23. Estado: arquitectura aprobada por el usuario; sin implementación.
+Fecha: 2026-10-23. Estado: arquitectura aprobada; v1 implementada. Ver docs/version-1.md para alcance y limitaciones comprobadas.
 
 ## Decisión aprobada
 

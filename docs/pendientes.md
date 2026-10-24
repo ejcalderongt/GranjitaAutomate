@@ -3,6 +3,8 @@
 - [ ] Confirmar inventario y conexiones actuales de las placas.
 - [ ] Confirmar activación de Panda VIP.
 - [ ] Incorporar documentación y herramientas previas que el usuario identifique.
-- [ ] Definir y documentar el primer trabajo técnico.
+- [x] Definir y documentar el primer trabajo técnico: asistente de conexión v1 con SQLite.
 - [x] Validar arquitectura y conexión principal: OTG mediante el proceso de Panda.
-- [ ] Inspeccionar el proceso OTG de Panda y comprobar qué ADB usa y cómo expone las placas, sin interrumpir conexiones existentes.
+- [x] Localizar ADB de Panda y comprobar acceso no disruptivo al servidor local existente.
+- [ ] Probar con el usuario el flujo físico OTG y la recuperación guiada de una placa desconectada o sin autorización.
+- [ ] Integrar visualización opcional con scrcpy si se necesita además de Panda.

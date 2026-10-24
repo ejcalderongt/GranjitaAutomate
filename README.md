@@ -2,6 +2,10 @@
 
 Repositorio de conocimiento, documentación y herramientas para administrar la granja de placas Android.
 
+## Aplicación v1
+
+Abrir **GranjitaAutomate** desde el escritorio o ejecutar `iniciar.vbs`. Consulta la [guía de instalación y uso](docs/version-1.md). Usa SQLite local en `data/`, excluida de Git.
+
 ## Organización
 
 - [Contexto de la granja](docs/contexto.md): información recuperada y datos por confirmar.
