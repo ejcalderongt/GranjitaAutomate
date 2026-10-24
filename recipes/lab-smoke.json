@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "id": "lab-smoke-v1",
+  "name": "Prueba local de interacción",
+  "profile": "laboratorio",
+  "objective": "Comprobar like, comentario y desplazamiento dentro de Granjita Lab.",
+  "context": {
+    "environment": "local_lab",
+    "audience": "cuentas ficticias del laboratorio",
+    "intent": "agradecer la finalización de una prueba"
+  },
+  "action": "lab_smoke",
+  "parameters": {
+    "comment": "Gracias por completar la prueba del laboratorio."
+  },
+  "execution": {
+    "concurrency": 1,
+    "automatic_retries": 0,
+    "on_uncertain": "review"
+  }
+}

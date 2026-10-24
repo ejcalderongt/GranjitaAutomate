@@ -14,6 +14,7 @@ import urllib.error
 import urllib.request
 import uuid
 import xml.etree.ElementTree as ET
+import hashlib
 
 from .core import ROOT, DATA, Adb, now
 from .inventory import shell, identity_from_properties
@@ -231,6 +232,7 @@ class JobStore:
                 port INTEGER NOT NULL,serial TEXT NOT NULL,action TEXT NOT NULL,comment TEXT NOT NULL,
                 status TEXT NOT NULL,detail TEXT NOT NULL,created TEXT NOT NULL,updated TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS pilot_devices(device_id TEXT PRIMARY KEY);
+                CREATE TABLE IF NOT EXISTS task_recipes(task_id TEXT PRIMARY KEY,recipe_id TEXT NOT NULL,spec TEXT NOT NULL,sha256 TEXT NOT NULL);
             ''')
             db.execute("UPDATE tasks SET status='Resultado incierto',detail='La aplicación se cerró durante una tarea. No se reintenta automáticamente.' WHERE status='Ejecutando'")
             db.execute("UPDATE tasks SET status='Interrumpido',detail='Lote interrumpido. Crear un nuevo lote para continuar.' WHERE status='En cola'")
@@ -258,6 +260,12 @@ class JobStore:
     def update(self,identifier,status,detail=''):
         with self.db() as db:
             db.execute('UPDATE tasks SET status=?,detail=?,updated=? WHERE id=?',(status,detail,now(),identifier))
+
+    def attach_recipe(self,identifiers,recipe):
+        spec=json.dumps(recipe,ensure_ascii=False,sort_keys=True)
+        digest=hashlib.sha256(spec.encode('utf-8')).hexdigest()
+        with self.db() as db:
+            db.executemany('INSERT INTO task_recipes VALUES (?,?,?,?)',[(identifier,recipe['id'],spec,digest) for identifier in identifiers])
 
     def tasks(self):
         with self.db() as db:

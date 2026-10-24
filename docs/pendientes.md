@@ -19,4 +19,7 @@
 - [x] Implementar primer laboratorio Appium/UiAutomator2 y comprobar lote de tres placas en la app local de prueba.
 - [x] Instalar Automate oficial remotamente en una placa piloto y crear flujo mínimo de apertura del laboratorio.
 - [ ] Resolver con el usuario los permisos solicitados por Automate, ejecutar y verificar el flujo mínimo antes de ampliar sus tareas.
+- [x] Consultar la API Android documentada de Panda y mostrar correspondencias de inventario desde la aplicación.
+- [x] Crear perfil y receta JSON reproducibles con previsualización y ejecución tipada de laboratorio.
+- [ ] Completar auditoría final de propagación a todos los transportes verificables y mantener los permisos de Automate separados de la instalación.
 - [ ] Fase 3: definir proveedor de IA, manejo de credenciales, contexto permitido y ejecución supervisada.

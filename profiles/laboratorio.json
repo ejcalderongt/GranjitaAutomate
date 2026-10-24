@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "id": "laboratorio",
+  "name": "Laboratorio Android local",
+  "desired_packages": [
+    "gt.granjita.lab",
+    "io.appium.uiautomator2.server",
+    "io.appium.uiautomator2.server.test",
+    "io.appium.settings",
+    "com.llamalab.automate"
+  ],
+  "identity": "physical_serial_without_conflicts",
+  "permissions": "manual_review",
+  "execution_engine": "appium",
+  "app_package": "gt.granjita.lab",
+  "adb": "preserve_origin_server",
+  "note": "Estado deseado de instalación. No concede permisos ni cambia configuraciones Android automáticamente."
+}

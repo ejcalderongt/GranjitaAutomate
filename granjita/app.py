@@ -177,7 +177,7 @@ class Window(QMainWindow):
             actions.addWidget(button)
         layout.addLayout(actions)
         identity_actions = QHBoxLayout()
-        for text, callback in [('Laboratorio Appium / Automate', self.automation_lab), ('Asociar conexión a otra ficha', self.link_connection), ('Ayuda de conexión', self.help)]:
+        for text, callback in [('Laboratorio Appium / Automate', self.automation_lab), ('API Panda', self.panda_api), ('Asociar conexión a otra ficha', self.link_connection), ('Ayuda de conexión', self.help)]:
             button = QPushButton(text)
             button.clicked.connect(callback)
             identity_actions.addWidget(button)
@@ -269,6 +269,10 @@ class Window(QMainWindow):
             AutomationDialog(self.store,self.selected(),self).exec()
         finally:
             self.timer.start(30000)
+
+    def panda_api(self):
+        from .panda_ui import PandaDialog
+        PandaDialog(self.store,self).exec()
 
     def update_progress(self, done, total):
         self.progress.setRange(0, total)

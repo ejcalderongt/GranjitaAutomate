@@ -128,7 +128,7 @@ class AutomationDialog(QDialog):
         tasks=self.jobs.create(rows,self.comment.text().strip())
         self.worker=BatchWorker(self.jobs,tasks)
         self.worker.changed.connect(self.refresh)
-        self.worker.finished.connect(self.finished)
+        self.worker.finished.connect(self.on_worker_finished)
         self.state.setText(f'Ejecutando lote local de {len(tasks)} placa(s).')
         self.refresh()
         self.worker.start()
@@ -175,10 +175,10 @@ class AutomationDialog(QDialog):
             return
         self.worker=ProbeWorker(rows[0],launch)
         self.worker.result.connect(self.state.setText)
-        self.worker.finished.connect(self.finished)
+        self.worker.finished.connect(self.on_worker_finished)
         self.worker.start()
 
-    def finished(self):
+    def on_worker_finished(self):
         if isinstance(self.worker,BatchWorker):
             self.state.setText('Lote local finalizado. Consulta el estado y la evidencia de cada tarea.')
         self.worker.deleteLater()
