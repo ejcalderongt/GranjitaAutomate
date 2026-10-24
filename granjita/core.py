@@ -126,8 +126,9 @@ class Store:
                 CREATE TABLE IF NOT EXISTS events (
                     id INTEGER PRIMARY KEY, at TEXT NOT NULL, serial TEXT NOT NULL,
                     status TEXT NOT NULL, detail TEXT NOT NULL);
-                PRAGMA user_version=1;
             ''')
+            if db.execute('PRAGMA user_version').fetchone()[0] == 0:
+                db.execute('PRAGMA user_version=1')
 
     @contextmanager
     def connect(self):

@@ -15,3 +15,6 @@
 - Se diagnosticó la diferencia Panda 41 / aplicación 17: existen dos servidores ADB, con 17 y 16 dispositivos distintos respectivamente, en 5037 y 5038. Se validaron los 16 del segundo servidor. Falta soporte de inventario combinado y reconciliar los registros desconectados de Panda. Se guardó un diagnóstico reproducible sin identificadores privados.
 - Se confirmó por los procesos padre que Panda (touping) inició ambos procesos adb a la misma hora. El motivo interno del reparto sigue sin confirmarse; gestión por grupos o carga es solamente una hipótesis.
 - El usuario definió fase 2 (inventario detallado) y fase 3 (tareas e interpretación contextual mediante IA en cuentas controladas). Se registró la hoja de ruta y la propuesta de evaluar ADB/Automate antes de un agente Android propio. No se instalaron agentes ni se ejecutaron interacciones en cuentas.
+- Se implementó v2: panel de servidores/puertos/PID, agregación de conexiones, búsqueda, fichas de inventario con 34 observaciones, evidencia y cambios, asociación física explícita y manejo de fallos parciales.
+- Se migró SQLite con respaldo previo y conservación de alias/eventos. Se inventariaron 33 conexiones. En 14 se observó su y en 19 no, sin ejecutar su ni confirmar ausencia de root.
+- Pasaron once pruebas automatizadas y se revisaron visualmente la ventana y la ficha de inventario.

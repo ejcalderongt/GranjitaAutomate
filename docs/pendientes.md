@@ -8,8 +8,9 @@
 - [x] Localizar ADB de Panda y comprobar acceso no disruptivo al servidor local existente.
 - [ ] Probar con el usuario el flujo físico OTG y la recuperación guiada de una placa desconectada o sin autorización.
 - [ ] Integrar visualización opcional con scrcpy si se necesita además de Panda.
-- [ ] Corregir detección para combinar servidores ADB 5037 y 5038, conservar origen y evitar falsos desconectados entre servidores.
+- [x] Corregir detección para combinar servidores ADB 5037 y 5038, conservar origen y evitar falsos desconectados entre servidores.
 - [ ] Reconciliar los 41 registros de Panda con los 33 dispositivos accesibles detectados en ambos servidores.
-- [ ] Fase 2: implementar inventario detallado con evidencias, identidad independiente de IP e historial de cambios; ver docs/hoja-de-ruta.md.
+- [x] Fase 2: implementar inventario detallado con evidencias, identidad interna independiente de IP e historial de cambios; ver docs/version-2.md. La asociación física entre transportes es manual y explícita.
+- [x] Mostrar estado de servidores ADB, puertos, PID disponible y conexiones por servidor.
 - [ ] Evaluar piloto de tareas mediante ADB/Automate frente a agente Android propio en una aplicación de prueba.
 - [ ] Fase 3: definir proveedor de IA, manejo de credenciales, contexto permitido y ejecución supervisada.

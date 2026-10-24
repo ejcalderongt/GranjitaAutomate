@@ -2,6 +2,8 @@
 
 Fecha: 2026-10-23. Requisitos expresados por el usuario; diseño propuesto, todavía sin implementar.
 
+Actualización: la fase 2 de inventario y servidores ya está implementada en v2; ver docs/version-2.md. Las tareas y la IA siguen pendientes.
+
 ## Fase 2: inventario verificable
 
 Primero incorporar los servidores ADB 5037 y 5038. Conservar conexiones por separado de la identidad física de la placa; una IP no es una identidad estable. No fusionar placas basándose solamente en modelo o IP.
