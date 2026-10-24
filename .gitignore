@@ -1,0 +1,16 @@
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+credentials/
+private/
+backups/
+logs/
+__pycache__/
+*.pyc
+.venv/
+node_modules/
+Thumbs.db
+.DS_Store

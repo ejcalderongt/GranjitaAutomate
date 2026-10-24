@@ -1,0 +1,18 @@
+# GranjitaAutomate
+
+Repositorio de conocimiento, documentación y herramientas para administrar la granja de placas Android.
+
+## Organización
+
+- [Contexto de la granja](docs/contexto.md): información recuperada y datos por confirmar.
+- [Pendientes](docs/pendientes.md): próximos pasos.
+- [Bitácora](docs/bitacora.md): registro de avances y decisiones.
+- `scripts/`: herramientas y automatizaciones que vayamos desarrollando.
+
+## Forma de trabajo
+
+Guardar aquí el conocimiento útil y los archivos creados. Cada avance debe incluir documentación suficiente para retomarlo y un commit descriptivo. Sincronizar con GitHub al terminar cada bloque de trabajo, cuando haya conexión y autorización de acceso.
+
+No guardar contraseñas, tokens, códigos de activación, cookies ni datos privados de cuentas. Las capturas deben revisarse antes de incluirlas.
+
+Fecha de inicio: 2026-10-23 (America/Guatemala).
