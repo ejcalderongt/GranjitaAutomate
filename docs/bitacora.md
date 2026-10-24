@@ -48,3 +48,8 @@ El usuario no observa marca/modelo. Se registró la variante visible «20-phone 
 ## 2026-10-24 · Prueba física de posiciones 10, 17 y 20
 
 Se registraron correspondencias reportadas con pantallas 65, 30 y 51. La posición 20/pantalla 51 recuperó imagen e Internet según operador aunque sigue azul; no usar color como diagnóstico de conectividad. Recuperación requirió Habilitar/Escanear en Panda. Hay contradicción sobre las dos pantallas que no regresaron, pendiente aclaración. Falta identificador de rack y seriales; no se modificaron asociaciones del inventario ni se guardó la foto.
+
+
+## 2026-10-24 · Aclaración de recuperación física
+
+El usuario confirmó que las pantallas ausentes son 30 (posición 17) y 65 (posición 10). La 51 (posición 20) recuperó imagen e Internet según el reporte. Se resolvió la contradicción documental; sin nueva prueba remota ni diagnóstico eléctrico.

@@ -27,5 +27,6 @@
 - [ ] Probar recuperación tras apagado completo de PC/rack; verificar si requiere botón físico y configuración OTG persistente.
 - [ ] Identificar marca/modelo/controlador del rack, mapear ranuras a seriales y verificar telemetría de energía por canal.
 - [ ] Obtener enlace/ASIN del chasis anunciado como «20-phone farm»; el usuario no encuentra marca/modelo físico. No asumir API eléctrica por apariencia.
-- [ ] Aclarar prueba de las 17:00 GT: ¿las pantallas que no regresaron son 30 y 65? Registrar rack y verificar seriales para posiciones 10→65, 17→30 y 20→51; correspondencias reportadas, aún no verificadas por serial.
+- [x] Aclarar prueba de las 17:00 GT: el usuario confirmó que no regresaron 30 y 65; 51 sí recuperó imagen e Internet.
+- [ ] Diagnosticar pantallas 30 y 65; registrar rack y verificar seriales para posiciones 10→65, 17→30 y 20→51. Correspondencias confirmadas por el usuario, aún no verificadas por serial.
 - [ ] Obtener leyenda de indicadores del rack; posición 20/pantalla 51 reportada con Internet e indicador azul, por lo que azul no equivale a falla.

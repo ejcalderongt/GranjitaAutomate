@@ -51,3 +51,8 @@ La fotografía muestra posiciones numeradas 1–20, iluminación de distintos co
 Conclusión limitada: un indicador descrito como azul es compatible con funcionamiento e Internet en la placa 20 según la prueba. No se debe usar azul=avería ni verde=Android/Internet comprobados. Una luz es evidencia de actividad eléctrica en algún circuito, no confirma que toda la placa reciba tensión/corriente correcta. La recuperación mediante Habilitar/Escanear indica que el procedimiento de Panda intervino; no identifica por sí solo cuál paso resolvió el transporte ni equivale a una prueba de arranque en frío del conjunto.
 
 Próxima prueba: confirmar las dos pantallas ausentes; consultar su estado en Panda y los servidores ADB; mapear rack/posición a serial verificado cuando respondan. Si una placa sigue ausente, comparar placa y ranura conocidas siguiendo el manual y sin asumir que admite extracción en caliente. Si el problema sigue a la placa, investigar placa/adaptador; si permanece en la posición, investigar socket/cable/alimentación. Es un método de aislamiento, no un diagnóstico eléctrico definitivo.
+
+
+### Aclaración confirmada por el usuario · 2026-10-24
+
+El usuario confirmó que las pantallas que no regresaron fueron 30 (tarjeta física 17) y 65 (tarjeta física 10). Pantalla 51 (tarjeta física 20) sí recuperó imagen e Internet según la prueba reportada. Esto resuelve la contradicción del mensaje original; no constituye una nueva comprobación remota ni confirma falla eléctrica de las otras dos placas. Sigue pendiente identificar el rack y vincular las posiciones a seriales verificados.
