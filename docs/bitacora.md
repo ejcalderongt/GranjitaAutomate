@@ -44,3 +44,7 @@ Se agregó apertura de Panda cuando falta, reconexión acotada de transportes co
 ## 2026-10-24 · Referencia visual del chasis
 
 El usuario no observa marca/modelo. Se registró la variante visible «20-phone farm» y los límites de identificación; las publicaciones semejantes no prueban fabricante ni capacidades eléctricas. Pendiente enlace/ASIN o etiquetas/conexiones externas para identificar controlador. No se almacenaron capturas privadas del pedido ni se cambiaron configuraciones de las placas.
+
+## 2026-10-24 · Prueba física de posiciones 10, 17 y 20
+
+Se registraron correspondencias reportadas con pantallas 65, 30 y 51. La posición 20/pantalla 51 recuperó imagen e Internet según operador aunque sigue azul; no usar color como diagnóstico de conectividad. Recuperación requirió Habilitar/Escanear en Panda. Hay contradicción sobre las dos pantallas que no regresaron, pendiente aclaración. Falta identificador de rack y seriales; no se modificaron asociaciones del inventario ni se guardó la foto.

@@ -33,3 +33,21 @@ El usuario indicó que no encuentra marca ni modelo físicamente. Aportó dos ca
 Una búsqueda por el título encontró publicaciones de aspecto/nombre semejantes con varias variantes y vendedores; no permitió identificar inequívocamente la unidad ni hallar su manual de controlador. No se asigna al rack una marca, potencia, tensión o API a partir de coincidencias comerciales. Las capturas del pedido se mantienen fuera del repositorio.
 
 Siguiente evidencia útil: enlace del artículo original o ASIN de Amazon (habitualmente B0…), y fotografías externas de conexiones, interruptores e indicadores de una unidad. El enlace/ASIN ayuda a identificar al proveedor; no requiere datos del pedido, dirección ni pago. Si no hay controlador documentado, se mantiene diagnóstico por software y prueba física guiada; energía y corriente por ranura siguen desconocidas.
+
+## Prueba física reportada · 2026-10-24, 17:00–17:02 GT
+
+Fuente: mensajes de prueba compartidos por el usuario y fotografía del rack. Evidencia reportada por operador; no se ejecutó una comprobación remota adicional en este registro.
+
+| Posición física reportada | Pantalla Panda reportada | Resultado reportado |
+| --- | --- | --- |
+| 10 | 65 | Retirada/reinsertada; recuperación final pendiente de aclarar. |
+| 17 | 30 | Retirada/reinsertada; no recuperada según el relato. |
+| 20 | 51 | Regresó a pantalla y tiene Internet según prueba de navegación; indicador descrito como azul. |
+
+Se reportó que retirar físicamente las tarjetas hacía desaparecer/apagar sus vistas en el monitor y que fue necesario Habilitar y Escanear en Panda para recuperarlas. La primera impresión de recuperación de todas fue corregida por el operador. Existe contradicción textual: escribió que solo volvió 51, pero también «30 y 51 no regresó»; la mención final confirma Internet en 51=20. No sustituir silenciosamente el segundo 51 por 65: pedir aclaración.
+
+La fotografía muestra posiciones numeradas 1–20, iluminación de distintos colores y un puerto frontal rotulado OTG/USB junto a conexión de red. No proporciona una leyenda de los LED, marca/modelo ni medida eléctrica. Las posiciones son locales al chasis: falta identificar a cuál rack pertenecen. No asociarlas automáticamente a seriales de inventario ni usar el número Panda como identidad permanente.
+
+Conclusión limitada: un indicador descrito como azul es compatible con funcionamiento e Internet en la placa 20 según la prueba. No se debe usar azul=avería ni verde=Android/Internet comprobados. Una luz es evidencia de actividad eléctrica en algún circuito, no confirma que toda la placa reciba tensión/corriente correcta. La recuperación mediante Habilitar/Escanear indica que el procedimiento de Panda intervino; no identifica por sí solo cuál paso resolvió el transporte ni equivale a una prueba de arranque en frío del conjunto.
+
+Próxima prueba: confirmar las dos pantallas ausentes; consultar su estado en Panda y los servidores ADB; mapear rack/posición a serial verificado cuando respondan. Si una placa sigue ausente, comparar placa y ranura conocidas siguiendo el manual y sin asumir que admite extracción en caliente. Si el problema sigue a la placa, investigar placa/adaptador; si permanece en la posición, investigar socket/cable/alimentación. Es un método de aislamiento, no un diagnóstico eléctrico definitivo.
