@@ -26,3 +26,14 @@ class PandaApiTests(TestCase):
             with self.assertRaises(RuntimeError):
                 list_devices()
         connection.close.assert_called_once()
+
+    def test_update_targets_exactly_one_device(self):
+        from granjita.panda_api import update_device
+        connection=MagicMock()
+        connection.recv.return_value=json.dumps({'code':10000,'data':None})
+        with patch('granjita.panda_api.websocket.create_connection',return_value=connection):
+            update_device('192.0.2.1:5555','R01-P20',120)
+        self.assertEqual(json.loads(connection.send.call_args.args[0]),{'action':'updateDevices','devices':'192.0.2.1:5555','data':{'name':'R01-P20','sort':120}})
+        connection.close.assert_called_once()
+        for target in ['all','serial1,serial2']:
+            with self.assertRaises(ValueError):update_device(target,'R01-P20',120)

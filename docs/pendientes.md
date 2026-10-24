@@ -30,3 +30,5 @@
 - [x] Aclarar prueba de las 17:00 GT: el usuario confirmó que no regresaron 30 y 65; 51 sí recuperó imagen e Internet.
 - [ ] Diagnosticar pantallas 30 y 65; registrar rack y verificar seriales para posiciones 10→65, 17→30 y 20→51. Correspondencias confirmadas por el usuario, aún no verificadas por serial.
 - [ ] Obtener leyenda de indicadores del rack; posición 20/pantalla 51 reportada con Internet e indicador azul, por lo que azul no equivale a falla.
+- [x] Implementar orden físico permanente por serial, asignación verificada y vista opcional de activos primero (v2.5).
+- [ ] Completar mapa físico rack/posición/serial y elegir números Panda libres; aplicar desde el diálogo y comprobar persistencia tras reiniciar Panda.

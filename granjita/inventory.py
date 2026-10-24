@@ -200,7 +200,7 @@ class FleetStore(Store):
         super().__init__(path)
         with self.connect() as db:
             version = db.execute('PRAGMA user_version').fetchone()[0]
-        if version > 3:
+        if version > 4:
             raise ValueError('La base pertenece a una versión más nueva. Usa la versión compatible del programa.')
         if version < 2:
             self.backup(self.path.with_name(self.path.stem + '-antes-v2.sqlite3'))
@@ -239,6 +239,36 @@ class FleetStore(Store):
                         values = {o['field']:o['value'] for o in observations}
                         identity = identity_from_properties({'ro.serialno':values.get('Serie hardware',''), 'ro.boot.serialno':values.get('Serie de arranque',''), 'ro.product.manufacturer':values.get('Fabricante',''), 'ro.product.model':values.get('Modelo','')})
                         self._save_identity(db,device['id'],identity,now())
+
+        if version < 4:
+            self.backup(self.path.with_name(self.path.stem + '-antes-v4.sqlite3'))
+            with self.connect() as db:
+                db.executescript("""
+                    CREATE TABLE physical_positions(hardware_serial TEXT PRIMARY KEY,rack TEXT NOT NULL,
+                        slot INTEGER NOT NULL,panda_number INTEGER NOT NULL UNIQUE,at TEXT NOT NULL,
+                        UNIQUE(rack,slot));
+                    PRAGMA user_version=4;
+                """)
+
+    # La posición se vincula al serial físico, nunca a IP o puerto ADB.
+    def positions(self):
+        with self.connect() as db:
+            return [dict(r) for r in db.execute('SELECT * FROM physical_positions ORDER BY rack,slot')]
+
+    def assign_position(self, hardware_serial, rack, slot, panda_number):
+        rack = rack.strip().upper()
+        if not re.fullmatch(r'R[0-9]{2,3}', rack) or not usable_serial(hardware_serial):
+            raise ValueError('Usa un rack como R01 y un serial físico válido.')
+        if type(slot) is not int or not 1 <= slot <= 999 or type(panda_number) is not int or not 1 <= panda_number <= 999999:
+            raise ValueError('Posición o número Panda inválidos.')
+        with self.connect() as db:
+            identities = db.execute('SELECT state FROM device_identity WHERE hardware_serial=?', (hardware_serial,)).fetchall()
+            if len(identities) != 1 or identities[0]['state'] == 'Fuentes en conflicto':
+                raise ValueError('El serial debe corresponder a una única ficha sin conflicto.')
+            occupied = db.execute('SELECT hardware_serial FROM physical_positions WHERE (rack=? AND slot=?) OR panda_number=?', (rack,slot,panda_number)).fetchall()
+            if any(r['hardware_serial'] != hardware_serial for r in occupied):
+                raise ValueError('La posición o número Panda ya pertenece a otra placa.')
+            db.execute("INSERT INTO physical_positions VALUES (?,?,?,?,?) ON CONFLICT(hardware_serial) DO UPDATE SET rack=excluded.rack,slot=excluded.slot,panda_number=excluded.panda_number,at=excluded.at", (hardware_serial,rack,slot,panda_number,now()))
 
     @staticmethod
     def _save_identity(db, identifier, data, stamp):

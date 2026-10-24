@@ -53,3 +53,7 @@ Se registraron correspondencias reportadas con pantallas 65, 30 y 51. La posici�
 ## 2026-10-24 · Aclaración de recuperación física
 
 El usuario confirmó que las pantallas ausentes son 30 (posición 17) y 65 (posición 10). La 51 (posición 20) recuperó imagen e Internet según el reporte. Se resolvió la contradicción documental; sin nueva prueba remota ni diagnóstico eléctrico.
+
+## 2026-10-24 · Orden físico v2.5
+
+Se implementó mapa rack/posición/serial con número Panda único, vista fija predeterminada y activos primero opcional. Una fila por ficha evita duplicar sus transportes. La asignación verifica getprop y bloquea identidades ambiguas. La aplicación individual de nombre/número a Panda comprueba identidad, colisiones y lectura posterior, y conserva evidencia local. Migración SQLite v4 con respaldo. Sin asignaciones físicas inventadas ni renombres reales todavía: faltan rack y seriales verificados. Validación: 41 pruebas con salida 0 y panel revisado. Guía: docs/orden-fisico.md.

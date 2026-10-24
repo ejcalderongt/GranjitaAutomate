@@ -124,7 +124,7 @@ class Window(QMainWindow):
         self.worker = None
         self.fresh = False
         self.reconciliation = {}
-        self.setWindowTitle('GranjitaAutomate · v2.4')
+        self.setWindowTitle('GranjitaAutomate · v2.5')
         self.resize(1280, 900)
         central = QWidget()
         self.setCentralWidget(central)
@@ -134,7 +134,7 @@ class Window(QMainWindow):
         title = QLabel('GranjitaAutomate')
         title.setObjectName('title')
         layout.addWidget(title)
-        layout.addWidget(QLabel('Inventario de tu granja · API Panda y laboratorio · Versión 2.4'))
+        layout.addWidget(QLabel('Inventario de tu granja · API Panda y laboratorio · Versión 2.5'))
         self.summary = QLabel('Listo para buscar tus placas')
         self.summary.setObjectName('summary')
         layout.addWidget(self.summary)
@@ -160,13 +160,22 @@ class Window(QMainWindow):
         settings.clicked.connect(self.configure)
         toolbar.addWidget(settings)
         layout.addLayout(toolbar)
+        self.active_first = QCheckBox('Activos primero (desactivar para orden físico fijo)')
+        self.active_first.setChecked(self.store.setting('active_first', '0') == '1')
+        self.active_first.toggled.connect(self.change_order)
+        layout.addWidget(self.active_first)
         self.filter = QLineEdit()
         self.filter.setPlaceholderText('Filtrar por nombre, dispositivo, modelo o puerto…')
         self.filter.textChanged.connect(self.render)
         layout.addWidget(self.filter)
-        self.table = QTableWidget(0, 11)
-        self.table.setHorizontalHeaderLabels(['Nombre', 'Serial físico', 'Conexión ADB', 'Puerto / acceso', 'Modelo', 'Android', 'Estado', 'Inventario', 'Comprobación', 'Panda', 'Diagnóstico / siguiente paso'])
-        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.table = QTableWidget(0, 14)
+        self.table.setHorizontalHeaderLabels(['Nombre', 'Serial físico', 'Conexión ADB', 'Puerto / acceso', 'Modelo', 'Android', 'Estado', 'Inventario', 'Comprobación', 'Panda', 'Diagnóstico / siguiente paso', 'Rack', 'Posición', 'Número fijo Panda'])
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+        self.table.horizontalHeader().setMinimumSectionSize(95)
+        for column, width in {0:210, 1:150, 2:175, 6:180, 10:300}.items():
+            self.table.setColumnWidth(column, width)
+        for logical, visual in [(11, 0), (12, 1), (13, 2)]:
+            self.table.horizontalHeader().moveSection(self.table.horizontalHeader().visualIndex(logical), visual)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -181,7 +190,7 @@ class Window(QMainWindow):
             actions.addWidget(button)
         layout.addLayout(actions)
         identity_actions = QHBoxLayout()
-        for text, callback in [('Laboratorio Appium / Automate', self.automation_lab), ('API Panda', self.panda_api), ('Asociar conexión a otra ficha', self.link_connection), ('Ayuda de conexión', self.help)]:
+        for text, callback in [('Asignar rack / posición', self.physical_position), ('Laboratorio Appium / Automate', self.automation_lab), ('API Panda', self.panda_api), ('Asociar conexión a otra ficha', self.link_connection), ('Ayuda de conexión', self.help)]:
             button = QPushButton(text)
             button.clicked.connect(callback)
             identity_actions.addWidget(button)
@@ -203,6 +212,24 @@ class Window(QMainWindow):
         self.timer.start(30000)
         QTimer.singleShot(400, self.scan)
 
+    def change_order(self, checked):
+        self.store.set_setting('active_first', int(checked))
+        self.render()
+
+    def physical_position(self):
+        if self.worker is not None:
+            QMessageBox.information(self, 'Consulta en curso', 'Espera a que termine la conciliación.');return
+        row = self.selected()
+        if not row or not self.fresh:
+            QMessageBox.information(self, 'Selecciona una placa', 'Primero concilia y selecciona una placa validada.');return
+        from .physical_ui import PositionDialog
+        self.timer.stop()
+        try:
+            PositionDialog(self.store, row, self).exec()
+            self.render()
+        finally:
+            self.timer.start(30000)
+
     def selected(self):
         row = self.table.currentRow()
         return self.rows[row] if row >= 0 and row < len(self.rows) else None
@@ -210,10 +237,11 @@ class Window(QMainWindow):
     def render(self):
         selected = (self.selected()['port'], self.selected()['serial']) if hasattr(self, 'rows') and self.selected() else None
         all_rows = self.store.fleet_devices()
-        all_rows.sort(key=lambda r: (r['status'] != 'Validado', r['display_name'].lower(), r['port']))
+        from .physical import ordered_rows
+        all_rows = ordered_rows(all_rows, self.store.positions(), self.active_first.isChecked())
         from .reconciliation import diagnosis
         query = self.filter.text().lower() if hasattr(self, 'filter') else ''
-        self.rows = [r for r in all_rows if query in f"{r['display_name']} {r['hardware_serial']} {r['serial']} {r['model']} {r['port']}".lower()]
+        self.rows = [r for r in all_rows if query in f"{r['display_name']} {r['hardware_serial']} {r['serial']} {r['model']} {r['port']} {r.get('rack', '')} {r.get('slot', '')}".lower()]
         self.server_table.setRowCount(0)
         for i, server in enumerate(sorted(self.store.servers(), key=lambda s: (s['status'] != 'ADB responde', s['port']))):
             self.server_table.insertRow(i)
@@ -232,7 +260,7 @@ class Window(QMainWindow):
             inventory_at = snapshot['at'][11:19] + ' · GT' if snapshot else 'Sin captura'
             values = [row['display_name'], row['hardware_serial'] or 'No disponible', row['serial'], transport, row['model'], row['android'], row['status'] if self.fresh else 'Pendiente de verificar', inventory_at, checked]
             recognition, advice = diagnosis(row, self.reconciliation.get('panda', []), bool(self.reconciliation) and not self.reconciliation.get('panda_error'))
-            values.extend([recognition if self.fresh else 'Sin comprobar', advice if self.fresh else 'Estado histórico: esperando conciliación.'])
+            values.extend([recognition if self.fresh else 'Sin comprobar', advice if self.fresh else 'Estado histórico: esperando conciliación.', row.get('rack', 'Sin asignar'), str(row.get('slot', '—')), str(row.get('panda_number', '—'))])
             for j, value in enumerate(values):
                 item = QTableWidgetItem(value)
                 if self.fresh and row['status'] == 'Validado':
@@ -248,7 +276,7 @@ class Window(QMainWindow):
             absent = sum(r['status'] == 'Desconectado' for r in all_rows)
             identities = len({r['id'] for r in all_rows})
             physical = len({r['hardware_serial'] for r in all_rows if r['status'] == 'Validado' and r['hardware_serial']})
-            self.summary.setText(f'{physical} seriales físicos activos · {valid} conexiones validadas   ·   {len(all_rows)-valid-absent} requieren atención   ·   {absent} desconectadas   ·   {identities} fichas')
+            self.summary.setText(f'{physical} seriales físicos activos · {valid} fichas activas   ·   {len(all_rows)-valid-absent} requieren atención   ·   {absent} desconectadas   ·   {identities} fichas')
         else:
             self.summary.setText(f'{len(self.rows)} placas guardadas · Pendientes de verificar')
 

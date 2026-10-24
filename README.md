@@ -2,7 +2,7 @@
 
 Repositorio de conocimiento, documentación y herramientas para administrar la granja de placas Android.
 
-## Aplicación v2.4
+## Aplicación v2.5
 
 Abrir **GranjitaAutomate** desde el escritorio o ejecutar `iniciar.vbs`. Consulta la [guía de inventario y servidores ADB](docs/version-2.md) y las [instrucciones de instalación](docs/version-1.md). Usa SQLite local en `data/`, excluida de Git.
 
@@ -12,7 +12,9 @@ El botón **Laboratorio Appium / Automate** abre las pruebas locales por lote. C
 
 El botón **API Panda** compara el inventario de Panda y el local. La [guía de API y recetas](docs/api-panda-y-recetas.md) explica los perfiles JSON, las recetas ejecutables y la propagación verificable de herramientas.
 
-El arranque intenta conciliar y reconectar transportes conocidos; muestra activos primero, comparación con Panda y diagnóstico. Consulta [arranque y límites del rack](docs/arranque-y-rack.md).
+El arranque intenta conciliar y reconectar transportes conocidos; muestra comparación con Panda y diagnóstico. Consulta [arranque y límites del rack](docs/arranque-y-rack.md).
+
+El [orden físico permanente](docs/orden-fisico.md) conserva rack y posición por serial, con activos primero opcional y asignación verificada desde la aplicación.
 
 ## Organización
 
