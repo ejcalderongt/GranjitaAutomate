@@ -19,6 +19,14 @@ La diferencia entre 41 registros de Panda y 33 dispositivos accesibles es 8. Es 
 
 ## Corrección propuesta
 
+### Origen de los dos servidores
+
+La inspección posterior de Win32_Process mostró que ambos procesos adb tienen el mismo ParentProcessId, correspondiente a touping (Panda), y la misma hora de creación. Esto confirma que los dos procesos fueron iniciados por Panda. Nuestra aplicación no ejecuta start-server.
+
+La razón interna exacta por la que Panda divide los dispositivos entre servidores no pudo determinarse con la configuración y los registros revisados. El reparto observado de 17 y 16 dispositivos es compatible con gestión por grupos o reparto de carga, pero eso es una hipótesis, no una característica confirmada del fabricante. ADB utiliza normalmente el puerto 5037; el 5038 es una instancia adicional en este equipo.
+
+Referencia del comportamiento normal de ADB: https://developer.android.com/tools/adb#how-adb-works
+
 Consultar ambos servidores, conservar el puerto de origen para validar cada transporte, combinar el inventario y distinguir registros guardados de conexiones actuales. Si un dispositivo aparece por varios transportes, no asumir que son placas diferentes: la deduplicación física requiere un identificador estable verificado.
 
 Cambiar manualmente el puerto a 5038 en la v1 permite ver el otro conjunto, pero no los suma y puede marcar el conjunto anterior como desconectado; no usar ese cambio como solución al inventario combinado.

@@ -13,3 +13,4 @@
 - Los accesos observados son TCP/IP, por lo que la conexión física OTG no se da por validada. Se añadió la distinción a la interfaz.
 - Se creó el acceso directo del escritorio y se verificó la interfaz con las 17 placas. Pasaron cinco pruebas de protocolo, autorización, tiempo límite, inventario, persistencia de alias y respaldo SQLite.
 - Se diagnosticó la diferencia Panda 41 / aplicación 17: existen dos servidores ADB, con 17 y 16 dispositivos distintos respectivamente, en 5037 y 5038. Se validaron los 16 del segundo servidor. Falta soporte de inventario combinado y reconciliar los registros desconectados de Panda. Se guardó un diagnóstico reproducible sin identificadores privados.
+- Se confirmó por los procesos padre que Panda (touping) inició ambos procesos adb a la misma hora. El motivo interno del reparto sigue sin confirmarse; gestión por grupos o carga es solamente una hipótesis.
