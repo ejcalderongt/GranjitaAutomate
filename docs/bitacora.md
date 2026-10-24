@@ -18,3 +18,10 @@
 - Se implementó v2: panel de servidores/puertos/PID, agregación de conexiones, búsqueda, fichas de inventario con 34 observaciones, evidencia y cambios, asociación física explícita y manejo de fallos parciales.
 - Se migró SQLite con respaldo previo y conservación de alias/eventos. Se inventariaron 33 conexiones. En 14 se observó su y en 19 no, sin ejecutar su ni confirmar ausencia de root.
 - Pasaron once pruebas automatizadas y se revisaron visualmente la ventana y la ficha de inventario.
+
+## 2026-10-24
+
+- Se implementó v2.1 con nombres automáticos basados en serial físico, columna separada de identidad, conservación de alias y asociación conservadora después de cambios de IP.
+- Se agregó respaldo previo a migración SQLite v3, recuperación de seriales de capturas existentes y alertas por seriales repetidos o cambios de identidad en una IP.
+- Pasaron 15 pruebas y se verificó la interfaz con datos reales. Se observaron un serial compartido entre dos fichas y una conexión con identidad en conflicto; no se fusionaron ni sobrescribieron automáticamente.
+- Se incorporó a AGENTS.md la instrucción de hacer commit y push después de cada avance funcional verificado.

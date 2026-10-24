@@ -1,5 +1,6 @@
 """Inventario de solo lectura y seguimiento de múltiples servidores ADB."""
 from concurrent.futures import ThreadPoolExecutor
+from collections import Counter
 import json
 import os
 import re
@@ -8,6 +9,24 @@ import time
 import uuid
 
 from .core import Adb, AdbError, Store, now
+
+
+def usable_serial(value):
+    value = (value or '').strip()
+    if not re.fullmatch(r'[A-Za-z0-9._-]{5,80}', value):
+        return ''
+    if value.lower() in {'unknown', 'null', 'none', 'android', '0123456789', '0123456789abcdef', '1234567890', 'serial', 'default'} or len(set(value)) == 1:
+        return ''
+    return value
+
+
+def identity_from_properties(properties):
+    hardware = usable_serial(properties.get('ro.serialno'))
+    boot = usable_serial(properties.get('ro.boot.serialno'))
+    # Dos fuentes que discrepan requieren revisión, no asociación automática.
+    conflict = bool(hardware and boot and hardware != boot)
+    return dict(hardware_serial=hardware or boot, manufacturer=properties.get('ro.product.manufacturer', ''),
+                hardware_model=properties.get('ro.product.model', ''), identity_conflict=conflict)
 
 
 def listeners():
@@ -67,7 +86,15 @@ def scan_fleet(ports, progress=None, discover=True):
     devices = [d for _, rows in responses for d in rows]
 
     def validate(device):
-        return dict(Adb(device['port']).validate(device), port=device['port'])
+        result = dict(Adb(device['port']).validate(device), port=device['port'])
+        if result['status'] == 'Validado':
+            try:
+                raw = shell(Adb(device['port']), device['serial'], 'getprop')
+                properties = dict(re.findall(r'^\[([^]]+)\]: \[(.*)\]\r?$', raw, re.M))
+                result.update(identity_from_properties(properties))
+            except Exception:
+                result['hardware_serial'] = ''
+        return result
 
     results = []
     with ThreadPoolExecutor(max_workers=4) as pool:
@@ -173,7 +200,7 @@ class FleetStore(Store):
         super().__init__(path)
         with self.connect() as db:
             version = db.execute('PRAGMA user_version').fetchone()[0]
-        if version > 2:
+        if version > 3:
             raise ValueError('La base pertenece a una versión más nueva. Usa la versión compatible del programa.')
         if version < 2:
             self.backup(self.path.with_name(self.path.stem + '-antes-v2.sqlite3'))
@@ -197,11 +224,35 @@ class FleetStore(Store):
                     db.execute('INSERT INTO connections VALUES (?,?,?,?,?,?,?,?,?)', (port, row['serial'], identifier, row['model'], row['android'], 'Pendiente de verificar', row['detail'], row['last_seen'], row['last_check']))
                     for event in db.execute('SELECT * FROM events WHERE serial=?', (row['serial'],)).fetchall():
                         db.execute('INSERT INTO connection_events(device_id,at,status,detail) VALUES (?,?,?,?)', (identifier, event['at'], event['status'], event['detail']))
+        if version < 3:
+            self.backup(self.path.with_name(self.path.stem + '-antes-v3.sqlite3'))
+            with self.connect() as db:
+                db.executescript('''
+                    CREATE TABLE device_identity(device_id TEXT PRIMARY KEY,hardware_serial TEXT NOT NULL,
+                        manufacturer TEXT NOT NULL,model TEXT NOT NULL,state TEXT NOT NULL,at TEXT NOT NULL);
+                    PRAGMA user_version=3;
+                ''')
+                for device in db.execute('SELECT id FROM inventory_devices').fetchall():
+                    snapshot = db.execute('SELECT id FROM snapshots WHERE device_id=? ORDER BY id DESC LIMIT 1', (device['id'],)).fetchone()
+                    if snapshot:
+                        observations = db.execute('SELECT field,value FROM observations WHERE snapshot_id=? AND state=?', (snapshot['id'], 'Disponible')).fetchall()
+                        values = {o['field']:o['value'] for o in observations}
+                        identity = identity_from_properties({'ro.serialno':values.get('Serie hardware',''), 'ro.boot.serialno':values.get('Serie de arranque',''), 'ro.product.manufacturer':values.get('Fabricante',''), 'ro.product.model':values.get('Modelo','')})
+                        self._save_identity(db,device['id'],identity,now())
+
+    @staticmethod
+    def _save_identity(db, identifier, data, stamp):
+        serial = usable_serial(data.get('hardware_serial'))
+        if not serial:
+            return
+        state = 'Fuentes en conflicto' if data.get('identity_conflict') else 'Serial leído'
+        db.execute('INSERT OR REPLACE INTO device_identity VALUES (?,?,?,?,?,?)', (identifier,serial,data.get('manufacturer',''),data.get('hardware_model',''),state,stamp))
 
     def save_fleet(self, report):
         stamp = now()
         successful = {s['port'] for s in report['servers'] if s['status'] == 'ADB responde'}
         seen = {(d['port'], d['serial']) for d in report['devices']}
+        serial_counts = Counter(usable_serial(d.get('hardware_serial')) for d in report['devices'] if usable_serial(d.get('hardware_serial')))
         with self.connect() as db:
             queried = {s['port'] for s in report['servers']}
             for old in db.execute('SELECT port FROM servers').fetchall():
@@ -218,18 +269,48 @@ class FleetStore(Store):
                         db.execute('INSERT INTO connection_events(device_id,at,status,detail) VALUES (?,?,?,?)', (row['device_id'], stamp, status, detail))
             for d in report['devices']:
                 row = db.execute('SELECT device_id FROM connections WHERE port=? AND serial=?', (d['port'], d['serial'])).fetchone()
+                hardware = usable_serial(d.get('hardware_serial'))
+                # Una IP reutilizada no debe sobrescribir la identidad de la ficha.
+                if row and hardware:
+                    previous = db.execute('SELECT hardware_serial FROM device_identity WHERE device_id=?', (row['device_id'],)).fetchone()
+                    if previous and previous['hardware_serial'] != hardware:
+                        d = dict(d, status='Identidad en conflicto', detail='La conexión ahora declara otro serial físico. Revisa la placa antes de inventariarla.')
+                        hardware = ''
                 identifier = row['device_id'] if row else str(uuid.uuid4())
+                matched = False
                 if not row:
-                    db.execute('INSERT INTO inventory_devices VALUES (?,?,?)', (identifier, '', stamp))
+                    candidates = db.execute('SELECT * FROM device_identity WHERE hardware_serial=?', (hardware,)).fetchall() if hardware else []
+                    if len(candidates) == 1 and serial_counts[hardware] == 1 and not d.get('identity_conflict'):
+                        candidate = candidates[0]
+                        same_metadata = (candidate['manufacturer'] and candidate['model'] and candidate['manufacturer'] == d.get('manufacturer') and candidate['model'] == d.get('hardware_model'))
+                        active = db.execute("SELECT port,serial FROM connections WHERE device_id=?", (candidate['device_id'],)).fetchall()
+                        absence_confirmed = all(c['port'] in successful and (c['port'], c['serial']) not in seen for c in active)
+                        if same_metadata and candidate['state'] == 'Serial leído' and absence_confirmed:
+                            identifier, matched = candidate['device_id'], True
+                    if not matched:
+                        db.execute('INSERT INTO inventory_devices VALUES (?,?,?)', (identifier, '', stamp))
                 db.execute('''INSERT INTO connections VALUES (?,?,?,?,?,?,?,?,?) ON CONFLICT(port,serial) DO UPDATE SET
-                    model=excluded.model,android=CASE WHEN excluded.android='' THEN connections.android ELSE excluded.android END,
+                    device_id=excluded.device_id,model=excluded.model,android=CASE WHEN excluded.android='' THEN connections.android ELSE excluded.android END,
                     status=excluded.status,detail=excluded.detail,last_seen=excluded.last_seen,last_check=excluded.last_check''',
                     (d['port'], d['serial'], identifier, d['model'], d['android'], d['status'], d['detail'], stamp, stamp))
+                if d['status'] != 'Identidad en conflicto':
+                    self._save_identity(db,identifier,d,stamp)
                 db.execute('INSERT INTO connection_events(device_id,at,status,detail) VALUES (?,?,?,?)', (identifier, stamp, d['status'], d['detail']))
 
     def fleet_devices(self):
         with self.connect() as db:
-            return [dict(r) for r in db.execute('''SELECT c.*,d.alias,d.id FROM connections c JOIN inventory_devices d ON d.id=c.device_id ORDER BY d.alias,c.port,c.serial''')]
+            rows = [dict(r) for r in db.execute('''SELECT c.*,d.alias,d.id,i.hardware_serial,i.state AS identity_state,i.at AS identity_at
+                FROM connections c JOIN inventory_devices d ON d.id=c.device_id LEFT JOIN device_identity i ON i.device_id=d.id ORDER BY d.alias,c.port,c.serial''')]
+            counts = {r['hardware_serial']:r['n'] for r in db.execute('SELECT hardware_serial,COUNT(*) AS n FROM device_identity GROUP BY hardware_serial')}
+            for row in rows:
+                serial = row['hardware_serial'] or ''
+                duplicate = counts.get(serial,0) > 1
+                state = 'Serial repetido: revisar' if duplicate else row['identity_state'] or 'Sin serial físico'
+                auto = f'Placa {serial}' if serial else f"Equipo {row['id'][:8]}"
+                if duplicate or state == 'Fuentes en conflicto':
+                    auto += f" · {row['id'][:8]}"
+                row.update(display_name=row['alias'] or auto, auto_name=auto, identity_state=state)
+            return rows
 
     def servers(self):
         with self.connect() as db:
@@ -247,6 +328,9 @@ class FleetStore(Store):
         with self.connect() as db:
             cursor = db.execute('INSERT INTO snapshots(device_id,port,serial,at) VALUES (?,?,?,?)', (identifier, port, serial, now()))
             db.executemany('INSERT INTO observations VALUES (?,?,?,?,?,?)', [(cursor.lastrowid, o['field'], o['value'], o['state'], o['source'], o['at']) for o in observations])
+            values = {o['field']:o['value'] for o in observations if o['state'] == 'Disponible'}
+            identity = identity_from_properties({'ro.serialno':values.get('Serie hardware',''), 'ro.boot.serialno':values.get('Serie de arranque',''), 'ro.product.manufacturer':values.get('Fabricante',''), 'ro.product.model':values.get('Modelo','')})
+            self._save_identity(db,identifier,identity,now())
 
     def inventory(self, identifier):
         with self.connect() as db:

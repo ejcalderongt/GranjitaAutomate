@@ -12,5 +12,7 @@
 - [ ] Reconciliar los 41 registros de Panda con los 33 dispositivos accesibles detectados en ambos servidores.
 - [x] Fase 2: implementar inventario detallado con evidencias, identidad interna independiente de IP e historial de cambios; ver docs/version-2.md. La asociación física entre transportes es manual y explícita.
 - [x] Mostrar estado de servidores ADB, puertos, PID disponible y conexiones por servidor.
+- [x] Proponer nombres por serial físico, preservar alias y verificar correspondencias antes de asociar cambios de IP.
+- [ ] Revisar manualmente las fichas con serial repetido y la conexión con identidad en conflicto detectadas en v2.1.
 - [ ] Evaluar piloto de tareas mediante ADB/Automate frente a agente Android propio en una aplicación de prueba.
 - [ ] Fase 3: definir proveedor de IA, manejo de credenciales, contexto permitido y ejecución supervisada.

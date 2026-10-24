@@ -5,7 +5,7 @@ from unittest.mock import patch
 import sqlite3
 
 from granjita.core import Store
-from granjita.inventory import FleetStore, collect_inventory, scan_fleet
+from granjita.inventory import FleetStore, collect_inventory, scan_fleet, usable_serial
 
 
 def device(port=5037, serial='example'):
@@ -36,7 +36,7 @@ class InventoryTests(TestCase):
         again = FleetStore(self.path)
         self.assertEqual(len(again.fleet_devices()), 1)
         with again.connect() as db:
-            self.assertEqual(db.execute('PRAGMA user_version').fetchone()[0], 2)
+            self.assertEqual(db.execute('PRAGMA user_version').fetchone()[0], 3)
 
     def test_failed_server_does_not_disconnect_its_devices(self):
         store = FleetStore(self.path)
@@ -96,7 +96,49 @@ class InventoryTests(TestCase):
             if adb.port == 5038:
                 raise OSError('No responde')
             return [dict(serial='example',model='Board',state='device')]
-        with patch('granjita.inventory.Adb.devices',devices), patch('granjita.inventory.Adb.validate',lambda adb,d:dict(d,status='Validado',android='12',detail='OK')):
+        with patch('granjita.inventory.Adb.devices',devices), patch('granjita.inventory.shell',return_value=''), patch('granjita.inventory.Adb.validate',lambda adb,d:dict(d,status='Validado',android='12',detail='OK')):
             result = scan_fleet([5037,5038], discover=False)
         self.assertEqual(result['devices'][0]['port'],5037)
         self.assertEqual(result['servers'][1]['status'],'No disponible')
+
+    def test_auto_name_alias_and_reconnection_after_ip_change(self):
+        store = FleetStore(self.path)
+        first = dict(device(serial='192.0.2.1:5555'),hardware_serial='TESTSERIAL01',manufacturer='Test',hardware_model='Board')
+        store.save_fleet(report([first]))
+        original = store.fleet_devices()[0]
+        self.assertEqual(original['display_name'],'Placa TESTSERIAL01')
+        store.rename_device(original['id'],'Mesa 1')
+        store.save_fleet(report([dict(first,serial='192.0.2.2:5555')]))
+        rows = store.fleet_devices()
+        self.assertEqual(len({r['id'] for r in rows}),1)
+        self.assertEqual(rows[-1]['display_name'],'Mesa 1')
+        store.rename_device(original['id'],'')
+        self.assertEqual(store.fleet_devices()[0]['display_name'],'Placa TESTSERIAL01')
+
+    def test_duplicate_serial_is_flagged_and_not_merged(self):
+        store = FleetStore(self.path)
+        first = dict(device(),hardware_serial='TESTSERIAL01',manufacturer='Test',hardware_model='Board')
+        store.save_fleet(report([first,dict(first,serial='other')]))
+        rows = store.fleet_devices()
+        self.assertEqual(len({r['id'] for r in rows}),2)
+        self.assertTrue(all(r['identity_state']=='Serial repetido: revisar' for r in rows))
+        self.assertNotEqual(rows[0]['display_name'],rows[1]['display_name'])
+
+    def test_reused_ip_cannot_overwrite_physical_identity(self):
+        store = FleetStore(self.path)
+        first = dict(device(),hardware_serial='TESTSERIAL01',manufacturer='Test',hardware_model='Board')
+        store.save_fleet(report([first]))
+        store.save_fleet(report([dict(first,hardware_serial='TESTSERIAL02')]))
+        row = store.fleet_devices()[0]
+        self.assertEqual(row['hardware_serial'],'TESTSERIAL01')
+        self.assertEqual(row['status'],'Identidad en conflicto')
+
+    def test_invalid_serial_uses_internal_unique_name(self):
+        self.assertEqual(usable_serial('unknown'),'')
+        self.assertEqual(usable_serial('0000000000'),'')
+        self.assertEqual(usable_serial('0123456789ABCDEF'),'')
+        store = FleetStore(self.path)
+        store.save_fleet(report([device(),device(serial='other')]))
+        names = [r['display_name'] for r in store.fleet_devices()]
+        self.assertTrue(all(n.startswith('Equipo ') for n in names))
+        self.assertEqual(len(set(names)),2)

@@ -59,11 +59,11 @@ class InventoryWorker(QThread):
 class InventoryDialog(QDialog):
     def __init__(self, store, row, parent=None):
         super().__init__(parent)
-        self.setWindowTitle('Ficha de inventario · ' + (row['alias'] or row['serial']))
+        self.setWindowTitle('Ficha de inventario · ' + row['display_name'])
         self.resize(1080, 680)
         layout = QVBoxLayout(self)
         observations, snapshot, count = store.inventory(row['id'])
-        identity = QLabel(f"Identidad interna: {row['id']}\nConexión seleccionada: localhost:{row['port']} → {row['serial']}")
+        identity = QLabel(f"Nombre: {row['display_name']} · Serial físico: {row['hardware_serial'] or 'No disponible'} · {row['identity_state']}\nIdentidad interna: {row['id']}\nConexión seleccionada: localhost:{row['port']} → {row['serial']}")
         identity.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         layout.addWidget(identity)
         caption = f"Última captura: {snapshot['at']} · origen :{snapshot['port']} · Valores históricos hasta actualizar" if snapshot else 'Sin inventario todavía. Cierra y pulsa Inventariar seleccionada o Inventariar todas.'
@@ -120,7 +120,7 @@ class Window(QMainWindow):
         self.store = store or FleetStore()
         self.worker = None
         self.fresh = False
-        self.setWindowTitle('GranjitaAutomate · v2.0')
+        self.setWindowTitle('GranjitaAutomate · v2.1')
         self.resize(1280, 900)
         central = QWidget()
         self.setCentralWidget(central)
@@ -130,7 +130,7 @@ class Window(QMainWindow):
         title = QLabel('GranjitaAutomate')
         title.setObjectName('title')
         layout.addWidget(title)
-        layout.addWidget(QLabel('Inventario de tu granja · Conexiones de Panda · Versión 2.0'))
+        layout.addWidget(QLabel('Inventario de tu granja · Conexiones de Panda · Versión 2.1'))
         self.summary = QLabel('Listo para buscar tus placas')
         self.summary.setObjectName('summary')
         layout.addWidget(self.summary)
@@ -160,8 +160,8 @@ class Window(QMainWindow):
         self.filter.setPlaceholderText('Filtrar por nombre, dispositivo, modelo o puerto…')
         self.filter.textChanged.connect(self.render)
         layout.addWidget(self.filter)
-        self.table = QTableWidget(0, 8)
-        self.table.setHorizontalHeaderLabels(['Nombre', 'Dispositivo', 'Puerto / acceso', 'Modelo', 'Android', 'Estado', 'Inventario', 'Comprobación'])
+        self.table = QTableWidget(0, 9)
+        self.table.setHorizontalHeaderLabels(['Nombre', 'Serial físico', 'Conexión ADB', 'Puerto / acceso', 'Modelo', 'Android', 'Estado', 'Inventario', 'Comprobación'])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
@@ -207,7 +207,7 @@ class Window(QMainWindow):
         selected = (self.selected()['port'], self.selected()['serial']) if hasattr(self, 'rows') and self.selected() else None
         all_rows = self.store.fleet_devices()
         query = self.filter.text().lower() if hasattr(self, 'filter') else ''
-        self.rows = [r for r in all_rows if query in f"{r['alias']} {r['serial']} {r['model']} {r['port']}".lower()]
+        self.rows = [r for r in all_rows if query in f"{r['display_name']} {r['hardware_serial']} {r['serial']} {r['model']} {r['port']}".lower()]
         self.server_table.setRowCount(0)
         for i, server in enumerate(self.store.servers()):
             self.server_table.insertRow(i)
@@ -224,11 +224,11 @@ class Window(QMainWindow):
             checked = row['last_check'][11:19] + ' · GT'
             _, snapshot, _ = self.store.inventory(row['id'])
             inventory_at = snapshot['at'][11:19] + ' · GT' if snapshot else 'Sin captura'
-            values = [row['alias'] or 'Sin nombre', row['serial'], transport, row['model'], row['android'], row['status'] if self.fresh else 'Pendiente de verificar', inventory_at, checked]
+            values = [row['display_name'], row['hardware_serial'] or 'No disponible', row['serial'], transport, row['model'], row['android'], row['status'] if self.fresh else 'Pendiente de verificar', inventory_at, checked]
             for j, value in enumerate(values):
                 item = QTableWidgetItem(value)
-                item.setToolTip(row['last_check'] if j == 7 else snapshot['at'] if j == 6 and snapshot else value)
-                if j == 5:
+                item.setToolTip(row['last_check'] if j == 8 else snapshot['at'] if j == 7 and snapshot else f"{row['identity_state']} · Leído: {row['identity_at']}" if j == 1 else value)
+                if j == 6:
                     item.setForeground(QColor(colors.get(value, '#b45309')))
                 self.table.setItem(i, j, item)
             if (row['port'], row['serial']) == selected:
@@ -289,14 +289,14 @@ class Window(QMainWindow):
         row = self.selected()
         if row:
             prefix = '' if self.fresh else 'Registro histórico; falta comprobar el estado actual.\n'
-            self.detail.setText(prefix + row['detail'])
+            self.detail.setText(prefix + row['identity_state'] + ' · ' + row['detail'])
 
     def rename(self, *_):
         row = self.selected()
         if not row:
             QMessageBox.information(self, 'Selecciona una placa', 'Selecciona primero una fila de la lista.')
             return
-        text, ok = QInputDialog.getText(self, 'Nombre de la placa', 'Nombre fácil de reconocer:', text=row['alias'])
+        text, ok = QInputDialog.getText(self, 'Nombre de la placa', f"Nombre automático: {row['auto_name']}\nAlias opcional (déjalo vacío para usar el serial):", text=row['alias'])
         if ok:
             self.store.rename_device(row['id'], text.strip()[:100])
             self.render()
@@ -308,7 +308,7 @@ class Window(QMainWindow):
         records = self.store.device_history(row['id'])
         box = QMessageBox(self)
         box.setWindowTitle('Historial de la placa')
-        box.setText(row['alias'] or row['serial'])
+        box.setText(row['display_name'])
         box.setInformativeText('Últimas 100 comprobaciones. Abre los detalles para consultarlas.')
         box.setDetailedText('\n\n'.join(f"{r['at']} · {r['status']}\n{r['detail']}" for r in records))
         box.exec()
@@ -395,7 +395,7 @@ class Window(QMainWindow):
         if not row:
             return
         candidates = {r['id']: r for r in self.store.fleet_devices() if r['id'] != row['id']}
-        choices = {f"{r['alias'] or r['serial']} · {r['id'][:8]}": identifier for identifier, r in candidates.items()}
+        choices = {f"{r['display_name']} · {r['id'][:8]}": identifier for identifier, r in candidates.items()}
         if not choices:
             return
         choice, ok = QInputDialog.getItem(self, 'Asociación física', 'Elige la ficha del MISMO dispositivo físico. Revisa los números de serie en ambas fichas:', list(choices), 0, False)
