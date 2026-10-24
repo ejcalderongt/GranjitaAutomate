@@ -4,4 +4,5 @@
 - [ ] Confirmar activación de Panda VIP.
 - [ ] Incorporar documentación y herramientas previas que el usuario identifique.
 - [ ] Definir y documentar el primer trabajo técnico.
-- [ ] Validar la propuesta de docs/propuesta-conexion.md y confirmar USB, red o ambas como conexión de las placas.
+- [x] Validar arquitectura y conexión principal: OTG mediante el proceso de Panda.
+- [ ] Inspeccionar el proceso OTG de Panda y comprobar qué ADB usa y cómo expone las placas, sin interrumpir conexiones existentes.

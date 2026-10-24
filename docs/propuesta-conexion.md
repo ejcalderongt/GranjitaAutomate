@@ -1,6 +1,10 @@
 # Propuesta: asistente de conexión
 
-Fecha: 2026-10-23. Estado: recomendación pendiente de validación con el usuario; sin implementación.
+Fecha: 2026-10-23. Estado: arquitectura aprobada por el usuario; sin implementación.
+
+## Decisión aprobada
+
+Las placas deben permanecer conectadas vía OTG mediante el proceso de Panda. El asistente acompañará ese flujo, detectará los dispositivos y validará su disponibilidad. Falta inspeccionar cómo Panda expone esas conexiones a ADB; no se presupone una API ni acceso ADB compatible hasta verificarlo.
 
 ## Objetivo
 
@@ -16,10 +20,10 @@ Programa de escritorio para Windows, amigable y semiautomático, que detecte dis
 ## Flujo propuesto
 
 1. Revisar instalación y versión de ADB, considerando la instalación que usa Panda.
-2. Detectar equipos USB y permitir conexión a direcciones de red conocidas.
+2. Detectar las placas conectadas vía OTG mediante Panda, una vez verificado el acceso compatible a ADB.
 3. Mostrar estados: detectado, pendiente de autorización, sin respuesta y validado.
 4. Validar cada equipo con una consulta real y tiempo límite; aparecer en la lista de ADB no basta.
-5. Guiar al usuario para autorizar en Android, revisar cableado o emparejar cuando corresponda.
+5. Guiar al usuario para autorizar en Android, revisar cableado o completar el proceso de Panda cuando corresponda.
 6. Permitir alias por placa, reintentos limitados y verificación posterior.
 7. Mostrar resumen de conectados, pendientes y fallidos, con diagnóstico comprensible.
 
@@ -27,7 +31,7 @@ No reiniciar globalmente el servidor ADB como recuperación automática: puede a
 
 ## Información pendiente
 
-Confirmar si las placas se conectan por USB, red o ambas, versión Android y forma de conexión actual en Panda antes de implementar el asistente.
+Inspeccionar el proceso OTG de Panda, ubicación y versión de su ADB, visibilidad de las placas y versiones Android antes de implementar la conexión. La conexión por red no es parte del flujo inicial solicitado.
 
 ## Referencias
 

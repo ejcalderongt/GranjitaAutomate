@@ -15,6 +15,14 @@ El 2026-10-23 el usuario solicitó respaldar y organizar el conocimiento y lo qu
 
 ## Por confirmar
 
+## Decisiones confirmadas el 2026-10-23
+
+- El usuario aprobó Python + PySide6, ADB, scrcpy opcional y SQLite como arquitectura propuesta.
+- La intención es mantener las placas conectadas vía OTG mediante el proceso de Panda.
+- La compatibilidad concreta entre ese proceso y el acceso ADB de nuestra aplicación todavía requiere inspección.
+
+## Datos técnicos por confirmar
+
 - Inventario actual de placas, modelos, versiones Android y conectividad.
 - Estado de activación y funciones disponibles en Panda VIP.
 - Herramientas existentes, configuración ADB y trabajo previo fuera de este repositorio.
