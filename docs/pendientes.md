@@ -8,3 +8,5 @@
 - [x] Localizar ADB de Panda y comprobar acceso no disruptivo al servidor local existente.
 - [ ] Probar con el usuario el flujo físico OTG y la recuperación guiada de una placa desconectada o sin autorización.
 - [ ] Integrar visualización opcional con scrcpy si se necesita además de Panda.
+- [ ] Corregir detección para combinar servidores ADB 5037 y 5038, conservar origen y evitar falsos desconectados entre servidores.
+- [ ] Reconciliar los 41 registros de Panda con los 33 dispositivos accesibles detectados en ambos servidores.
