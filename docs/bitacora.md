@@ -40,3 +40,7 @@
 ## 2026-10-24 · Arranque y conciliación v2.4
 
 Se agregó apertura de Panda cuando falta, reconexión acotada de transportes conocidos, comparación con API, activos primero y en verde, diagnóstico por fila y resumen separado de seriales/transportes. Se corrigió la duplicación de candidatos detectada durante la prueba real. Se inspeccionó USB de Windows sin identificar telemetría eléctrica por ranura. Ver docs/arranque-y-rack.md; no se realizó apagado físico y no se atribuyen fallos de energía sin medición. Validación: 37 pruebas con salida 0 y comprobación del panel.
+
+## 2026-10-24 · Referencia visual del chasis
+
+El usuario no observa marca/modelo. Se registró la variante visible «20-phone farm» y los límites de identificación; las publicaciones semejantes no prueban fabricante ni capacidades eléctricas. Pendiente enlace/ASIN o etiquetas/conexiones externas para identificar controlador. No se almacenaron capturas privadas del pedido ni se cambiaron configuraciones de las placas.

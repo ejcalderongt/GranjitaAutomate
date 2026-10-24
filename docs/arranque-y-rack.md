@@ -25,3 +25,11 @@ Próximo inventario físico: rack, ranura, serial, cable, hub/puerto y canal de 
 37 pruebas automatizadas pasan con salida 0. Se ejecutó conciliación real y se comprobó renderizado de once columnas y orden de activos. La primera prueba reintentó transportes históricos en varios orígenes y expuso duplicados de conexión; se corrigió para deduplicar candidatos por serial físico y omitir placas ya accesibles. No se desconectaron transportes existentes para limpiar esa observación ni se contó cada transporte como placa. Quedan pendientes la prueba física tras corte completo y verificar el controlador del rack.
 
 Referencias oficiales: https://doc.some3c.com/panda-manual/api-documentation y https://developer.android.com/tools/adb (conexión/arquitectura ADB).
+
+## Identificación visual aportada por el usuario · 2026-10-24
+
+El usuario indicó que no encuentra marca ni modelo físicamente. Aportó dos capturas de un anuncio/pedido de Amazon: el título visible es «Android Phone Farm Server Box System Farming Machines Hub U…» y la variante indica «20-phone farm». La imagen muestra un chasis de placas verticales y ventilación superior. No se distingue una referencia de controlador, fuente, puertos ni etiquetas eléctricas. La imagen comercial no demuestra que el interior de las unidades instaladas coincida exactamente.
+
+Una búsqueda por el título encontró publicaciones de aspecto/nombre semejantes con varias variantes y vendedores; no permitió identificar inequívocamente la unidad ni hallar su manual de controlador. No se asigna al rack una marca, potencia, tensión o API a partir de coincidencias comerciales. Las capturas del pedido se mantienen fuera del repositorio.
+
+Siguiente evidencia útil: enlace del artículo original o ASIN de Amazon (habitualmente B0…), y fotografías externas de conexiones, interruptores e indicadores de una unidad. El enlace/ASIN ayuda a identificar al proveedor; no requiere datos del pedido, dirección ni pago. Si no hay controlador documentado, se mantiene diagnóstico por software y prueba física guiada; energía y corriente por ranura siguen desconocidas.

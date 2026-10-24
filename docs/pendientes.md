@@ -26,3 +26,4 @@
 - [x] Implementar conciliación al iniciar, apertura de Panda, reintentos acotados y activos primero con diagnóstico.
 - [ ] Probar recuperación tras apagado completo de PC/rack; verificar si requiere botón físico y configuración OTG persistente.
 - [ ] Identificar marca/modelo/controlador del rack, mapear ranuras a seriales y verificar telemetría de energía por canal.
+- [ ] Obtener enlace/ASIN del chasis anunciado como «20-phone farm»; el usuario no encuentra marca/modelo físico. No asumir API eléctrica por apariencia.
