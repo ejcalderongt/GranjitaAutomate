@@ -1,0 +1,27 @@
+# Arranque, conciliación y diagnóstico del rack
+
+Fecha: 2026-10-24, America/Guatemala. Versión 2.4.
+
+Al iniciar y al pulsar Conciliar y conectar, la aplicación comprueba el proceso de Panda, lo abre si falta y conoce su ruta, consulta su API y descubre los servidores ADB. Reintenta conexiones TCP privadas previamente inventariadas solamente en un servidor de origen que responda. Limita la pasada a 64 destinos y cuatro consultas simultáneas, con tiempos límite. No explora subredes, no reinicia ADB ni activa tcpip/USB por shell. El origen histórico puede cambiar tras un reinicio: si no responde, requiere revisión en Panda, sin redistribuir conexiones a ciegas.
+
+Omite transportes ya presentes y seriales físicos que ya respondan. Entre varias conexiones históricas de una misma placa elige una sola. Tras los intentos valida nuevamente por ADB/getprop; una respuesta de connect no basta para declarar activa. La conciliación conserva las protecciones contra IP reutilizada e identidad en conflicto. Las filas activas se muestran primero y en verde; hay columnas Panda y Diagnóstico / siguiente paso. El resumen separa seriales físicos y transportes. Una ficha histórica puede tener varias conexiones; las filas no equivalen a placas distintas.
+
+La consulta de Panda se repite después de la búsqueda si inicialmente estaba vacía. La pertenencia a su lista y mode=2 indican reconocimiento/método OTG según Panda, no constituyen una medida eléctrica ni bastan para el verde. Un fallo de API se muestra como sin comprobar. Informe local: data/reconciliation-latest.json, excluido de Git.
+
+## Límites de arranque en frío
+
+No se ha realizado un apagado del equipo/rack en esta sesión. No está demostrado todavía que todas las placas arranquen automáticamente tras recuperar energía. El flujo esperado es encender PC y fuente/rack, pulsar el botón físico de encendido si ese modelo lo exige, abrir GranjitaAutomate y esperar la conciliación. Si Android pierde su configuración o autorización de depuración, o Panda requiere completar OTG, habrá intervención guiada. La API Android documentada consultada no enumera una operación específica para habilitar OTG desde cero. No se prometió automatizar un botón físico sin controlador compatible.
+
+## Energía y socket
+
+Inspección Windows: dos concentradores USB genéricos y un concentrador raíz reportaron OK. No se identificó un controlador de rack con telemetría por socket. Esto no prueba que no exista; falta marca/modelo/manual y correspondencia de ranuras. Un hub enumerado no demuestra tensión/corriente correcta en cada placa; ADB ausente tampoco demuestra falta de energía. dumpsys battery en una placa accesible es evidencia del sistema Android, no una medición independiente de la fuente del rack.
+
+Para una placa que no responde: comprobar indicadores de fuente/rack y tiempo de arranque; comparar con otra placa funcional; revisar cable y conexión OTG/red; probar cable/puerto conocidos siguiendo el manual y con el equipo desenergizado cuando el fabricante lo requiera. Si el fallo sigue a la placa, revisar placa/arranque; si permanece en la ranura, revisar cable/socket/controlador. Confirmar eléctricamente requiere telemetría de corriente/tensión por canal o medición física adecuada. No hay actualmente encendido/corte remoto ni lectura eléctrica implementados.
+
+Próximo inventario físico: rack, ranura, serial, cable, hub/puerto y canal de energía, más interfaz del controlador si existe. No asociar una IP cambiante a un socket sin evidencia.
+
+## Validación y hallazgo
+
+37 pruebas automatizadas pasan con salida 0. Se ejecutó conciliación real y se comprobó renderizado de once columnas y orden de activos. La primera prueba reintentó transportes históricos en varios orígenes y expuso duplicados de conexión; se corrigió para deduplicar candidatos por serial físico y omitir placas ya accesibles. No se desconectaron transportes existentes para limpiar esa observación ni se contó cada transporte como placa. Quedan pendientes la prueba física tras corte completo y verificar el controlador del rack.
+
+Referencias oficiales: https://doc.some3c.com/panda-manual/api-documentation y https://developer.android.com/tools/adb (conexión/arquitectura ADB).

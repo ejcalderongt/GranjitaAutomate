@@ -36,3 +36,7 @@
 - Auditoría final: los cinco paquetes están instalados en las 33 conexiones accesibles, incluidas tres verificadas por coincidencia de Panda onlySerial y getprop. No se copiaron datos de cuentas ni se otorgaron permisos de Automate.
 - Se completó una receta JSON real de laboratorio y se verificó su almacenamiento inmutable con hash. Se agregó carga de recetas en el panel. V2.3 incluye API Panda de lectura y guía de perfiles/recetas.
 - Se aprobaron 33 pruebas con código de salida 0. Se ajustó la liberación de trabajadores Qt y la limpieza de las pruebas de interfaz para evitar un fallo al cerrar el proceso de pruebas.
+
+## 2026-10-24 · Arranque y conciliación v2.4
+
+Se agregó apertura de Panda cuando falta, reconexión acotada de transportes conocidos, comparación con API, activos primero y en verde, diagnóstico por fila y resumen separado de seriales/transportes. Se corrigió la duplicación de candidatos detectada durante la prueba real. Se inspeccionó USB de Windows sin identificar telemetría eléctrica por ranura. Ver docs/arranque-y-rack.md; no se realizó apagado físico y no se atribuyen fallos de energía sin medición. Validación: 37 pruebas con salida 0 y comprobación del panel.

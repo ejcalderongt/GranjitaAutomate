@@ -19,13 +19,16 @@ class ScanWorker(QThread):
     failed = Signal(str)
     progress = Signal(int, int)
 
-    def __init__(self, ports):
+    def __init__(self, ports, known=None, panda_path=None):
         super().__init__()
         self.ports = ports
+        self.known = known or []
+        self.panda_path = panda_path
 
     def run(self):
         try:
-            self.completed.emit(scan_fleet(self.ports, self.progress.emit))
+            from .reconciliation import reconcile
+            self.completed.emit(reconcile(self.ports, self.known, self.panda_path, self.progress.emit))
         except Exception as exc:
             self.failed.emit(str(exc))
 
@@ -120,7 +123,8 @@ class Window(QMainWindow):
         self.store = store or FleetStore()
         self.worker = None
         self.fresh = False
-        self.setWindowTitle('GranjitaAutomate · v2.3')
+        self.reconciliation = {}
+        self.setWindowTitle('GranjitaAutomate · v2.4')
         self.resize(1280, 900)
         central = QWidget()
         self.setCentralWidget(central)
@@ -130,7 +134,7 @@ class Window(QMainWindow):
         title = QLabel('GranjitaAutomate')
         title.setObjectName('title')
         layout.addWidget(title)
-        layout.addWidget(QLabel('Inventario de tu granja · API Panda y laboratorio · Versión 2.3'))
+        layout.addWidget(QLabel('Inventario de tu granja · API Panda y laboratorio · Versión 2.4'))
         self.summary = QLabel('Listo para buscar tus placas')
         self.summary.setObjectName('summary')
         layout.addWidget(self.summary)
@@ -141,7 +145,7 @@ class Window(QMainWindow):
         self.server_table.setMaximumHeight(130)
         layout.addWidget(self.server_table)
         toolbar = QHBoxLayout()
-        self.scan_button = QPushButton('Buscar y validar / Reintentar')
+        self.scan_button = QPushButton('Conciliar y conectar / Reintentar')
         self.scan_button.clicked.connect(self.scan)
         toolbar.addWidget(self.scan_button)
         panda = QPushButton('Abrir Panda')
@@ -160,8 +164,8 @@ class Window(QMainWindow):
         self.filter.setPlaceholderText('Filtrar por nombre, dispositivo, modelo o puerto…')
         self.filter.textChanged.connect(self.render)
         layout.addWidget(self.filter)
-        self.table = QTableWidget(0, 9)
-        self.table.setHorizontalHeaderLabels(['Nombre', 'Serial físico', 'Conexión ADB', 'Puerto / acceso', 'Modelo', 'Android', 'Estado', 'Inventario', 'Comprobación'])
+        self.table = QTableWidget(0, 11)
+        self.table.setHorizontalHeaderLabels(['Nombre', 'Serial físico', 'Conexión ADB', 'Puerto / acceso', 'Modelo', 'Android', 'Estado', 'Inventario', 'Comprobación', 'Panda', 'Diagnóstico / siguiente paso'])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
@@ -183,7 +187,7 @@ class Window(QMainWindow):
             identity_actions.addWidget(button)
         identity_actions.addStretch()
         layout.addLayout(identity_actions)
-        self.detail = QLabel('1. Abre Panda.  2. Completa la conexión OTG.  3. Pulsa Buscar y validar.')
+        self.detail = QLabel('Al iniciar se intenta abrir Panda y recuperar conexiones conocidas. Selecciona una fila para consultar el diagnóstico.')
         self.detail.setWordWrap(True)
         self.detail.setMinimumHeight(45)
         layout.addWidget(self.detail)
@@ -206,10 +210,12 @@ class Window(QMainWindow):
     def render(self):
         selected = (self.selected()['port'], self.selected()['serial']) if hasattr(self, 'rows') and self.selected() else None
         all_rows = self.store.fleet_devices()
+        all_rows.sort(key=lambda r: (r['status'] != 'Validado', r['display_name'].lower(), r['port']))
+        from .reconciliation import diagnosis
         query = self.filter.text().lower() if hasattr(self, 'filter') else ''
         self.rows = [r for r in all_rows if query in f"{r['display_name']} {r['hardware_serial']} {r['serial']} {r['model']} {r['port']}".lower()]
         self.server_table.setRowCount(0)
-        for i, server in enumerate(self.store.servers()):
+        for i, server in enumerate(sorted(self.store.servers(), key=lambda s: (s['status'] != 'ADB responde', s['port']))):
             self.server_table.insertRow(i)
             values = [f"127.0.0.1:{server['port']}", str(server['pid'] or 'No disponible'), server['status'] if self.fresh else 'Pendiente de verificar', str(server['count']) if self.fresh else '—', server['at'][11:19] + ' · GT']
             for j, value in enumerate(values):
@@ -225,8 +231,12 @@ class Window(QMainWindow):
             _, snapshot, _ = self.store.inventory(row['id'])
             inventory_at = snapshot['at'][11:19] + ' · GT' if snapshot else 'Sin captura'
             values = [row['display_name'], row['hardware_serial'] or 'No disponible', row['serial'], transport, row['model'], row['android'], row['status'] if self.fresh else 'Pendiente de verificar', inventory_at, checked]
+            recognition, advice = diagnosis(row, self.reconciliation.get('panda', []), bool(self.reconciliation) and not self.reconciliation.get('panda_error'))
+            values.extend([recognition if self.fresh else 'Sin comprobar', advice if self.fresh else 'Estado histórico: esperando conciliación.'])
             for j, value in enumerate(values):
                 item = QTableWidgetItem(value)
+                if self.fresh and row['status'] == 'Validado':
+                    item.setBackground(QColor('#dcfce7'))
                 item.setToolTip(row['last_check'] if j == 8 else snapshot['at'] if j == 7 and snapshot else f"{row['identity_state']} · Leído: {row['identity_at']}" if j == 1 else value)
                 if j == 6:
                     item.setForeground(QColor(colors.get(value, '#b45309')))
@@ -237,7 +247,8 @@ class Window(QMainWindow):
             valid = sum(r['status'] == 'Validado' for r in all_rows)
             absent = sum(r['status'] == 'Desconectado' for r in all_rows)
             identities = len({r['id'] for r in all_rows})
-            self.summary.setText(f'{valid} conexiones validadas   ·   {len(all_rows)-valid-absent} requieren atención   ·   {absent} desconectadas   ·   {identities} fichas')
+            physical = len({r['hardware_serial'] for r in all_rows if r['status'] == 'Validado' and r['hardware_serial']})
+            self.summary.setText(f'{physical} seriales físicos activos · {valid} conexiones validadas   ·   {len(all_rows)-valid-absent} requieren atención   ·   {absent} desconectadas   ·   {identities} fichas')
         else:
             self.summary.setText(f'{len(self.rows)} placas guardadas · Pendientes de verificar')
 
@@ -249,7 +260,8 @@ class Window(QMainWindow):
         self.progress.show()
         self.notice.setText('Buscando servidores ADB activos y validando sus conexiones…')
         ports = self.ports()
-        self.worker = ScanWorker(ports)
+        panda_path = self.store.setting('panda') or str(Path(os.environ.get('ProgramFiles(x86)', 'C:/Program Files (x86)')) / 'panda_android' / 'touping.exe')
+        self.worker = ScanWorker(ports, self.store.fleet_devices(), panda_path)
         self.worker.progress.connect(self.update_progress)
         self.worker.completed.connect(self.scanned)
         self.worker.failed.connect(self.scan_failed)
@@ -281,10 +293,12 @@ class Window(QMainWindow):
     def scanned(self, results):
         try:
             self.store.save_fleet(results)
+            self.reconciliation = results.get('reconciliation', {})
             self.fresh = True
             self.render()
             count = len(results['devices'])
-            self.notice.setText(f"Búsqueda completada: {count} conexiones detectadas. {results['warning']}")
+            rec = self.reconciliation
+            self.notice.setText(f"Conciliación: {count} transportes detectados · {len(rec.get('attempts', []))} reconexiones intentadas · Panda: {len(rec.get('panda', [])) if not rec.get('panda_error') else 'sin verificar'}. {results['warning']} " + ' '.join(rec.get('notes', [])) + (' API: ' + rec['panda_error'] if rec.get('panda_error') else ''))
             if not count:
                 self.detail.setText('No se detectan placas. Abre Panda, completa el proceso OTG y pulsa Reintentar. Si usa otro puerto ADB, ajústalo en Configuración.')
         except Exception as exc:
@@ -298,6 +312,7 @@ class Window(QMainWindow):
         self.detail.setText(f'Diagnóstico: {error}')
 
     def finished(self):
+        self.worker.wait()
         self.worker.deleteLater()
         self.worker = None
         self.scan_button.setEnabled(True)
@@ -307,7 +322,9 @@ class Window(QMainWindow):
         row = self.selected()
         if row:
             prefix = '' if self.fresh else 'Registro histórico; falta comprobar el estado actual.\n'
-            self.detail.setText(prefix + row['identity_state'] + ' · ' + row['detail'])
+            from .reconciliation import diagnosis
+            _, advice = diagnosis(row, self.reconciliation.get('panda', []), not self.reconciliation.get('panda_error'))
+            self.detail.setText(prefix + row['identity_state'] + ' · ' + row['detail'] + '\n' + advice)
 
     def rename(self, *_):
         row = self.selected()
@@ -441,8 +458,8 @@ class Window(QMainWindow):
             '3. Si Android solicita autorización USB, acéptala en la placa desde Panda.\n'
             '4. Pulsa Buscar y validar / Reintentar.\n\n'
             'Validado significa que la placa respondió a una consulta real.\n'
-            'Esta versión acompaña el proceso de Panda; no automatiza sus botones.\n'
-            'No reinicia el servidor ADB ni modifica la configuración USB de las placas.')
+            'Al iniciar abre Panda si falta y reintenta transportes conocidos en su servidor de origen.\n'
+            'No reinicia ADB ni activa físicamente el rack. Sin telemetría no se puede confirmar energía por socket.')
 
     def closeEvent(self, event):
         if self.worker is not None:

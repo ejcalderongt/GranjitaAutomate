@@ -23,3 +23,6 @@
 - [x] Crear perfil y receta JSON reproducibles con previsualización y ejecución tipada de laboratorio.
 - [x] Completar auditoría final de propagación: cinco paquetes en las 33 conexiones accesibles; los permisos de Automate siguen separados de la instalación.
 - [ ] Fase 3: definir proveedor de IA, manejo de credenciales, contexto permitido y ejecución supervisada.
+- [x] Implementar conciliación al iniciar, apertura de Panda, reintentos acotados y activos primero con diagnóstico.
+- [ ] Probar recuperación tras apagado completo de PC/rack; verificar si requiere botón físico y configuración OTG persistente.
+- [ ] Identificar marca/modelo/controlador del rack, mapear ranuras a seriales y verificar telemetría de energía por canal.
