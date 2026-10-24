@@ -1,9 +1,11 @@
 """Panel de pruebas por lote, aislado de aplicaciones sociales reales."""
 import threading
 import time
+import copy
+from pathlib import Path
 from PySide6.QtCore import QThread,Signal,Qt
 from PySide6.QtWidgets import (QDialog,QVBoxLayout,QHBoxLayout,QLabel,QPushButton,QTableWidget,
-    QTableWidgetItem,QHeaderView,QLineEdit,QMessageBox,QPlainTextEdit,QAbstractItemView)
+    QTableWidgetItem,QHeaderView,QLineEdit,QMessageBox,QPlainTextEdit,QAbstractItemView,QFileDialog)
 from .automation import JobStore,run_lab,appium_status,runtime,automate_status,open_automate
 
 
@@ -52,6 +54,7 @@ class AutomationDialog(QDialog):
         self.setWindowTitle('Laboratorio de automatización · v1')
         self.resize(1200,800)
         self.jobs=JobStore()
+        self.recipe=None
         self.worker=None
         self.rows=[]
         identifiers=set()
@@ -89,6 +92,14 @@ class AutomationDialog(QDialog):
         self.comment.setMaxLength(280)
         layout.addWidget(QLabel('Comentario local de prueba:'))
         layout.addWidget(self.comment)
+        recipe_bar=QHBoxLayout()
+        load=QPushButton('Cargar receta JSON')
+        load.clicked.connect(self.load_recipe)
+        recipe_bar.addWidget(load)
+        self.recipe_info=QLabel('Sin receta cargada · parámetros manuales de laboratorio')
+        self.recipe_info.setWordWrap(True)
+        recipe_bar.addWidget(self.recipe_info,1)
+        layout.addLayout(recipe_bar)
         buttons=QHBoxLayout()
         for text,callback in [('Ejecutar prueba local',self.run_batch),('Pausar / continuar',self.toggle_pause),('Cancelar lote',self.cancel_batch),('Diagnosticar Automate',self.probe),('Abrir Automate',lambda:self.probe(True))]:
             button=QPushButton(text)
@@ -126,12 +137,33 @@ class AutomationDialog(QDialog):
             QMessageBox.information(self,'Primero una prueba piloto','Completa una prueba en una sola placa antes de ejecutar un lote.')
             return
         tasks=self.jobs.create(rows,self.comment.text().strip())
+        if self.recipe:
+            spec=copy.deepcopy(self.recipe)
+            spec['parameters']['comment']=self.comment.text().strip()
+            self.jobs.attach_recipe([t['id'] for t in tasks],spec)
         self.worker=BatchWorker(self.jobs,tasks)
         self.worker.changed.connect(self.refresh)
         self.worker.finished.connect(self.on_worker_finished)
         self.state.setText(f'Ejecutando lote local de {len(tasks)} placa(s).')
         self.refresh()
         self.worker.start()
+
+    def load_recipe(self):
+        if self.worker:
+            return
+        from .recipes import load_recipe
+        from .core import ROOT
+        path,_=QFileDialog.getOpenFileName(self,'Cargar receta de laboratorio',str(ROOT/'recipes'),'Receta JSON (*.json)')
+        if not path:
+            return
+        try:
+            self.recipe=load_recipe(Path(path))
+        except Exception as exc:
+            QMessageBox.warning(self,'Receta no válida',str(exc))
+            return
+        self.comment.setText(self.recipe['parameters']['comment'])
+        self.recipe_info.setText(f"{self.recipe['name']} · {self.recipe['id']} · perfil {self.recipe['profile']}")
+        self.detail.setPlainText(f"Objetivo: {self.recipe['objective']}\nAcción: {self.recipe['action']}\nEl comentario se puede editar; los parámetros finales quedarán guardados con la tarea.")
 
     def refresh(self):
         self.tasks=self.jobs.tasks()
@@ -179,6 +211,7 @@ class AutomationDialog(QDialog):
         self.worker.start()
 
     def on_worker_finished(self):
+        self.worker.wait()
         if isinstance(self.worker,BatchWorker):
             self.state.setText('Lote local finalizado. Consulta el estado y la evidencia de cada tarea.')
         self.worker.deleteLater()

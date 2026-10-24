@@ -40,6 +40,19 @@ class AutomationTests(TestCase):
                 run_lab(target(),'','test')
         session.assert_not_called()
 
+    def test_recipe_snapshot_is_immutable_and_hashed(self):
+        with TemporaryDirectory() as folder:
+            jobs=JobStore(Path(folder)/'jobs.sqlite3')
+            task=jobs.create([target()],'Prueba')[0]
+            spec={'id':'lab-v1','parameters':{'comment':'Original'}}
+            jobs.attach_recipe([task['id']],spec)
+            spec['parameters']['comment']='Modificado'
+            with jobs.db() as db:
+                row=db.execute('SELECT * FROM task_recipes').fetchone()
+                self.assertIn('Original',row['spec'])
+                self.assertNotIn('Modificado',row['spec'])
+                self.assertEqual(len(row['sha256']),64)
+
     def test_cancelled_task_performs_no_clicks(self):
         with patch('granjita.automation.Session') as session:
             with self.assertRaises(AutomationError):

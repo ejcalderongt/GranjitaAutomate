@@ -34,7 +34,7 @@ Una API puede evitar abrir sesiones de interfaz para tareas de administración y
 
 scripts.deploy_tools instala los cinco paquetes: Granjita Lab, UiAutomator2 server, su APK de instrumentación, Appium Settings y Automate. Automate se obtiene del APK ya instalado desde Google Play en la placa piloto. Se verifica paquete y firma de los APK fuente antes de propagar, se conservan los datos con -r y no se usan opciones de desinstalación o downgrade. Los APK se mantienen fuera de Git.
 
-La primera pasada completa cubrió 30 fichas con identidad inequívoca. Se agregó verificación cruzada opcional: getprop actual y onlySerial de Panda deben coincidir y ser únicos en la lista de Panda. Así se pueden preparar transportes con IP reutilizada sin fusionar ni sobrescribir las asociaciones históricas locales.
+La primera pasada completa cubrió 30 fichas con identidad inequívoca. Se agregó verificación cruzada opcional: getprop actual y onlySerial de Panda deben coincidir y ser únicos en la lista de Panda. Así se pueden preparar transportes con IP reutilizada sin fusionar ni sobrescribir las asociaciones históricas locales. La pasada final completó 33 de 33 conexiones actuales; la auditoría independiente confirmó los cinco paquetes en las 33. Los registros de Panda que no están accesibles no se pueden instalar hasta que vuelvan a conectarse.
 
 ```powershell
 .\.venv\Scripts\python.exe -m scripts.deploy_tools --all --workers 2 --verify-with-panda
@@ -58,3 +58,7 @@ recipes/lab-smoke.json define objetivo, contexto, acción tipada, parámetros y 
 ```
 
 El objetivo y contexto se almacenan como datos; no se interpretan como instrucciones ejecutables. Las tareas conservan una copia de la receta y el perfil con SHA-256 en automation.sqlite3, para poder explicar qué se ejecutó aunque después se edite el JSON. Las plantillas sin datos privados se versionan en Git; asignaciones reales y resultados permanecen locales.
+
+En el panel de laboratorio, **Cargar receta JSON** permite previsualizar el objetivo y cargar el comentario antes de seleccionar las placas y ejecutar. Si se modifica el comentario, se guardan los parámetros finales, no solamente el archivo original.
+
+Validación final: 33 pruebas automatizadas con salida correcta del proceso, revisión del panel API con 33 filas, auditoría de instalación 33/33 y ejecución real de una receta local completada. Las tres asociaciones históricas de identidad siguen disponibles para revisión; la verificación cruzada de despliegue no las modificó.

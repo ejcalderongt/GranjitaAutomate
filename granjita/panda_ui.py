@@ -65,6 +65,7 @@ class PandaDialog(QDialog):
         self.state.setText(f'API respondió · {len(rows)} conexiones reportadas · {now()} · Las correspondencias no fusionan ni renombran fichas.')
 
     def on_worker_finished(self):
+        self.worker.wait()
         self.worker.deleteLater()
         self.worker=None
         self.button.setEnabled(True)

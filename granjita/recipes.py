@@ -33,11 +33,12 @@ def load_recipe(path):
     comment=recipe['parameters'].get('comment')
     if not isinstance(comment,str) or not 1<=len(comment.strip())<=280:
         raise ValueError('El comentario debe tener entre 1 y 280 caracteres.')
-    if recipe.get('execution')!={'concurrency':1,'automatic_retries':0,'on_uncertain':'review'}:
+    if recipe.get('execution')!={'concurrency':1,'automatic_retries':0,'on_uncertain':'review'} or type(recipe['execution']['concurrency']) is not int or type(recipe['execution']['automatic_retries']) is not int:
         raise ValueError('La ejecución inicial es secuencial, sin reintentos automáticos y con revisión de incertidumbre.')
     profile_path=ROOT/'profiles'/(recipe['profile']+'.json')
     profile=json.loads(profile_path.read_text(encoding='utf-8'))
-    if profile.get('schema_version')!=1 or profile.get('id')!=recipe['profile'] or profile.get('app_package')!=PACKAGE or profile.get('execution_engine')!='appium' or profile.get('permissions')!='manual_review':
+    object_keys(profile,{'schema_version','id','name','desired_packages','identity','permissions','execution_engine','app_package','adb','note'},'perfil')
+    if type(profile.get('schema_version')) is not int or profile['schema_version']!=1 or profile.get('id')!=recipe['profile'] or profile.get('app_package')!=PACKAGE or profile.get('execution_engine')!='appium' or profile.get('permissions')!='manual_review':
         raise ValueError('Perfil incompatible con el laboratorio.')
     return dict(recipe,_profile_snapshot=profile)
 

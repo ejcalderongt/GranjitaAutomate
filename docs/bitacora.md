@@ -33,3 +33,6 @@
 - Se implementó propagación verificable de los cinco APK, conservando datos y sin conceder permisos. Se verificó una pasada completa de 30 fichas; la ampliación a tres transportes adicionales usa coincidencia actual de getprop y onlySerial de Panda sin alterar asociaciones históricas.
 - Se comprobó la API Android oficial de Panda por WebSocket local: 33 registros en modo OTG con onlySerial. Se agregó adaptador de lectura y panel de comparación; no se enviaron cambios de nombres, grupos o ajustes por la API.
 - Se agregaron perfiles y recetas JSON versionables, validación, ejecución local explícita y copia inmutable con hash por tarea. Se aprobaron 30 pruebas, incluyendo trabajadores de los diálogos de laboratorio y Panda API.
+- Auditoría final: los cinco paquetes están instalados en las 33 conexiones accesibles, incluidas tres verificadas por coincidencia de Panda onlySerial y getprop. No se copiaron datos de cuentas ni se otorgaron permisos de Automate.
+- Se completó una receta JSON real de laboratorio y se verificó su almacenamiento inmutable con hash. Se agregó carga de recetas en el panel. V2.3 incluye API Panda de lectura y guía de perfiles/recetas.
+- Se aprobaron 33 pruebas con código de salida 0. Se ajustó la liberación de trabajadores Qt y la limpieza de las pruebas de interfaz para evitar un fallo al cerrar el proceso de pruebas.

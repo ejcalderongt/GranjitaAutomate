@@ -120,7 +120,7 @@ class Window(QMainWindow):
         self.store = store or FleetStore()
         self.worker = None
         self.fresh = False
-        self.setWindowTitle('GranjitaAutomate · v2.2')
+        self.setWindowTitle('GranjitaAutomate · v2.3')
         self.resize(1280, 900)
         central = QWidget()
         self.setCentralWidget(central)
@@ -130,7 +130,7 @@ class Window(QMainWindow):
         title = QLabel('GranjitaAutomate')
         title.setObjectName('title')
         layout.addWidget(title)
-        layout.addWidget(QLabel('Inventario de tu granja · Laboratorio Appium / Automate · Versión 2.2'))
+        layout.addWidget(QLabel('Inventario de tu granja · API Panda y laboratorio · Versión 2.3'))
         self.summary = QLabel('Listo para buscar tus placas')
         self.summary.setObjectName('summary')
         layout.addWidget(self.summary)

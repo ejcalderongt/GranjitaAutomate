@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from unittest import TestCase
 from unittest.mock import patch
 from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import QCoreApplication,QEvent
 from granjita.inventory import FleetStore
 from granjita.panda_ui import PandaDialog
 from granjita.automation_ui import AutomationDialog
@@ -25,6 +26,13 @@ def settle(dialog):
 
 
 class GuiWorkerTests(TestCase):
+    def tearDown(self):
+        for widget in APP.topLevelWidgets():
+            widget.close()
+            widget.deleteLater()
+        QCoreApplication.sendPostedEvents(None,QEvent.Type.DeferredDelete)
+        APP.processEvents()
+
     def test_panda_dialog_finishes_and_displays_result(self):
         with TemporaryDirectory() as folder:
             store=FleetStore(Path(folder)/'inventory.sqlite3')
