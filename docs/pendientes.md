@@ -16,4 +16,7 @@
 - [ ] Revisar manualmente las fichas con serial repetido y la conexión con identidad en conflicto detectadas en v2.1.
 - [ ] Validar docs/modelo-gestion-social.md y elegir primera plataforma/capacidad para el adaptador; proponer primero grupos y trabajos simulados.
 - [ ] Evaluar piloto de tareas mediante ADB/Automate frente a agente Android propio en una aplicación de prueba.
+- [x] Implementar primer laboratorio Appium/UiAutomator2 y comprobar lote de tres placas en la app local de prueba.
+- [x] Instalar Automate oficial remotamente en una placa piloto y crear flujo mínimo de apertura del laboratorio.
+- [ ] Resolver con el usuario los permisos solicitados por Automate, ejecutar y verificar el flujo mínimo antes de ampliar sus tareas.
 - [ ] Fase 3: definir proveedor de IA, manejo de credenciales, contexto permitido y ejecución supervisada.

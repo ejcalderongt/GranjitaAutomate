@@ -13,6 +13,7 @@ import time
 import urllib.error
 import urllib.request
 import uuid
+import xml.etree.ElementTree as ET
 
 from .core import ROOT, DATA, Adb, now
 from .inventory import shell, identity_from_properties
@@ -112,6 +113,12 @@ class Session:
         validate_target(self.row)
         if not (DATA/'granjita-lab.apk').is_file():
             raise AutomationError('Falta compilar data/granjita-lab.apk.')
+        # noReset omite la actualización de APK en algunas versiones del driver.
+        # Actualizar explícitamente SOLO la APK propia y preservar sus datos (-r).
+        config=runtime()
+        install=subprocess.run([str(Path(config['sdk'])/'platform-tools/adb.exe'),'-P',str(self.row['port']),'-s',self.row['serial'],'install','-r',str(DATA/'granjita-lab.apk')],capture_output=True,text=True,timeout=120,creationflags=0x08000000)
+        if install.returncode or 'Success' not in install.stdout:
+            raise AutomationError('No se pudo instalar Granjita Lab: '+(install.stdout+install.stderr)[-1500:])
         start_appium()
         with socket.socket() as sock:
             sock.bind(('127.0.0.1',0))
@@ -150,6 +157,8 @@ class Session:
 def run_lab(row, comment, task_id, cancelled=lambda:False):
     if len(comment)>280 or not comment.strip():
         raise AutomationError('Escribe un comentario local de 1 a 280 caracteres.')
+    if cancelled():
+        raise AutomationError('Cancelado antes de iniciar la sesión.')
     def checkpoint():
         if cancelled():
             raise AutomationError('Cancelado por el usuario.')
@@ -180,10 +189,12 @@ def run_lab(row, comment, task_id, cancelled=lambda:False):
         if session.text('lab_saved_01')!=comment:
             raise AutomationError('No se pudo verificar el comentario local.')
         checkpoint()
+        def positions(source):
+            return [(node.get('content-desc'),node.get('bounds')) for node in ET.fromstring(source).iter() if (node.get('content-desc') or '').startswith('lab_like_')]
+        before=positions(session.call('GET','/source'))
         session.call('POST','/execute/sync',{'script':'mobile: scrollGesture','args':[{'elementId':session.element('lab_feed'),'direction':'down','percent':0.7}]})
-        # Verificar que el desplazamiento hizo visible una publicación posterior.
-        source=session.call('GET','/source')
-        if 'lab_like_02' not in source and 'lab_like_03' not in source:
+        after=positions(session.call('GET','/source'))
+        if not after or before == after:
             raise AutomationError('No se pudo verificar el desplazamiento del feed.')
         encoded=session.call('GET','/screenshot')
         evidence=DATA/'lab-evidence'

@@ -120,7 +120,7 @@ class Window(QMainWindow):
         self.store = store or FleetStore()
         self.worker = None
         self.fresh = False
-        self.setWindowTitle('GranjitaAutomate · v2.1')
+        self.setWindowTitle('GranjitaAutomate · v2.2')
         self.resize(1280, 900)
         central = QWidget()
         self.setCentralWidget(central)
@@ -130,7 +130,7 @@ class Window(QMainWindow):
         title = QLabel('GranjitaAutomate')
         title.setObjectName('title')
         layout.addWidget(title)
-        layout.addWidget(QLabel('Inventario de tu granja · Conexiones de Panda · Versión 2.1'))
+        layout.addWidget(QLabel('Inventario de tu granja · Laboratorio Appium / Automate · Versión 2.2'))
         self.summary = QLabel('Listo para buscar tus placas')
         self.summary.setObjectName('summary')
         layout.addWidget(self.summary)
@@ -177,7 +177,7 @@ class Window(QMainWindow):
             actions.addWidget(button)
         layout.addLayout(actions)
         identity_actions = QHBoxLayout()
-        for text, callback in [('Asociar conexión a otra ficha', self.link_connection), ('Ayuda de conexión', self.help)]:
+        for text, callback in [('Laboratorio Appium / Automate', self.automation_lab), ('Asociar conexión a otra ficha', self.link_connection), ('Ayuda de conexión', self.help)]:
             button = QPushButton(text)
             button.clicked.connect(callback)
             identity_actions.addWidget(button)
@@ -255,6 +255,20 @@ class Window(QMainWindow):
         self.worker.failed.connect(self.scan_failed)
         self.worker.finished.connect(self.finished)
         self.worker.start()
+
+    def automation_lab(self):
+        if self.worker is not None:
+            QMessageBox.information(self,'Proceso en curso','Espera a que termine la consulta antes de abrir el laboratorio.')
+            return
+        if not self.fresh:
+            QMessageBox.information(self,'Conexiones pendientes','Primero busca y valida las conexiones.')
+            return
+        from .automation_ui import AutomationDialog
+        self.timer.stop()
+        try:
+            AutomationDialog(self.store,self.selected(),self).exec()
+        finally:
+            self.timer.start(30000)
 
     def update_progress(self, done, total):
         self.progress.setRange(0, total)

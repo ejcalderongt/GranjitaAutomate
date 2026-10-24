@@ -43,7 +43,10 @@ def setup():
     server = TOOLS / 'server'
     server.mkdir(exist_ok=True)
     shutil.copy2(ROOT / 'automation/package.json', server / 'package.json')
-    subprocess.run([NODE,str(npm_cli),'install','--prefix',str(server),'--no-audit','--no-fund'],env=env,check=True)
+    lock=ROOT/'automation/package-lock.json'
+    if lock.exists():
+        shutil.copy2(lock,server/'package-lock.json')
+    subprocess.run([NODE,str(npm_cli),'ci' if lock.exists() else 'install','--prefix',str(server),'--no-audit','--no-fund'],env=env,check=True)
     cli = server / 'node_modules/appium/index.js'
     driver = TOOLS / 'appium-home/node_modules/appium-uiautomator2-driver/package.json'
     if not driver.exists():

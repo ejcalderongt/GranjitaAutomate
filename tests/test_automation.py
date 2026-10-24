@@ -44,4 +44,4 @@ class AutomationTests(TestCase):
         with patch('granjita.automation.Session') as session:
             with self.assertRaises(AutomationError):
                 run_lab(target(),'Prueba','test',lambda:True)
-        session.return_value.__enter__.return_value.click.assert_not_called()
+        session.assert_not_called()

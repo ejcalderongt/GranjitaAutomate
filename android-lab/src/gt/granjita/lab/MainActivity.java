@@ -33,6 +33,18 @@ public class MainActivity extends Activity {
         feed = new LinearLayout(this); feed.setOrientation(LinearLayout.VERTICAL);
         scroll.addView(feed);
         root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+        final EditText comment = new EditText(this); comment.setSingleLine(true);
+        comment.setHint("Comentario de prueba para publicacion 01"); comment.setContentDescription("lab_comment_01");
+        root.addView(comment);
+        final TextView saved = text(prefs.getString("comment_01","Sin comentario guardado"),16);
+        saved.setContentDescription("lab_saved_01");
+        Button send = new Button(this); send.setText("Guardar comentario local"); send.setContentDescription("lab_send_01");
+        send.setOnClickListener(v -> {
+            String value=comment.getText().toString();
+            prefs.edit().putString("comment_01",value).apply(); saved.setText(value);
+            status.setText("Comentario local guardado 01");
+        });
+        root.addView(send); root.addView(saved);
         setContentView(root);
         for(int i=1;i<=12;i++) addCard(i);
         root.requestFocus();
@@ -52,17 +64,6 @@ public class MainActivity extends Activity {
             like.setText("Me gusta: SI"); status.setText("Like local verificado " + suffix);
         });
         card.addView(like);
-        final EditText comment = new EditText(this); comment.setSingleLine(true);
-        comment.setHint("Comentario de prueba"); comment.setContentDescription("lab_comment_"+suffix);
-        card.addView(comment);
-        final TextView saved = text(prefs.getString("comment_"+suffix,"Sin comentario guardado"),16);
-        saved.setContentDescription("lab_saved_"+suffix);
-        Button send = new Button(this); send.setText("Guardar comentario local"); send.setContentDescription("lab_send_"+suffix);
-        send.setOnClickListener(v -> {
-            String value=comment.getText().toString();
-            prefs.edit().putString("comment_"+suffix,value).apply(); saved.setText(value);
-            status.setText("Comentario local guardado " + suffix);
-        });
-        card.addView(send); card.addView(saved); feed.addView(card);
+        feed.addView(card);
     }
 }
