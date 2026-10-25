@@ -126,7 +126,7 @@ class Window(QMainWindow):
         self.fresh = False
         self.reconciliation = {}
         self.startup_pending = True
-        self.setWindowTitle('GranjitaAutomate · v2.11')
+        self.setWindowTitle('GranjitaAutomate · v2.12')
         self.resize(1280, 930)
         central = QWidget()
         self.setCentralWidget(central)
@@ -138,7 +138,7 @@ class Window(QMainWindow):
         title.setObjectName('title')
         header.addWidget(title)
         header.addStretch()
-        version = QLabel('Versión 2.11')
+        version = QLabel('Versión 2.12')
         version.setToolTip('Versión instalada del programa. Los cambios se documentan en el repositorio del proyecto.')
         header.addWidget(version)
         self.advanced_button = QPushButton('Avanzado')

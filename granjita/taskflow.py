@@ -1,11 +1,12 @@
 """Parámetros tipados y ejecución del flujo local de likes con horario Guatemala."""
 from .diagnostics import traced, emit, span, context_map
+import time
 from datetime import datetime,timezone,timedelta
 import base64
 import hashlib
 import xml.etree.ElementTree as ET
 from .core import DATA
-from .automation import Session,AutomationError,PACKAGE
+from .automation import Session,AutomationError,PACKAGE,ELEMENT
 
 GT=timezone(timedelta(hours=-6))
 
@@ -36,6 +37,39 @@ def window_state(parameters,current=None):
     return 'waiting' if current<datetime.fromisoformat(parameters['start_at']) else 'ready'
 
 
+@traced('task.target.stabilize')
+def stable_target(session,target,check,timeout=5):
+    result=session.call('POST','/element',{'using':'-android uiautomator','value':f'new UiScrollable(new UiSelector().description("lab_feed")).scrollIntoView(new UiSelector().description("{target}"))'})
+    element=result[ELEMENT]
+    deadline=time.monotonic()+timeout
+    previous=None
+    while time.monotonic()<deadline:
+        check()
+        rect=session.call('GET',f'/element/{element}/rect')
+        enabled=session.call('GET',f'/element/{element}/enabled')
+        if isinstance(rect,dict) and rect.get('width',0)>0 and rect.get('height',0)>0 and enabled:
+            if previous==rect:
+                emit('task.target','stable',target=target)
+                return element
+            previous=rect
+        else:previous=None
+        time.sleep(.15)
+    raise AutomationError('El botón no se estabilizó; no se envió un clic.')
+
+
+@traced('task.target.verify')
+def verify_marked(session,element,target,timeout=5):
+    deadline=time.monotonic()+timeout
+    while time.monotonic()<deadline:
+        try:
+            if session.call('GET',f'/element/{element}/text').upper()=='ME GUSTA: SI':return
+        except AutomationError:
+            # Solo lectura: si Android recreó la vista, recuperar referencia sin volver a pulsar.
+            element=session.call('POST','/element',{'using':'accessibility id','value':target})[ELEMENT]
+        time.sleep(.15)
+    raise AutomationError('Like sin confirmar; no repetir automáticamente.')
+
+
 @traced('task.like_flow')
 def run_flow(row,task_id,parameters,cancelled=lambda:False,audit=lambda kind,data:None):
     validate_parameters(parameters)
@@ -51,15 +85,15 @@ def run_flow(row,task_id,parameters,cancelled=lambda:False,audit=lambda kind,dat
             check()
             target=f'lab_like_{index:02d}'
             audit('started',dict(target=target,index=index))
-            # Localizar la tarjeta exacta. Puede desplazar solo lo necesario para navegar al destino.
-            session.call('POST','/element',{'using':'-android uiautomator','value':f'new UiScrollable(new UiSelector().description("lab_feed")).scrollIntoView(new UiSelector().description("{target}"))'})
-            before=session.text(target).upper()
+            element=stable_target(session,target,check)
+            before=session.call('GET',f'/element/{element}/text').upper()
             audit('observed',dict(target=target,state=before))
             if before not in ('ME GUSTA: NO','ME GUSTA: SI'):raise AutomationError('Estado desconocido; no se pulsa.')
             check()
             if before=='ME GUSTA: NO':
-                audit('click_requested',dict(target=target));session.click(target)
-            if session.text(target).upper()!='ME GUSTA: SI':raise AutomationError('Like sin confirmar; no repetir automáticamente.')
+                audit('click_requested',dict(target=target))
+                session.call('POST',f'/element/{element}/click',{})
+            verify_marked(session,element,target)
             outcome='applied' if before=='ME GUSTA: NO' else 'already_marked'
             audit('verified',dict(target=target,outcome=outcome,before=before,after='ME GUSTA: SI'))
             totals[outcome]+=1

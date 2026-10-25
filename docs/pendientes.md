@@ -44,3 +44,7 @@
 - [x] Simplificar pantalla principal con pasos numerados, menú Avanzado, indicadores grandes y tooltips; nombres Snapshots y Automatización (v2.10).
 - [x] Agregar trazas finas correlacionadas en SQLite, visor/exportación y feedback por ejecución (v2.11).
 - [ ] Reunir muestras reales de duración/errores antes de ajustar tiempos o reintentos; medir costo de apertura Appium y clasificar incidentes a partir de trazas, sin contar errores anidados como placas fallidas.
+- [x] Revisar trazas operativas y auditoría del lote; reforzar estabilidad/referencia del botón después del scroll sin repetir clics inciertos (v2.12).
+- [ ] Comparar fallos del flujo estabilizado en nuevos lotes antes de afirmar reducción de errores; conservar pendientes los dos resultados históricos sin confirmar.
+- [ ] Medir snapshots con concurrencia acotada de dos identidades; el inicio secuencial observado tomó unos 60 s.
+- [ ] Distinguir listeners de forward/transporte de servidores host ADB antes de contar sus timeouts como incidentes operativos.

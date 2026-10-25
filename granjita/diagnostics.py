@@ -116,7 +116,7 @@ def traced(process):
         @wraps(function)
         def run(*args,**kwargs):
             arguments=signature.bind_partial(*args,**kwargs).arguments
-            metadata={k:arguments[k] for k in ('task_id','port') if k in arguments}
+            metadata={k:arguments[k] for k in ('task_id','port','target') if k in arguments}
             row=arguments.get('row') or arguments.get('device')
             instance=arguments.get('self')
             if row is None and instance is not None:row=getattr(instance,'row',None)

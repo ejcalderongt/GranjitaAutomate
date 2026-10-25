@@ -4,7 +4,7 @@ from tempfile import TemporaryDirectory
 from pathlib import Path
 from datetime import datetime,timedelta
 from granjita.taskflow import validate_parameters,window_state,GT,run_flow
-from granjita.automation import JobStore,PACKAGE
+from granjita.automation import JobStore,PACKAGE,ELEMENT
 
 
 def parameters(count=2,start=None,end=None):return dict(count=count,scroll_after_like=True,start_at=start,end_at=end)
@@ -20,11 +20,15 @@ class TaskFlowTests(TestCase):
             with self.assertRaises(ValueError):validate_parameters(invalid)
     def test_flow_verifies_two_targets_and_scrolls(self):
         session=MagicMock();session.text.side_effect=['ME GUSTA: NO','ME GUSTA: SI','ME GUSTA: SI','ME GUSTA: SI']
-        calls=[];source_counter=[0]
+        calls=[];source_counter=[0];texts=iter(['ME GUSTA: NO','ME GUSTA: SI','ME GUSTA: SI','ME GUSTA: SI'])
         def call(method,path,data=None):
             calls.append(path)
             if path=='/appium/device/current_package':return PACKAGE
             if path=='/screenshot':return 'cHJ1ZWJh'
+            if path=='/element':return {ELEMENT:'button'}
+            if path.endswith('/rect'):return dict(x=1,y=10,width=20,height=10)
+            if path.endswith('/enabled'):return True
+            if path.endswith('/text'):return next(texts)
             if path=='/source':
                 source_counter[0]+=1
                 return f'<hierarchy><node content-desc="lab_like_01" bounds="{source_counter[0]}" /></hierarchy>'
@@ -35,7 +39,7 @@ class TaskFlowTests(TestCase):
         events=[]
         with TemporaryDirectory() as folder,patch('granjita.taskflow.DATA',Path(folder)),patch('granjita.taskflow.Session',return_value=context):
             result=run_flow({},'test',parameters(),audit=lambda kind,data:events.append((kind,data)))
-        session.click.assert_called_once_with('lab_like_01')
+        self.assertEqual(calls.count('/element/button/click'),1)
         self.assertEqual([data['target'] for kind,data in events if kind=='verified'],['lab_like_01','lab_like_02'])
         self.assertEqual(sum(kind=='scroll' for kind,data in events),2)
         self.assertIn('1 likes nuevos',result)
@@ -79,3 +83,29 @@ class TaskFlowTests(TestCase):
             self.assertEqual(jobs.tasks()[0]['status'],'Completado')
             statuses=[e['data']['status'] for e in jobs.like_report()[0]['events'] if e['kind']=='task_status']
             self.assertEqual(statuses,['Programado','Ejecutando','Completado'])
+
+    def test_verification_reacquires_only_for_reading(self):
+        from granjita.taskflow import verify_marked
+        from granjita.automation import AutomationError
+        session=MagicMock()
+        session.call.side_effect=[AutomationError('stale element'),{ELEMENT:'new-button'},'ME GUSTA: SI']
+        with patch('granjita.taskflow.time.sleep'):
+            verify_marked(session,'old-button','lab_like_03')
+        self.assertFalse(any('/click' in call.args[1] for call in session.call.call_args_list))
+
+    def test_unstable_button_never_reaches_click(self):
+        from granjita.taskflow import stable_target
+        session=MagicMock();session.call.return_value={ELEMENT:'button'}
+        with self.assertRaises(Exception):stable_target(session,'lab_like_02',lambda:None,timeout=0)
+        self.assertFalse(any('/click' in call.args[1] for call in session.call.call_args_list))
+    def test_stabilization_waits_until_coordinates_stop_changing(self):
+        from granjita.taskflow import stable_target
+        session=MagicMock();rects=iter([dict(x=1,y=10,width=20,height=10),dict(x=1,y=20,width=20,height=10),dict(x=1,y=20,width=20,height=10)])
+        def call(method,path,data=None):
+            if path=='/element':return {ELEMENT:'button'}
+            if path.endswith('/rect'):return next(rects)
+            if path.endswith('/enabled'):return True
+        session.call.side_effect=call
+        with patch('granjita.taskflow.time.sleep'):
+            self.assertEqual(stable_target(session,'lab_like_03',lambda:None),'button')
+        self.assertEqual(sum(c.args[1].endswith('/rect') for c in session.call.call_args_list),3)

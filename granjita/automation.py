@@ -124,14 +124,16 @@ class Session:
         # noReset omite la actualización de APK en algunas versiones del driver.
         # Actualizar explícitamente SOLO la APK propia y preservar sus datos (-r).
         config=runtime()
-        install=subprocess.run([str(Path(config['sdk'])/'platform-tools/adb.exe'),'-P',str(self.row['port']),'-s',self.row['serial'],'install','-r',str(DATA/'granjita-lab.apk')],capture_output=True,text=True,timeout=120,creationflags=0x08000000)
-        if install.returncode or 'Success' not in install.stdout:
-            raise AutomationError('No se pudo instalar Granjita Lab: '+(install.stdout+install.stderr)[-1500:])
+        with span('appium.apk.install'):
+            install=subprocess.run([str(Path(config['sdk'])/'platform-tools/adb.exe'),'-P',str(self.row['port']),'-s',self.row['serial'],'install','-r',str(DATA/'granjita-lab.apk')],capture_output=True,text=True,timeout=120,creationflags=0x08000000)
+            if install.returncode or 'Success' not in install.stdout:
+                raise AutomationError('No se pudo instalar Granjita Lab: '+(install.stdout+install.stderr)[-1500:])
         start_appium()
         with socket.socket() as sock:
             sock.bind(('127.0.0.1',0))
             port=sock.getsockname()[1]
-        result=http('POST','/session',{'capabilities':{'alwaysMatch':capabilities(self.row,port),'firstMatch':[{}]}})
+        with span('appium.session.create'):
+            result=http('POST','/session',{'capabilities':{'alwaysMatch':capabilities(self.row,port),'firstMatch':[{}]}})
         self.id=result['sessionId']
         return self
 
