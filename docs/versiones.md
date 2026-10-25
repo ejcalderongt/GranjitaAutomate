@@ -18,7 +18,6 @@ Fechas de America/Guatemala. Los números 2.x identifican la aplicación; 4.2 id
 | 2.10 | 2026-10-24 | Pantalla principal por pasos, menú Avanzado e indicadores grandes | [Guía principal](ui-principal.md) |
 | 2.11 | 2026-10-24 | Trazas SQLite por proceso y tarea, visor y feedback | [Logs y feedback](logs-y-feedback.md) |
 | 2.12 | 2026-10-24 | Análisis de resultados y estabilización de botones tras scroll | [Revisión de logs](revision-logs-2026-10-24.md) |
-
 | 2.13 | 2026-10-24 | Contador visual de likes logrados e historial por destino | [Indicador e historial](indicador-likes.md) |
 
 Para cada versión registrar alcance, migración/persistencia, instrucciones de uso, pruebas, límites y pendientes. La bitácora conserva las evidencias históricas; los conteos de una versión no son el estado actual de la granja.

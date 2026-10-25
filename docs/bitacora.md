@@ -91,3 +91,8 @@ Se cruzaron trazas reales con el lote histórico de 28 placas: 26 tareas complet
 ## 2026-10-24 · v2.13: likes logrados e historial visual
 
 Se agregó contador grande en verde en Automatización y tarjeta en la ventana principal. Total deduplicado de nuevos verificados, con actualización por tarjeta y consulta principal de solo lectura. Nueva pestaña Historial de likes con fecha, dispositivo, destino, resultado, tarea y evidencia; filtros y exportación JSON. Destinos ausentes permanecen No disponible. Sin interacciones reales nuevas ni reinterpretación de históricos. 72 pruebas y revisión visual correctas. Guía: docs/indicador-likes.md.
+
+
+## 2026-10-24 · Verificación de respaldo y sincronización
+
+Por solicitud del usuario se comprobó dev2026 contra origin con fetch: cero commits pendientes en ambos sentidos antes de este registro. La entrega funcional v2.13 está respaldada en 4b62efa; su guía, pruebas y límites constan en docs/indicador-likes.md y el registro de versiones. Se corrigió la continuidad de la tabla de versiones para mantener su lectura ordenada. Las bases SQLite, trazas, evidencias y respaldos privados de data/ permanecen locales y excluidos de Git; la sincronización del repositorio no constituye un respaldo externo de esos datos. No se ejecutaron nuevas tareas ni fue necesario repetir pruebas funcionales para este cierre documental.
