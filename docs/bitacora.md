@@ -87,3 +87,7 @@ Se instrumentaron Panda, ADB, inventario, snapshots, identidad y Appium con tiem
 ## 2026-10-24 · v2.12: revisión de resultados y estabilidad del flujo
 
 Se cruzaron trazas reales con el lote histórico de 28 placas: 26 tareas completas y 2 para revisar; 81 tarjetas verificadas (76 likes nuevos, 5 ya marcados), 2 sin confirmar y 1 sin iniciar. No se reejecutaron las tareas inciertas. Se reforzó la estabilidad del botón y su referencia después del scroll, con verificación solo de lectura ante una vista recreada. Nuevos tiempos separados para instalación y creación Appium. 71 pruebas y piloto real de tres tarjetas ya marcadas correctos; no se atribuye mejora de velocidad ni resolución definitiva de los fallos. Snapshots iniciales medidos en 59.8 s; paralelismo acotado queda propuesto. Informe y reproducción: docs/revision-logs-2026-10-24.md y scripts/review_results.py.
+
+## 2026-10-24 · v2.13: likes logrados e historial visual
+
+Se agregó contador grande en verde en Automatización y tarjeta en la ventana principal. Total deduplicado de nuevos verificados, con actualización por tarjeta y consulta principal de solo lectura. Nueva pestaña Historial de likes con fecha, dispositivo, destino, resultado, tarea y evidencia; filtros y exportación JSON. Destinos ausentes permanecen No disponible. Sin interacciones reales nuevas ni reinterpretación de históricos. 72 pruebas y revisión visual correctas. Guía: docs/indicador-likes.md.

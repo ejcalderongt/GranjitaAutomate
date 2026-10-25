@@ -40,13 +40,17 @@ class BatchWorker(QThread):
             self.changed.emit()
             try:
                 if task.get('action')=='lab_like_flow':
-                    result=run_flow(task['row'],task['id'],parameters,lambda:self.stop_check(parameters),audit=lambda kind,data:self.jobs.like_event(task['id'],kind,data))
-                else:result=run_like(task['row'],task['id'],self.cancel.is_set,audit=lambda kind,data:self.jobs.like_event(task['id'],kind,data)) if task.get('action')=='lab_like' else run_lab(task['row'],task['comment'],task['id'],self.cancel.is_set)
+                    result=run_flow(task['row'],task['id'],parameters,lambda:self.stop_check(parameters),audit=lambda kind,data:self.audit_event(task['id'],kind,data))
+                else:result=run_like(task['row'],task['id'],self.cancel.is_set,audit=lambda kind,data:self.audit_event(task['id'],kind,data)) if task.get('action')=='lab_like' else run_lab(task['row'],task['comment'],task['id'],self.cancel.is_set)
                 self.jobs.update(task['id'],'Completado',result)
             except Exception as exc:
                 self.jobs.update(task['id'],'Revisar resultado',str(exc))
             self.changed.emit()
 
+
+    def audit_event(self,task_id,kind,data):
+        self.jobs.like_event(task_id,kind,data)
+        if kind=='verified':self.changed.emit()
 
     def stop_check(self,parameters):
         while self.pause.is_set() and not self.cancel.is_set() and window_state(parameters)!='expired':
@@ -81,8 +85,8 @@ class ProbeWorker(QThread):
 class AutomationDialog(QDialog):
     def __init__(self,store,preferred=None,parent=None):
         super().__init__(parent)
-        self.setWindowTitle('Automatización · GranjitaAutomate 2.12')
-        self.resize(1160,820)
+        self.setWindowTitle('Automatización · GranjitaAutomate 2.13')
+        self.resize(1160,900)
         self.store=store
         self.jobs=JobStore()
         self.worker=None
@@ -93,6 +97,15 @@ class AutomationDialog(QDialog):
         self.checked_at=None
         layout=QVBoxLayout(self)
         title=QLabel('Crear tarea');title.setStyleSheet('font-size:23px;font-weight:600;');layout.addWidget(title)
+        hero=QWidget();hero.setStyleSheet('QWidget { background:#e5f5e9; border-radius:8px; }')
+        hero_layout=QHBoxLayout(hero)
+        self.achieved_likes=QLabel('0');self.achieved_likes.setStyleSheet('font-size:44px;font-weight:700;color:#166534;background:transparent;')
+        self.achieved_likes.setToolTip('Total histórico de likes nuevos verificados por tarea y tarjeta. Excluye ya marcados, resultados inciertos e históricos sin medición.')
+        hero_layout.addWidget(self.achieved_likes)
+        hero_caption=QLabel('Likes logrados\nTotal verificado · Granjita Lab');hero_caption.setStyleSheet('font-size:15px;background:transparent;');hero_layout.addWidget(hero_caption)
+        hero_layout.addStretch()
+        history_button=QPushButton('Ver historial de likes');history_button.setToolTip('Consulta cuándo, en qué dispositivo y en qué tarjeta se verificó cada resultado.');history_button.clicked.connect(lambda:self.tabs.setCurrentWidget(self.likes_page));hero_layout.addWidget(history_button)
+        layout.addWidget(hero)
         self.fleet_stats=QLabel();self.fleet_stats.setStyleSheet('background:#e8f3ed;padding:12px;font-size:15px;');layout.addWidget(self.fleet_stats)
         self.tabs=QTabWidget();layout.addWidget(self.tabs,1)
         task_page=QWidget();task_layout=QVBoxLayout(task_page);self.tabs.addTab(task_page,'Tarea')
@@ -107,7 +120,7 @@ class AutomationDialog(QDialog):
         self.devices.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.devices.horizontalHeader().setSectionResizeMode(0,QHeaderView.ResizeMode.ResizeToContents)
         self.devices.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        self.devices.setMinimumHeight(160);self.devices.setMaximumHeight(240)
+        self.devices.setMinimumHeight(130);self.devices.setMaximumHeight(200)
         self.devices.itemChanged.connect(lambda item:self.selection_summary())
         task_layout.addWidget(self.devices)
         config=QGroupBox('Receta');form=QFormLayout(config)
@@ -141,6 +154,17 @@ class AutomationDialog(QDialog):
         self.stats=QLabel();history_layout.addWidget(self.stats)
         export=QPushButton('Exportar auditoría JSON');export.clicked.connect(self.export_likes);history_layout.addWidget(export)
         self.detail=QPlainTextEdit();self.detail.setReadOnly(True);self.detail.setMaximumHeight(160);history_layout.addWidget(self.detail)
+        self.likes_page=QWidget();likes_layout=QVBoxLayout(self.likes_page);self.tabs.addTab(self.likes_page,'Historial de likes')
+        likes_layout.addWidget(QLabel('Destino y resultado de cada tarjeta procesada. Un resultado sin destino conocido se conserva como No disponible.'))
+        filter_bar=QHBoxLayout()
+        self.likes_filter=QLineEdit();self.likes_filter.setPlaceholderText('Buscar por dispositivo, tarjeta o tarea…');self.likes_filter.textChanged.connect(self.render_like_history);filter_bar.addWidget(self.likes_filter,1)
+        self.likes_outcome=QComboBox();self.likes_outcome.addItems(['Todos','Logrados','Ya marcados','Sin confirmar','Históricos sin medición']);self.likes_outcome.currentIndexChanged.connect(self.render_like_history);filter_bar.addWidget(self.likes_outcome)
+        likes_layout.addLayout(filter_bar)
+        self.likes_table=QTableWidget(0,5);self.likes_table.setHorizontalHeaderLabels(['Fecha / hora GT','Dispositivo','Dónde','Resultado','Tarea'])
+        self.likes_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.likes_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers);self.likes_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.likes_table.itemSelectionChanged.connect(self.like_history_details);likes_layout.addWidget(self.likes_table,1)
+        self.likes_detail=QPlainTextEdit();self.likes_detail.setReadOnly(True);self.likes_detail.setMaximumHeight(160);likes_layout.addWidget(self.likes_detail)
         tools_page=QWidget();tools_layout=QVBoxLayout(tools_page);self.tabs.addTab(tools_page,'Herramientas')
         self.comment=QLineEdit('Gracias por completar la prueba del laboratorio.');self.comment.setMaxLength(280)
         tools_layout.addWidget(QLabel('Prueba anterior de comentario (solo para recetas lab_smoke):'));tools_layout.addWidget(self.comment)
@@ -317,6 +341,9 @@ class AutomationDialog(QDialog):
         self.tabs.widget(0).setEnabled(self.worker is None)
         self.tasks=self.jobs.tasks()
         metrics=self.jobs.like_metrics()
+        self.achieved_likes.setText(f"{metrics['applied']:,}")
+        self.history_entries=self.jobs.like_history()
+        self.render_like_history()
         self.like_stats.setText(f"Likes · Programados: {metrics['scheduled']} · Procesados: {metrics['processed']} · Aplicados: {metrics['applied']} · Ya marcados: {metrics['already_marked']} · Sin confirmar: {metrics['unconfirmed']} · Históricos sin medición: {metrics['historical_unmeasured']}")
         if hasattr(self,'stats'):
             completed=sum(t['status']=='Completado' for t in self.tasks)
@@ -329,6 +356,30 @@ class AutomationDialog(QDialog):
                 item.setToolTip(value)
                 self.results.setItem(i,j,item)
 
+    def render_like_history(self,*args):
+        if not hasattr(self,'history_entries'):return
+        import json
+        outcomes={1:'applied',2:'already_marked',3:'unconfirmed',4:'historical_unmeasured'}
+        wanted=outcomes.get(self.likes_outcome.currentIndex())
+        query=self.likes_filter.text().lower()
+        self.visible_likes=[r for r in self.history_entries if (not wanted or r['outcome']==wanted) and query in json.dumps(r,ensure_ascii=False).lower()]
+        self.likes_table.setRowCount(len(self.visible_likes))
+        labels={'applied':'Logrado','already_marked':'Ya marcado','unconfirmed':'Sin confirmar','historical_unmeasured':'Histórico sin medición'}
+        from PySide6.QtGui import QColor
+        for i,row in enumerate(self.visible_likes):
+            from datetime import datetime
+            at=datetime.fromisoformat(row['at']).strftime('%d/%m/%Y %H:%M:%S')
+            for j,value in enumerate([at,row['device'],row['destination'],labels.get(row['outcome'],row['outcome']),row['task_id']]):
+                item=QTableWidgetItem(value);item.setToolTip(value)
+                if row['outcome']=='applied':item.setBackground(QColor('#dcfce7'))
+                self.likes_table.setItem(i,j,item)
+
+    def like_history_details(self):
+        index=self.likes_table.currentRow()
+        if 0<=index<len(self.visible_likes):
+            import json
+            self.likes_detail.setPlainText(json.dumps(self.visible_likes[index],ensure_ascii=False,indent=2))
+
     def export_likes(self):
         if self.worker:return
         path,_=QFileDialog.getSaveFileName(self,'Exportar auditoría de likes','auditoria-likes.json','JSON (*.json)')
@@ -336,7 +387,7 @@ class AutomationDialog(QDialog):
         import json
         from .core import now
         try:
-            Path(path).write_text(json.dumps(dict(schema_version=1,at=now(),metrics=self.jobs.like_metrics(),tasks=self.jobs.like_report()),ensure_ascii=False,indent=2),encoding='utf-8')
+            Path(path).write_text(json.dumps(dict(schema_version=1,at=now(),metrics=self.jobs.like_metrics(),tasks=self.jobs.like_report(),history=self.jobs.like_history()),ensure_ascii=False,indent=2),encoding='utf-8')
             self.state.setText('Auditoría exportada: '+path)
         except Exception as exc:
             QMessageBox.warning(self,'No se pudo exportar',str(exc))

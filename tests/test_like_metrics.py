@@ -34,3 +34,19 @@ class LikeMetricsTests(TestCase):
             self.assertEqual(metrics['historical_unmeasured'],1)
             self.assertEqual(metrics['applied'],0)
             with self.assertRaises(ValueError):jobs.like_event(task['id'],'started',{})
+    def test_visual_total_is_readonly_and_history_keeps_destinations(self):
+        from granjita.like_history import verified_like_count
+        with TemporaryDirectory() as folder:
+            jobs=JobStore(Path(folder)/'jobs.sqlite3')
+            task=jobs.create([ROW],'','lab_like_flow',dict(count=2))[0]
+            jobs.update(task['id'],'Ejecutando')
+            for target in ['lab_like_01','lab_like_02']:
+                jobs.like_event(task['id'],'started',dict(target=target))
+                jobs.like_event(task['id'],'verified',dict(target=target,outcome='applied'))
+            jobs.like_event(task['id'],'verified',dict(target='lab_like_02',outcome='applied'))
+            self.assertEqual(verified_like_count(jobs.path),2)
+            self.assertEqual(jobs.tasks()[0]['status'],'Ejecutando')
+            history=jobs.like_history()
+            self.assertEqual(len(history),2)
+            self.assertTrue(all(r['destination'].startswith('Granjita Lab · tarjeta') for r in history))
+            self.assertEqual({r['target'] for r in history},{'lab_like_01','lab_like_02'})

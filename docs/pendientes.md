@@ -48,3 +48,4 @@
 - [ ] Comparar fallos del flujo estabilizado en nuevos lotes antes de afirmar reducción de errores; conservar pendientes los dos resultados históricos sin confirmar.
 - [ ] Medir snapshots con concurrencia acotada de dos identidades; el inicio secuencial observado tomó unos 60 s.
 - [ ] Distinguir listeners de forward/transporte de servidores host ADB antes de contar sus timeouts como incidentes operativos.
+- [x] Agregar indicador visual de likes nuevos verificados e historial por dispositivo/destino, con filtros y exportación (v2.13).

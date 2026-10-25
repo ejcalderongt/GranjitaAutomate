@@ -126,7 +126,7 @@ class Window(QMainWindow):
         self.fresh = False
         self.reconciliation = {}
         self.startup_pending = True
-        self.setWindowTitle('GranjitaAutomate · v2.12')
+        self.setWindowTitle('GranjitaAutomate · v2.13')
         self.resize(1280, 930)
         central = QWidget()
         self.setCentralWidget(central)
@@ -138,7 +138,7 @@ class Window(QMainWindow):
         title.setObjectName('title')
         header.addWidget(title)
         header.addStretch()
-        version = QLabel('Versión 2.12')
+        version = QLabel('Versión 2.13')
         version.setToolTip('Versión instalada del programa. Los cambios se documentan en el repositorio del proyecto.')
         header.addWidget(version)
         self.advanced_button = QPushButton('Avanzado')
@@ -151,6 +151,7 @@ class Window(QMainWindow):
             ('online', 'En línea', 'Seriales físicos distintos que respondieron por ADB. No confirma acceso a Internet.'),
             ('ready', 'Aptos para tareas', 'Dispositivos en línea con serial físico único y sin conflicto de identidad.'),
             ('review', 'Requieren revisión', 'Fichas que no están listas para tareas: desconectadas, sin verificar o con identidad ambigua.'),
+            ('likes', 'Likes logrados', 'Total histórico de likes nuevos verificados en Granjita Lab. No incluye ya marcados ni resultados sin confirmar.'),
             ('saved', 'Fichas guardadas', 'Registros del inventario local. Puede haber fichas históricas pendientes de asociar; no equivale al número físico del rack.'),
         ]
         for key, label, tooltip in indicators:
@@ -440,6 +441,11 @@ class Window(QMainWindow):
                 self.table.setItem(i, j, item)
             if (row['port'], row['serial']) == selected:
                 self.table.selectRow(i)
+        from .like_history import verified_like_count
+        try:self.indicators['likes'].setText(f'{verified_like_count():,}')
+        except Exception as exc:
+            self.indicators['likes'].setText('—')
+            emit('ui.like_counter','failure',status='error',error_class=type(exc).__name__)
         if self.fresh:
             valid = sum(r['status'] == 'Validado' for r in all_rows)
             absent = sum(r['status'] == 'Desconectado' for r in all_rows)
@@ -485,6 +491,7 @@ class Window(QMainWindow):
             AutomationDialog(self.store,self.selected(),self).exec()
         finally:
             self.timer.start(30000)
+            self.render()
 
     def panda_api(self):
         from .panda_ui import PandaDialog

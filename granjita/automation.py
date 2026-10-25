@@ -362,6 +362,25 @@ class JobStore:
             row['interactions']=list(units.values())
         return rows
 
+    def like_history(self):
+        history=[]
+        for task in self.like_report():
+            context=task['context'] or {}
+            units=task['interactions'] or ([dict(target=None,outcome='historical_unmeasured')] if not context else [])
+            for unit in units:
+                target=unit['target']
+                events=[e for e in task['events'] if e['data'].get('target',context.get('target'))==target]
+                verified=[e for e in events if e['kind']=='verified']
+                evidence=[e['data'] for e in events if e['kind']=='evidence']
+                destination='No disponible'
+                if context.get('package') and target:
+                    destination=('Granjita Lab · tarjeta '+target.rsplit('_',1)[-1]) if context['package']==PACKAGE and re.fullmatch(r'lab_like_[0-9]{2}',target) else context['package']+' / '+target
+                history.append(dict(at=verified[-1]['at'] if verified else events[-1]['at'] if events else task['updated'],
+                    device=context.get('name') or task['name'],hardware_serial=context.get('hardware_serial'),
+                    destination=destination,package=context.get('package'),target=target,outcome=unit['outcome'],task_id=task['id'],batch=task['batch'],
+                    evidence=evidence[-1] if evidence else None))
+        return sorted(history,key=lambda row:row['at'],reverse=True)
+
     def like_metrics(self):
         report=self.like_report()
         units=[u for r in report for u in r['interactions']]

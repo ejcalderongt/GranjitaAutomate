@@ -2,7 +2,7 @@
 
 Repositorio de conocimiento, documentación y herramientas para administrar la granja de placas Android.
 
-## Aplicación v2.12
+## Aplicación v2.13
 
 Abrir **GranjitaAutomate** desde el escritorio o ejecutar `iniciar.vbs`. Consulta la [guía de inventario y servidores ADB](docs/version-2.md) y las [instrucciones de instalación](docs/version-1.md). Usa SQLite local en `data/`, excluida de Git.
 
@@ -29,6 +29,8 @@ La [pantalla principal guiada](docs/ui-principal.md) organiza el uso en tres pas
 Los [logs y trazas](docs/logs-y-feedback.md) registran tiempos y resultados por proceso/tarea en SQLite. El visor de Avanzado permite exportar ejecuciones y registrar feedback.
 
 La [revisión de logs](docs/revision-logs-2026-10-24.md) cruza resultados del lote, fallos y tiempos; el flujo ahora espera estabilidad del botón y verifica sin repetir clics inciertos.
+
+El [indicador de likes logrados](docs/indicador-likes.md) muestra nuevos verificados e historial por dispositivo y tarjeta, con filtros y evidencia disponible.
 
 ## Organización
 
