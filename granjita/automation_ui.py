@@ -6,7 +6,7 @@ from pathlib import Path
 from PySide6.QtCore import QThread,Signal,Qt
 from PySide6.QtWidgets import (QDialog,QVBoxLayout,QHBoxLayout,QLabel,QPushButton,QTableWidget,
     QTableWidgetItem,QHeaderView,QLineEdit,QMessageBox,QPlainTextEdit,QAbstractItemView,QFileDialog)
-from .automation import JobStore,run_lab,appium_status,runtime,automate_status,open_automate
+from .automation import JobStore,run_lab,run_like,appium_status,runtime,automate_status,open_automate
 
 
 class BatchWorker(QThread):
@@ -28,7 +28,7 @@ class BatchWorker(QThread):
             self.jobs.update(task['id'],'Ejecutando')
             self.changed.emit()
             try:
-                result=run_lab(task['row'],task['comment'],task['id'],self.cancel.is_set)
+                result=run_like(task['row'],task['id'],self.cancel.is_set) if task.get('action')=='lab_like' else run_lab(task['row'],task['comment'],task['id'],self.cancel.is_set)
                 self.jobs.update(task['id'],'Completado',result)
             except Exception as exc:
                 self.jobs.update(task['id'],'Revisar resultado',str(exc))
@@ -65,6 +65,7 @@ class AutomationDialog(QDialog):
         layout=QVBoxLayout(self)
         layout.addWidget(QLabel('Laboratorio · Appium + UiAutomator2 + adaptador Automate'))
         intro=QLabel('Este lote instala/abre Granjita Lab y verifica un like, un comentario y un scroll LOCALES. No abre X ni publica en redes.\nSelección por identidad física; ejecución secuencial, una sesión por vez. Pausa y cancelación se aplican entre pasos/dispositivos.')
+        self.intro=intro
         intro.setWordWrap(True)
         layout.addWidget(intro)
         try:
@@ -96,6 +97,9 @@ class AutomationDialog(QDialog):
         load=QPushButton('Cargar receta JSON')
         load.clicked.connect(self.load_recipe)
         recipe_bar.addWidget(load)
+        like_button=QPushButton('Flujo básico: solo Me gusta')
+        like_button.clicked.connect(self.basic_like)
+        recipe_bar.addWidget(like_button)
         self.recipe_info=QLabel('Sin receta cargada · parámetros manuales de laboratorio')
         self.recipe_info.setWordWrap(True)
         recipe_bar.addWidget(self.recipe_info,1)
@@ -131,15 +135,16 @@ class AutomationDialog(QDialog):
         if not rows:
             QMessageBox.information(self,'Selecciona una placa','Marca al menos una placa sin conflicto.')
             return
-        if not self.comment.text().strip():
+        like=bool(self.recipe and self.recipe['action']=='lab_like')
+        if not like and not self.comment.text().strip():
             return
         if len(rows)>1 and not any(t['status']=='Completado' for t in self.jobs.tasks()):
             QMessageBox.information(self,'Primero una prueba piloto','Completa una prueba en una sola placa antes de ejecutar un lote.')
             return
-        tasks=self.jobs.create(rows,self.comment.text().strip())
+        tasks=self.jobs.create(rows,'' if like else self.comment.text().strip(),'lab_like' if like else 'lab_like_comment_scroll')
         if self.recipe:
             spec=copy.deepcopy(self.recipe)
-            spec['parameters']['comment']=self.comment.text().strip()
+            if not like:spec['parameters']['comment']=self.comment.text().strip()
             self.jobs.attach_recipe([t['id'] for t in tasks],spec)
         self.worker=BatchWorker(self.jobs,tasks)
         self.worker.changed.connect(self.refresh)
@@ -161,9 +166,22 @@ class AutomationDialog(QDialog):
         except Exception as exc:
             QMessageBox.warning(self,'Receta no válida',str(exc))
             return
-        self.comment.setText(self.recipe['parameters']['comment'])
+        self.display_recipe()
+
+    def basic_like(self):
+        if self.worker:return
+        from .recipes import load_recipe
+        from .core import ROOT
+        self.recipe=load_recipe(ROOT/'recipes/lab-like.json')
+        self.display_recipe()
+
+    def display_recipe(self):
+        like=self.recipe['action']=='lab_like'
+        self.intro.setText('Solo Me gusta en la primera tarjeta de Granjita Lab. Consulta estado, marca si falta y verifica. Sin comentarios ni desplazamientos.' if like else 'Prueba local de like, comentario y desplazamiento en Granjita Lab.')
+        self.comment.setEnabled(not like)
+        self.comment.setText(self.recipe['parameters'].get('comment',''))
         self.recipe_info.setText(f"{self.recipe['name']} · {self.recipe['id']} · perfil {self.recipe['profile']}")
-        self.detail.setPlainText(f"Objetivo: {self.recipe['objective']}\nAcción: {self.recipe['action']}\nEl comentario se puede editar; los parámetros finales quedarán guardados con la tarea.")
+        self.detail.setPlainText(f"Objetivo: {self.recipe['objective']}\nAcción: {self.recipe['action']}\nLos parámetros finales quedan guardados con la tarea. El flujo lab_like solo marca Me gusta en Granjita Lab.")
 
     def refresh(self):
         self.tasks=self.jobs.tasks()

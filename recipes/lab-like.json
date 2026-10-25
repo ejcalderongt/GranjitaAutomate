@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "id": "lab-like-v1",
+  "name": "Primer flujo: marcar Me gusta local",
+  "profile": "laboratorio",
+  "objective": "Dejar marcado Me gusta en la primera tarjeta de Granjita Lab y verificar el resultado, sin comentarios ni desplazamientos.",
+  "context": {"environment": "local_lab", "audience": "laboratorio", "intent": "validar interacci?n b?sica"},
+  "action": "lab_like",
+  "parameters": {"target": "lab_like_01", "desired_state": true},
+  "execution": {"concurrency": 1, "automatic_retries": 0, "on_uncertain": "review"}
+}

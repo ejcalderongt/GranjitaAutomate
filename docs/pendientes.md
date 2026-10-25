@@ -36,3 +36,5 @@
 - [ ] Probar recuperación 4.2 tras apagado completo y arranque real del rack; confirmar cobertura de fichas que hoy tienen identidad ambigua o están desconectadas.
 - [ ] Definir archivos/puntos de control útiles para las tareas; incorporar captura posterior a tareas y política de retención/backups externos. Actualmente se captura al crear base o por acción explícita.
 - [ ] Evaluar adaptadores de exportación/importación de datos internos de apps específicas; no existe respaldo integral Android ni restauración de sesiones en 4.2.
+- [x] Crear flujo básico lab_like reproducible en Granjita Lab, con selección, verificación y resultados SQLite.
+- [ ] Validar un lote elegido por el usuario con el flujo solo Me gusta; no confundir estado ya marcado con una interacción nueva.

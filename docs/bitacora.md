@@ -61,3 +61,7 @@ Se implementó mapa rack/posición/serial con número Panda único, vista fija p
 ## 2026-10-24 · v2.6, subfase 4.2: snapshots
 
 Se agregaron manifiestos, archivos BLOB con hashes y eventos de recuperación a granjita.sqlite3 (migración v5 con respaldo). Tras la conciliación inicial se crea base si no existe o se verifican/recuperan solo archivos propios ausentes. Archivos diferentes e inventario se comparan sin revertir datos recientes o ajustes. Panel y CLI incluidos; no se reanudan tareas inciertas ni se respaldan sesiones/datos internos de apps ajenas. 50 pruebas pasan con salida 0. Captura actualizada completa en 28/28 fichas elegibles; errores del intento con transportes obsoletos quedaron registrados. Recuperación real de un JSON propio verificada byte por byte. Integridad SQLite correcta. Sin prueba de corte completo del rack. Guía detallada: docs/subfase-4-2-snapshots.md; índice: docs/versiones.md.
+
+## 2026-10-24 · v2.7: primer flujo básico de likes
+
+Se agregó lab_like con receta local reproducible y acceso directo dentro del panel de laboratorio. Lee el estado, solo pulsa si falta y confirma SI; no comenta ni desplaza. Guarda acción y receta/perfil en SQLite, evidencia local y resultados inciertos sin reintento. 53 pruebas pasan. Ver docs/flujo-likes.md.

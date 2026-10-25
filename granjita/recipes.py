@@ -2,7 +2,7 @@
 import json
 import re
 from .core import ROOT
-from .automation import PACKAGE,JobStore,run_lab
+from .automation import PACKAGE,JobStore,run_lab,run_like
 
 
 def object_keys(value,allowed,label):
@@ -23,16 +23,20 @@ def load_recipe(path):
     for key in ['name','objective']:
         if not isinstance(recipe.get(key),str) or not 1<=len(recipe[key])<=1000:
             raise ValueError('Nombre u objetivo inválido.')
-    if recipe.get('action')!='lab_smoke':
-        raise ValueError('Esta versión solo ejecuta la acción local lab_smoke.')
+    if recipe.get('action') not in ('lab_smoke','lab_like'):
+        raise ValueError('Solo se admiten acciones del laboratorio local.')
     context=recipe.get('context',{})
     object_keys(context,{'environment','audience','intent'},'contexto')
     if context.get('environment')!='local_lab' or any(not isinstance(v,str) or len(v)>1000 for v in context.values()):
         raise ValueError('Contexto de laboratorio inválido.')
-    object_keys(recipe.get('parameters'),{'comment'},'parámetros')
-    comment=recipe['parameters'].get('comment')
-    if not isinstance(comment,str) or not 1<=len(comment.strip())<=280:
-        raise ValueError('El comentario debe tener entre 1 y 280 caracteres.')
+    if recipe['action']=='lab_like':
+        if recipe.get('parameters')!={'target':'lab_like_01','desired_state':True} or type(recipe['parameters']['desired_state']) is not bool:
+            raise ValueError('El flujo de likes solo marca lab_like_01 en la aplicación local.')
+    else:
+        object_keys(recipe.get('parameters'),{'comment'},'parámetros')
+        comment=recipe['parameters'].get('comment')
+        if not isinstance(comment,str) or not 1<=len(comment.strip())<=280:
+            raise ValueError('El comentario debe tener entre 1 y 280 caracteres.')
     if recipe.get('execution')!={'concurrency':1,'automatic_retries':0,'on_uncertain':'review'} or type(recipe['execution']['concurrency']) is not int or type(recipe['execution']['automatic_retries']) is not int:
         raise ValueError('La ejecución inicial es secuencial, sin reintentos automáticos y con revisión de incertidumbre.')
     profile_path=ROOT/'profiles'/(recipe['profile']+'.json')
@@ -45,13 +49,14 @@ def load_recipe(path):
 
 def execute_recipe(recipe,rows):
     jobs=JobStore()
-    tasks=jobs.create(rows,recipe['parameters']['comment'])
+    like=recipe['action']=='lab_like'
+    tasks=jobs.create(rows,recipe['parameters'].get('comment',''), 'lab_like' if like else 'lab_like_comment_scroll')
     jobs.attach_recipe([task['id'] for task in tasks],recipe)
     results=[]
     for task in tasks:
         jobs.update(task['id'],'Ejecutando',f"Receta {recipe['id']}")
         try:
-            detail=run_lab(task['row'],task['comment'],task['id'])
+            detail=run_like(task['row'],task['id']) if like else run_lab(task['row'],task['comment'],task['id'])
             status='Completado'
         except Exception as exc:
             detail=str(exc)

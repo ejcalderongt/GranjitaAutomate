@@ -205,6 +205,26 @@ def run_lab(row, comment, task_id, cancelled=lambda:False):
         return f'Like local, comentario y scroll verificados. Evidencia: {image.name}'
 
 
+def run_like(row, task_id, cancelled=lambda:False):
+    if cancelled():
+        raise AutomationError('Cancelado antes de iniciar.')
+    with Session(row) as session:
+        if session.call('GET','/appium/device/current_package') != PACKAGE:
+            raise AutomationError('La app de laboratorio no está en primer plano.')
+        if cancelled():raise AutomationError('Cancelado antes del like.')
+        before=session.text('lab_like_01').upper()
+        if before not in ('ME GUSTA: SI','ME GUSTA: NO'):
+            raise AutomationError('Estado del botón desconocido; revisar sin pulsar.')
+        if cancelled():raise AutomationError('Cancelado antes de pulsar.')
+        if before=='ME GUSTA: NO':session.click('lab_like_01')
+        if session.text('lab_like_01').upper()!='ME GUSTA: SI':
+            raise AutomationError('Resultado del like sin confirmar; revisar antes de repetir.')
+        evidence=DATA/'lab-evidence';evidence.mkdir(exist_ok=True)
+        path=evidence/(task_id+'.png')
+        path.write_bytes(base64.b64decode(session.call('GET','/screenshot')))
+        return ('Ya estaba marcado; no se volvió a pulsar.' if before=='ME GUSTA: SI' else 'Like local aplicado y verificado.') + ' Evidencia: '+path.name
+
+
 def automate_status(row):
     validate_target(row)
     installed=bool(shell(Adb(row['port']),row['serial'],'pm path com.llamalab.automate'))
@@ -247,14 +267,16 @@ class JobStore:
         finally:
             db.close()
 
-    def create(self,rows,comment):
+    def create(self,rows,comment,action='lab_like_comment_scroll'):
+        if action not in ('lab_like_comment_scroll', 'lab_like'):
+            raise ValueError('Acción de tarea no admitida.')
         batch=str(uuid.uuid4())
         tasks=[]
         with self.db() as db:
             for row in rows:
                 identifier=str(uuid.uuid4())
-                db.execute('INSERT INTO tasks VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',(identifier,batch,row['id'],row['display_name'],row['port'],row['serial'],'lab_like_comment_scroll',comment,'En cola','',now(),now()))
-                tasks.append(dict(id=identifier,row=row,comment=comment))
+                db.execute('INSERT INTO tasks VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',(identifier,batch,row['id'],row['display_name'],row['port'],row['serial'],action,comment,'En cola','',now(),now()))
+                tasks.append(dict(id=identifier,row=row,comment=comment,action=action))
         return tasks
 
     def update(self,identifier,status,detail=''):
