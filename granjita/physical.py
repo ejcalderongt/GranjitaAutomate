@@ -1,4 +1,5 @@
 """Vista física estable y sincronización administrativa tipada con Panda."""
+from .diagnostics import traced, emit, span, context_map
 from .inventory import Adb, shell, identity_from_properties
 import re
 
@@ -20,6 +21,7 @@ def ordered_rows(rows, positions, active_first=False):
     return sorted([r for _,r in grouped.values()], key=key)
 
 
+@traced('identity.verify')
 def verify_identity(row):
     if row['status'] != 'Validado' or row.get('identity_state') in ('Serial repetido: revisar', 'Fuentes en conflicto'):
         raise ValueError('Primero valida una identidad sin conflictos.')
@@ -30,6 +32,7 @@ def verify_identity(row):
         raise ValueError('La conexión cambió de identidad; vuelve a conciliar.')
 
 
+@traced('position.sync')
 def sync_position(row):
     from .panda_api import list_devices, update_device
     verify_identity(row)

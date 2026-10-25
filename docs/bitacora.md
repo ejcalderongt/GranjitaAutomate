@@ -79,3 +79,7 @@ Se simplificó el panel en Tarea, Resultados y auditoría y Herramientas. Encabe
 ## 2026-10-24 · v2.10: pantalla principal guiada
 
 Se organizaron tres pasos visibles: conectar/comprobar, revisar/elegir y preparar/ejecutar. Snapshots y Automatización reemplazan los rótulos técnicos. Se movieron nombres, inventario, mapa físico, ADB/API, preferencias y respaldo a Avanzado. Cuatro indicadores de cantidad grandes, tooltips y tabla simplificada con columnas técnicas opcionales. Sin alterar lógica de tareas ni asociaciones. Revisión visual con estilo real y 63 pruebas existentes correctas. Guía: docs/ui-principal.md.
+
+## 2026-10-24 · v2.11: trazas finas y feedback
+
+Se instrumentaron Panda, ADB, inventario, snapshots, identidad y Appium con tiempos, contexto por dispositivo/tarea y correlación entre hilos. Base SQLite independiente con retención acotada, visor Avanzado → Conexión y diagnóstico → Logs y trazas, exportación y feedback observado/esperado. Sin cuerpos, salidas ni mensajes brutos en la traza. Se corrigió separación de eventos de tests para no confundirlos con fallas reales, preservando copia anterior. Validación: 68 pruebas, búsqueda real con 222 eventos correlacionados, piloto local completado con 37 eventos vinculados a tarea y exportación, nota técnica persistida e integridad SQLite correcta. Primer dato: apertura de sesión 5.3 s sobre tarea de 8.2 s, una sola muestra. Guía: docs/logs-y-feedback.md.

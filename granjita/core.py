@@ -1,4 +1,5 @@
 """Acceso no disruptivo al servidor ADB existente e inventario portable."""
+from .diagnostics import traced, emit, span, context_map
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager, closing
 from datetime import datetime, timezone, timedelta
@@ -46,12 +47,14 @@ class Adb:
     def connect(self):
         return socket.create_connection(('127.0.0.1', self.port), self.timeout)
 
+    @traced('adb.list')
     def devices(self):
         with self.connect() as sock:
             self.request(sock, 'host:devices-l')
             size = int(self.read(sock, 4), 16)
             return parse_devices(self.read(sock, size).decode('utf-8', 'replace'))
 
+    @traced('adb.validate')
     def validate(self, device):
         result = dict(device)
         result['android'] = ''

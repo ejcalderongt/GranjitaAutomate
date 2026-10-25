@@ -1,4 +1,5 @@
 """Recetas declarativas con acciones tipadas, sin shell ni código arbitrario."""
+from .diagnostics import traced, emit, span, context_map
 import json
 import re
 from .core import ROOT
@@ -50,6 +51,7 @@ def load_recipe(path):
     return dict(recipe,_profile_snapshot=profile)
 
 
+@traced('recipe.execute')
 def execute_recipe(recipe,rows):
     jobs=JobStore()
     flow=recipe['action']=='lab_like_flow'

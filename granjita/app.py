@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
     QPlainTextEdit, QLineEdit, QGroupBox, QMenu)
 
 from .core import Adb, Store, ROOT
+from .diagnostics import emit
 from .inventory import FleetStore, scan_fleet, collect_inventory
 
 
@@ -125,7 +126,7 @@ class Window(QMainWindow):
         self.fresh = False
         self.reconciliation = {}
         self.startup_pending = True
-        self.setWindowTitle('GranjitaAutomate · v2.10')
+        self.setWindowTitle('GranjitaAutomate · v2.11')
         self.resize(1280, 930)
         central = QWidget()
         self.setCentralWidget(central)
@@ -137,7 +138,7 @@ class Window(QMainWindow):
         title.setObjectName('title')
         header.addWidget(title)
         header.addStretch()
-        version = QLabel('Versión 2.10')
+        version = QLabel('Versión 2.11')
         version.setToolTip('Versión instalada del programa. Los cambios se documentan en el repositorio del proyecto.')
         header.addWidget(version)
         self.advanced_button = QPushButton('Avanzado')
@@ -306,6 +307,7 @@ class Window(QMainWindow):
         connection_menu = menu.addMenu('Conexión y diagnóstico')
         connection_menu.setToolTipsVisible(True)
         connection_menu.menuAction().setToolTip('Consultar Panda, configurar puertos y ver el diagnóstico técnico de ADB.')
+        add(connection_menu, 'Logs y trazas', self.diagnostics_panel, 'Consulta tiempos, resultados y errores por proceso o dispositivo; exporta ejecuciones y registra feedback.')
         add(connection_menu, 'API Panda', self.panda_api, 'Consulta la API local y compara sus dispositivos con las fichas. No cambia nombres ni grupos.')
         add(connection_menu, 'Configurar puertos ADB', self.configure, 'Define qué puertos locales consultar además de los detectados. No reinicia los servidores.')
         def toggle(parent, text, tooltip, checked, callback):
@@ -344,6 +346,10 @@ class Window(QMainWindow):
     def show_technical_columns(self, visible):
         for column in [1, 2, 3, 4, 5, 7, 8, 13, 15]:
             self.table.setColumnHidden(column, not visible)
+
+    def diagnostics_panel(self):
+        from .diagnostics_ui import DiagnosticsDialog
+        DiagnosticsDialog(self).exec()
 
     def snapshot_panel(self):
         if self.worker is not None:
@@ -503,6 +509,7 @@ class Window(QMainWindow):
             self.scan_failed(f'No se pudo guardar la búsqueda: {exc}')
 
     def scan_failed(self, error):
+        emit('ui.connection', 'failure', status='error')
         self.fresh = False
         self.render()
         self.summary.setText('No se pudo comprobar la conexión · Los datos guardados no son el estado actual')
@@ -673,6 +680,8 @@ class Window(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
+    emit('app.lifecycle','start')
+    app.aboutToQuit.connect(lambda: emit('app.lifecycle','stop'))
     from .core import DATA
     DATA.mkdir(parents=True, exist_ok=True)
     lock = QLockFile(str(DATA / 'application.lock'))

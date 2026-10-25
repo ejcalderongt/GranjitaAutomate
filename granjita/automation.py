@@ -1,4 +1,5 @@
 """Ejecutor de laboratorio Appium y adaptador explícito de Automate."""
+from .diagnostics import traced, emit, span, context_map
 import base64
 from contextlib import contextmanager
 import json
@@ -37,6 +38,7 @@ def http(method, path, data=None, timeout=180):
         with urllib.request.urlopen(request, timeout=timeout) as response:
             result = json.load(response)
     except urllib.error.HTTPError as exc:
+        emit('appium.http','failure',status='error',http_status=exc.code)
         try:
             detail = json.load(exc)['value']['message']
         except Exception:
@@ -44,6 +46,8 @@ def http(method, path, data=None, timeout=180):
         raise AutomationError(str(detail)[:3000]) from exc
     value = result.get('value')
     if isinstance(value, dict) and value.get('error'):
+        known={'no such element','invalid session id','timeout','unknown error','invalid argument','session not created','no such driver','stale element reference'}
+        emit('appium.http','failure',status='error',error_code=value['error'] if value['error'] in known else 'unclassified')
         raise AutomationError(value.get('message', value['error']))
     return value
 
@@ -63,6 +67,7 @@ def appium_status():
         return 'Detenido / no disponible'
 
 
+@traced('appium.ensure')
 def start_appium():
     global _server
     with _server_lock:
@@ -84,6 +89,7 @@ def start_appium():
         raise AutomationError('Appium no respondió a tiempo. Consulta data/appium.log.')
 
 
+@traced('identity.validate')
 def validate_target(row):
     if row['status'] != 'Validado' or row.get('identity_state') != 'Serial leído':
         raise AutomationError('La placa debe estar validada y tener serial físico sin conflicto.')
@@ -110,6 +116,7 @@ class Session:
         self.row=row
         self.id=None
 
+    @traced('appium.session.open')
     def __enter__(self):
         validate_target(self.row)
         if not (DATA/'granjita-lab.apk').is_file():
@@ -129,7 +136,11 @@ class Session:
         return self
 
     def call(self,method,path,data=None):
-        return http(method,f'/session/{self.id}'+path,data)
+        route=re.sub(r'/element/[^/]+','/element/<id>',path)
+        with span('appium.request',method=method,route=route or '/session'):
+            result=http(method,f'/session/{self.id}'+path,data)
+            emit('appium.request','response',response_type=type(result).__name__,response_bytes=len(result.encode('utf-8')) if isinstance(result,str) else 0)
+            return result
 
     def element(self,description):
         deadline=time.monotonic()+15
@@ -155,6 +166,7 @@ class Session:
                 pass
 
 
+@traced('task.lab_smoke')
 def run_lab(row, comment, task_id, cancelled=lambda:False):
     if len(comment)>280 or not comment.strip():
         raise AutomationError('Escribe un comentario local de 1 a 280 caracteres.')
@@ -205,6 +217,7 @@ def run_lab(row, comment, task_id, cancelled=lambda:False):
         return f'Like local, comentario y scroll verificados. Evidencia: {image.name}'
 
 
+@traced('task.like')
 def run_like(row, task_id, cancelled=lambda:False, audit=lambda kind,data:None):
     if cancelled():
         raise AutomationError('Cancelado antes de iniciar.')
@@ -231,6 +244,7 @@ def run_like(row, task_id, cancelled=lambda:False, audit=lambda kind,data:None):
         return ('Ya estaba marcado; no se volvió a pulsar.' if before=='ME GUSTA: SI' else 'Like local aplicado y verificado.') + ' Evidencia: '+path.name
 
 
+@traced('automate.status')
 def automate_status(row):
     validate_target(row)
     installed=bool(shell(Adb(row['port']),row['serial'],'pm path com.llamalab.automate'))
@@ -240,6 +254,7 @@ def automate_status(row):
     return 'Instalado · Accesibilidad ' + ('habilitada' if 'com.llamalab.automate/' in enabled else 'pendiente de habilitar por el usuario si el flujo la necesita')
 
 
+@traced('automate.open')
 def open_automate(row):
     status=automate_status(row)
     if status.startswith('No instalado'):
@@ -319,6 +334,7 @@ class JobStore:
             if not db.execute('SELECT 1 FROM like_context WHERE task_id=?',(identifier,)).fetchone():
                 raise ValueError('Falta contexto auditable; no ejecutar acción.')
             db.execute('INSERT INTO like_events(task_id,at,kind,data) VALUES (?,?,?,?)',(identifier,now(),kind,json.dumps(data,ensure_ascii=False,sort_keys=True)))
+        emit('task.event',kind,task_id=identifier,**{k:v for k,v in data.items() if k in ('target','index','outcome','state','moved','can_scroll_more')})
 
     def like_report(self):
         with self.db() as db:

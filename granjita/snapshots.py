@@ -1,4 +1,5 @@
 """Subfase 4.2: snapshots lógicos SQLite y recuperación conservadora de archivos propios."""
+from .diagnostics import traced, emit, span, context_map
 import base64
 import hashlib
 import json
@@ -64,6 +65,7 @@ def read_file(row,name):
     return data
 
 
+@traced('snapshot.write_missing')
 def write_missing(row,name,data):
     if len(data)>MAX_FILE:raise ValueError('Archivo demasiado grande.')
     safe_directory(row,True)
@@ -82,6 +84,7 @@ def latest(store,serial):
 
 
 def event(store,row,snapshot_id,status,detail):
+    emit('snapshot.event','result',state=status,hardware_serial=row.get('hardware_serial'),snapshot_id=snapshot_id)
     with store.connect() as db:
         db.execute('INSERT INTO recovery_events(snapshot_id,hardware_serial,at,status,detail) VALUES (?,?,?,?,?)',(snapshot_id,row.get('hardware_serial') or '',now(),status,detail))
 
@@ -94,6 +97,7 @@ def eligible(store):
     return [r for r in rows if r['status']=='Validado' and counts.get(r.get('hardware_serial'))==1 and r['identity_state'] not in ('Serial repetido: revisar','Fuentes en conflicto')]
 
 
+@traced('snapshot.capture')
 def capture(store,row):
     verify_identity(row)
     if query(row,'getprop sys.boot_completed')!='1':
@@ -136,6 +140,7 @@ def capture(store,row):
     return identifier,state
 
 
+@traced('snapshot.restore')
 def restore(store,row):
     snapshot=latest(store,row['hardware_serial'])
     if not snapshot:return 'Sin snapshot completo'
@@ -180,6 +185,7 @@ def restore(store,row):
     return detail
 
 
+@traced('snapshots.reconcile')
 def reconcile_snapshots(store,rows=None,progress=None,capture_only=False):
     result=[]
     for row in rows if rows is not None else eligible(store):

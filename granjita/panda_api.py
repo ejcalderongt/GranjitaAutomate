@@ -1,10 +1,12 @@
 """Adaptador de lectura de la API Android documentada de Panda."""
+from .diagnostics import traced, emit, span, context_map
 import json
 import time
 from urllib.parse import urlparse
 import websocket
 
 
+@traced('panda.list')
 def list_devices(url='ws://127.0.0.1:22222/'):
     parsed=urlparse(url)
     if parsed.scheme!='ws' or parsed.hostname not in ('127.0.0.1','localhost','::1') or parsed.username or parsed.password:
@@ -18,6 +20,7 @@ def list_devices(url='ws://127.0.0.1:22222/'):
             if not isinstance(message,dict) or 'code' not in message:
                 continue
             if message['code']!=10000:
+                emit('panda.api','rejected',status='error',api_code=message['code'] if type(message['code']) is int else None)
                 raise RuntimeError(f"Panda rechazó la consulta de lectura (código {message['code']}). Verifica la licencia/API en Panda.")
             data=message.get('data')
             if isinstance(data,str):
@@ -30,6 +33,7 @@ def list_devices(url='ws://127.0.0.1:22222/'):
         connection.close()
 
 
+@traced('panda.update')
 def update_device(serial, name, number):
     """Cambio individual explícito de nombre/número; no admite all ni lotes ambiguos."""
     import re

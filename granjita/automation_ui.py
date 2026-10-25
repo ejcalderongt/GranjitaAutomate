@@ -81,7 +81,7 @@ class ProbeWorker(QThread):
 class AutomationDialog(QDialog):
     def __init__(self,store,preferred=None,parent=None):
         super().__init__(parent)
-        self.setWindowTitle('Automatización · GranjitaAutomate 2.10')
+        self.setWindowTitle('Automatización · GranjitaAutomate 2.11')
         self.resize(1160,820)
         self.store=store
         self.jobs=JobStore()

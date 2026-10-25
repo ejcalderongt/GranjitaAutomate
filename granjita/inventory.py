@@ -1,4 +1,5 @@
 """Inventario de solo lectura y seguimiento de múltiples servidores ADB."""
+from .diagnostics import traced, emit, span, context_map
 from concurrent.futures import ThreadPoolExecutor
 from collections import Counter
 import json
@@ -29,6 +30,7 @@ def identity_from_properties(properties):
                 hardware_model=properties.get('ro.product.model', ''), identity_conflict=conflict)
 
 
+@traced('adb.listeners')
 def listeners():
     """Descubre puertos de procesos adb, sin iniciar ni reiniciar servidores."""
     if os.name != 'nt':
@@ -46,6 +48,7 @@ def listeners():
         return {}, 'Detección de procesos no disponible; se probarán los puertos configurados.'
 
 
+@traced('adb.shell')
 def shell(adb, serial, command):
     started = time.monotonic()
     with adb.connect() as sock:
@@ -66,6 +69,7 @@ def shell(adb, serial, command):
     return data.decode('utf-8', 'replace').strip()
 
 
+@traced('fleet.scan')
 def scan_fleet(ports, progress=None, discover=True):
     processes, warning = listeners() if discover else ({}, '')
     ports = sorted(set(ports) | set(processes))
@@ -81,7 +85,7 @@ def scan_fleet(ports, progress=None, discover=True):
             return report, []
 
     with ThreadPoolExecutor(max_workers=4) as pool:
-        responses = list(pool.map(inspect, ports))
+        responses = list(context_map(pool, inspect, ports))
     servers = [r[0] for r in responses]
     devices = [d for _, rows in responses for d in rows]
 
@@ -98,7 +102,7 @@ def scan_fleet(ports, progress=None, discover=True):
 
     results = []
     with ThreadPoolExecutor(max_workers=4) as pool:
-        for result in pool.map(validate, devices):
+        for result in context_map(pool, validate, devices):
             results.append(result)
             if progress:
                 progress(len(results), len(devices))
@@ -135,6 +139,7 @@ COMMANDS = {
 }
 
 
+@traced('inventory.collect')
 def collect_inventory(port, serial):
     adb = Adb(port, timeout=8)
     observations = []
@@ -162,8 +167,10 @@ def collect_inventory(port, serial):
             value = re.sub(r'(?i)(?:[^\s/@:]+:[^\s/@]+)@', '[credencial omitida]@', value)
             if label == 'Proxy global' and '@' in value:
                 value = '[credencial omitida]@' + value.rsplit('@', 1)[1]
+            emit('inventory.field','result',field=label,state=state,remote_exit_code=code,status='warning' if state in ('Error','Restringido') else 'info')
             observations.append(dict(field=label, value=value, state=state, source=command, at=at))
         except Exception as exc:
+            emit('inventory.field','result',status='error',field=label,state='Error')
             observations.append(dict(field=label, value=str(exc), state='Error', source=command, at=at))
 
     # Una sola lectura de getprop, limitada a propiedades concretas en vez de conservar toda la salida.

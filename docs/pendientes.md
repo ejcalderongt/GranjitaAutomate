@@ -42,3 +42,5 @@
 - [x] Simplificar creador de tareas con selección por cantidad, indicadores de conectividad, likes por dispositivo, scroll y horario inicio/fin GT (v2.9).
 - [ ] Validar una tarea con horario futuro elegido por el usuario, manteniendo PC y panel abiertos; las pruebas de límites ya están automatizadas.
 - [x] Simplificar pantalla principal con pasos numerados, menú Avanzado, indicadores grandes y tooltips; nombres Snapshots y Automatización (v2.10).
+- [x] Agregar trazas finas correlacionadas en SQLite, visor/exportación y feedback por ejecución (v2.11).
+- [ ] Reunir muestras reales de duración/errores antes de ajustar tiempos o reintentos; medir costo de apertura Appium y clasificar incidentes a partir de trazas, sin contar errores anidados como placas fallidas.

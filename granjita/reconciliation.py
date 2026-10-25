@@ -1,4 +1,5 @@
 """Recuperación acotada de transportes conocidos; no configura USB ni reinicia ADB."""
+from .diagnostics import traced, emit, span, context_map, failure_info
 from concurrent.futures import ThreadPoolExecutor
 import ipaddress
 import json
@@ -19,6 +20,7 @@ def endpoint(value):
         return False
 
 
+@traced('panda.ensure')
 def ensure_panda(path):
     result = subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command',
         "[bool](Get-Process touping -ErrorAction SilentlyContinue)"], capture_output=True, text=True, timeout=8, creationflags=0x08000000)
@@ -33,6 +35,7 @@ def ensure_panda(path):
     return 'Panda abierto; puede requerir completar el modo OTG o la autorización Android.'
 
 
+@traced('adb.reconnect')
 def reconnect(port, serial):
     try:
         adb = Adb(port, 3)
@@ -40,11 +43,14 @@ def reconnect(port, serial):
             adb.request(sock, 'host:connect:' + serial)
             size = int(adb.read(sock, 4), 16)
             message = adb.read(sock, size).decode('utf-8', 'replace')
+        emit('adb.reconnect','result',port=port,transport=serial,state='requested')
         return dict(port=port, serial=serial, result=message[:500])
     except Exception as exc:
+        emit('adb.reconnect','result',status='error',port=port,transport=serial,**failure_info(exc))
         return dict(port=port, serial=serial, result=str(exc)[:500])
 
 
+@traced('fleet.reconcile')
 def reconcile(ports, known, panda_path, progress=None):
     notes = []
     try:
@@ -68,7 +74,7 @@ def reconcile(ports, known, panda_path, progress=None):
             candidates.setdefault(key, (r['port'], r['serial']))
     targets = list(candidates.values())[:64]
     with ThreadPoolExecutor(max_workers=4) as pool:
-        attempts = list(pool.map(lambda target: reconnect(*target), targets))
+        attempts = list(context_map(pool, lambda target: reconnect(*target), targets))
     report = scan_fleet(ports, progress) if attempts else first
     # Panda puede publicar su inventario después de inicializar los servidores.
     if not panda:

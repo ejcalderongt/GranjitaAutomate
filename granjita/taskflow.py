@@ -1,4 +1,5 @@
 """Parámetros tipados y ejecución del flujo local de likes con horario Guatemala."""
+from .diagnostics import traced, emit, span, context_map
 from datetime import datetime,timezone,timedelta
 import base64
 import hashlib
@@ -35,6 +36,7 @@ def window_state(parameters,current=None):
     return 'waiting' if current<datetime.fromisoformat(parameters['start_at']) else 'ready'
 
 
+@traced('task.like_flow')
 def run_flow(row,task_id,parameters,cancelled=lambda:False,audit=lambda kind,data:None):
     validate_parameters(parameters)
     def check():
