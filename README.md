@@ -2,15 +2,15 @@
 
 Repositorio de conocimiento, documentación y herramientas para administrar la granja de placas Android.
 
-## Aplicación v2.9
+## Aplicación v2.10
 
 Abrir **GranjitaAutomate** desde el escritorio o ejecutar `iniciar.vbs`. Consulta la [guía de inventario y servidores ADB](docs/version-2.md) y las [instrucciones de instalación](docs/version-1.md). Usa SQLite local en `data/`, excluida de Git.
 
 La [identificación por serial físico](docs/identidad-dispositivos.md) propone nombres automáticos, conserva alias y detecta conflictos de identidad.
 
-El botón **Laboratorio Appium / Automate** abre las pruebas locales por lote. Consulta la [guía del laboratorio](docs/laboratorio-appium.md) para instalación, alcance, resultados y permisos pendientes de Automate.
+El botón **Automatización** abre las pruebas locales por lote. Consulta la [guía del laboratorio](docs/laboratorio-appium.md) para instalación, alcance, resultados y permisos pendientes de Automate.
 
-El botón **API Panda** compara el inventario de Panda y el local. La [guía de API y recetas](docs/api-panda-y-recetas.md) explica los perfiles JSON, las recetas ejecutables y la propagación verificable de herramientas.
+La opción **Avanzado → Conexión y diagnóstico → API Panda** compara el inventario de Panda y el local. La [guía de API y recetas](docs/api-panda-y-recetas.md) explica los perfiles JSON, las recetas ejecutables y la propagación verificable de herramientas.
 
 El arranque intenta conciliar y reconectar transportes conocidos; muestra comparación con Panda y diagnóstico. Consulta [arranque y límites del rack](docs/arranque-y-rack.md).
 
@@ -23,6 +23,8 @@ El [primer flujo de Me gusta](docs/flujo-likes.md) se ejecuta en Granjita Lab, s
 Las [métricas de likes](docs/metricas-likes.md) distinguen aplicados, ya marcados y sin confirmar, con auditoría exportable por tarea y destino.
 
 El [creador de tareas](docs/creador-tareas.md) muestra dispositivos en línea/aptos/seleccionados y permite configurar cantidad de likes, scroll y ventana de inicio/fin de Guatemala.
+
+La [pantalla principal guiada](docs/ui-principal.md) organiza el uso en tres pasos y reúne las funciones técnicas en Avanzado.
 
 ## Organización
 

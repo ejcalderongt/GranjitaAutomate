@@ -19,7 +19,7 @@ class SnapshotDialog(QDialog):
     def __init__(self,store,selected=None,parent=None):
         super().__init__(parent)
         self.store,self.selected,self.worker=store,selected,None
-        self.setWindowTitle('Snapshots · Subfase 4.2')
+        self.setWindowTitle('Snapshots')
         self.resize(1000,700)
         layout=QVBoxLayout(self)
         caption=QLabel('Snapshot lógico: inventario y archivos .json/.txt en /sdcard/Download/Granjita (máximo 32 archivos de 16 KiB).\nAl restaurar solo se recuperan archivos ausentes; los diferentes se conservan para revisión. No es una imagen completa de Android.')

@@ -75,3 +75,7 @@ Piloto auditado 72a2a356-18f4-4896-9ecd-ab0229a92568 completado: 1 procesado, 0 
 ## 2026-10-24 · v2.9: creador de tareas, horario y scroll
 
 Se simplificó el panel en Tarea, Resultados y auditoría y Herramientas. Encabezado con en línea/aptos/seleccionados, selección por cantidad, refresco real antes de ejecutar, receta de máximo de tarjetas por dispositivo y scroll tras cada like. Desde–Hasta representa fecha/hora GT, según aclaración del usuario. Ventana y parámetros persistidos con selección real en SQLite; sin reanudación tras cierre. Métricas por tarjeta con destino exacto. 63 pruebas pasan y piloto real de tres tarjetas completado: dos likes nuevos, una ya marcada, tres scrolls. No se ejecutó lote de diez ni horario futuro real. Guía: docs/creador-tareas.md.
+
+## 2026-10-24 · v2.10: pantalla principal guiada
+
+Se organizaron tres pasos visibles: conectar/comprobar, revisar/elegir y preparar/ejecutar. Snapshots y Automatización reemplazan los rótulos técnicos. Se movieron nombres, inventario, mapa físico, ADB/API, preferencias y respaldo a Avanzado. Cuatro indicadores de cantidad grandes, tooltips y tabla simplificada con columnas técnicas opcionales. Sin alterar lógica de tareas ni asociaciones. Revisión visual con estilo real y 63 pruebas existentes correctas. Guía: docs/ui-principal.md.

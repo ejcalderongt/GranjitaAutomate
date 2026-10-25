@@ -14,7 +14,8 @@ Fechas de America/Guatemala. Los números 2.x identifican la aplicación; 4.2 id
 | 2.6 · subfase 4.2 | 2026-10-24 | Snapshots lógicos en SQLite y recuperación de archivos propios ausentes | [Guía 4.2](subfase-4-2-snapshots.md) |
 | 2.7 | 2026-10-24 | Flujo local de Me gusta, sin comentarios ni scroll | [Guía del flujo](flujo-likes.md) |
 | 2.8 | 2026-10-24 | Contadores de likes y auditoría estructurada SQLite/JSON | [Métricas](metricas-likes.md) |
-
 | 2.9 | 2026-10-24 | Creador de tareas, selección por cantidad, horario GT y likes con scroll | [Guía de tareas](creador-tareas.md) |
+
+| 2.10 | 2026-10-24 | Pantalla principal por pasos, menú Avanzado e indicadores grandes | [Guía principal](ui-principal.md) |
 
 Para cada versión registrar alcance, migración/persistencia, instrucciones de uso, pruebas, límites y pendientes. La bitácora conserva las evidencias históricas; los conteos de una versión no son el estado actual de la granja.

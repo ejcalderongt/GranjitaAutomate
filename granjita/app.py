@@ -8,7 +8,7 @@ from PySide6.QtCore import QUrl
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QTableWidget, QTableWidgetItem, QHeaderView, QAbstractItemView,
     QMessageBox, QInputDialog, QFileDialog, QCheckBox, QProgressBar, QDialog, QTabWidget,
-    QPlainTextEdit, QLineEdit)
+    QPlainTextEdit, QLineEdit, QGroupBox, QMenu)
 
 from .core import Adb, Store, ROOT
 from .inventory import FleetStore, scan_fleet, collect_inventory
@@ -125,86 +125,214 @@ class Window(QMainWindow):
         self.fresh = False
         self.reconciliation = {}
         self.startup_pending = True
-        self.setWindowTitle('GranjitaAutomate · v2.9')
-        self.resize(1280, 900)
+        self.setWindowTitle('GranjitaAutomate · v2.10')
+        self.resize(1280, 930)
         central = QWidget()
         self.setCentralWidget(central)
         layout = QVBoxLayout(central)
-        layout.setContentsMargins(28, 24, 28, 24)
-        layout.setSpacing(16)
+        layout.setContentsMargins(24, 18, 24, 18)
+        layout.setSpacing(12)
+        header = QHBoxLayout()
         title = QLabel('GranjitaAutomate')
         title.setObjectName('title')
-        layout.addWidget(title)
-        layout.addWidget(QLabel('Inventario de tu granja · API Panda y laboratorio · Versión 2.9 · Snapshots 4.2 y flujo Me gusta'))
-        self.summary = QLabel('Listo para buscar tus placas')
+        header.addWidget(title)
+        header.addStretch()
+        version = QLabel('Versión 2.10')
+        version.setToolTip('Versión instalada del programa. Los cambios se documentan en el repositorio del proyecto.')
+        header.addWidget(version)
+        self.advanced_button = QPushButton('Avanzado')
+        self.advanced_button.setToolTip('Opciones de inventario, nombres, ubicación física, diagnóstico y respaldo de la base de datos.')
+        header.addWidget(self.advanced_button)
+        layout.addLayout(header)
+        indicator_row = QHBoxLayout()
+        self.indicators = {}
+        indicators = [
+            ('online', 'En línea', 'Seriales físicos distintos que respondieron por ADB. No confirma acceso a Internet.'),
+            ('ready', 'Aptos para tareas', 'Dispositivos en línea con serial físico único y sin conflicto de identidad.'),
+            ('review', 'Requieren revisión', 'Fichas que no están listas para tareas: desconectadas, sin verificar o con identidad ambigua.'),
+            ('saved', 'Fichas guardadas', 'Registros del inventario local. Puede haber fichas históricas pendientes de asociar; no equivale al número físico del rack.'),
+        ]
+        for key, label, tooltip in indicators:
+            card = QWidget()
+            card.setObjectName('indicatorCard')
+            card.setStyleSheet('QWidget#indicatorCard { background:#e7f0f6; border-radius:9px; }')
+            card.setToolTip(tooltip)
+            box = QVBoxLayout(card)
+            box.setContentsMargins(16, 10, 16, 10)
+            value = QLabel('—')
+            value.setStyleSheet('font-size:34px;font-weight:700;color:#172c43;background:transparent;')
+            value.setToolTip(tooltip)
+            caption = QLabel(label)
+            caption.setStyleSheet('font-size:14px;background:transparent;')
+            caption.setToolTip(tooltip)
+            box.addWidget(value)
+            box.addWidget(caption)
+            self.indicators[key] = value
+            indicator_row.addWidget(card, 1)
+        layout.addLayout(indicator_row)
+        self.summary = QLabel('Conecta los dispositivos para comprobar su estado actual.')
         self.summary.setObjectName('summary')
+        self.summary.setWordWrap(True)
+        self.summary.setToolTip('Los números se actualizan al terminar la comprobación. Los datos guardados no se presentan como conexiones actuales.')
         layout.addWidget(self.summary)
-        self.server_table = QTableWidget(0, 5)
-        self.server_table.setHorizontalHeaderLabels(['Servidor / puerto', 'Proceso ADB (PID)', 'Estado', 'Conexiones', 'Comprobación'])
-        self.server_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        self.server_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        self.server_table.setMaximumHeight(130)
-        layout.addWidget(self.server_table)
+        connect_group = QGroupBox('1. Conectar y comprobar')
+        connect_group.setToolTip('Enciende primero las placas y el rack. Después comprueba sus conexiones desde el programa.')
+        connect_layout = QVBoxLayout(connect_group)
+        connect_layout.addWidget(QLabel('Enciende el rack y las placas. Después comprueba cuáles responden.'))
         toolbar = QHBoxLayout()
-        self.scan_button = QPushButton('Conciliar y conectar / Reintentar')
+        self.scan_button = QPushButton('Conectar dispositivos')
+        self.scan_button.setToolTip('Abre Panda si hace falta, intenta recuperar conexiones conocidas y comprueba los dispositivos. No enciende físicamente el rack.')
         self.scan_button.clicked.connect(self.scan)
         toolbar.addWidget(self.scan_button)
         panda = QPushButton('Abrir Panda')
+        panda.setToolTip('Abre Panda para completar Habilitar / Escanear, el modo OTG o una autorización pendiente.')
         panda.clicked.connect(self.open_panda)
         toolbar.addWidget(panda)
-        self.auto = QCheckBox('Revisar cada 30 segundos')
+        toolbar.addStretch()
+        connect_layout.addLayout(toolbar)
+        layout.addWidget(connect_group)
+        self.server_table = QTableWidget(0, 5)
+        self.server_table.setHorizontalHeaderLabels(['Servidor / puerto', 'Proceso ADB (PID)', 'Estado', 'Conexiones', 'Comprobación'])
+        self.server_table.setToolTip('Diagnóstico técnico de los servidores ADB que gestiona Panda. Una placa puede tener más de un transporte.')
+        self.server_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.server_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.server_table.setMaximumHeight(130)
+        self.server_table.hide()
+        layout.addWidget(self.server_table)
+        # Mantener preferencias y comportamiento existentes; se controlan desde el menú.
+        self.auto = QCheckBox(central)
         self.auto.setChecked(self.store.setting('auto', '0') == '1')
         self.auto.toggled.connect(lambda checked: self.store.set_setting('auto', int(checked)))
-        toolbar.addWidget(self.auto)
-        toolbar.addStretch()
-        settings = QPushButton('Configuración')
-        settings.clicked.connect(self.configure)
-        toolbar.addWidget(settings)
-        layout.addLayout(toolbar)
-        self.active_first = QCheckBox('Activos primero (desactivar para orden físico fijo)')
+        self.auto.hide()
+        self.active_first = QCheckBox(central)
         self.active_first.setChecked(self.store.setting('active_first', '0') == '1')
         self.active_first.toggled.connect(self.change_order)
-        layout.addWidget(self.active_first)
+        self.active_first.hide()
+        device_group = QGroupBox('2. Revisar y elegir un dispositivo')
+        device_group.setToolTip('Revisa el estado y selecciona una fila. El verde indica respuesta comprobada; abre la ficha para ver los detalles.')
+        device_layout = QVBoxLayout(device_group)
+        search = QHBoxLayout()
         self.filter = QLineEdit()
-        self.filter.setPlaceholderText('Filtrar por nombre, dispositivo, modelo o puerto…')
+        self.filter.setPlaceholderText('Buscar por nombre, rack, posición o serial…')
+        self.filter.setToolTip('Filtra la lista sin eliminar registros. Borra el texto para volver a ver todos los dispositivos.')
         self.filter.textChanged.connect(self.render)
-        layout.addWidget(self.filter)
+        search.addWidget(self.filter, 1)
+        ficha = QPushButton('Ver ficha')
+        ficha.setToolTip('Muestra el inventario y las últimas observaciones del dispositivo seleccionado. También puedes hacer doble clic en una fila.')
+        ficha.clicked.connect(self.show_inventory)
+        search.addWidget(ficha)
+        device_layout.addLayout(search)
         self.table = QTableWidget(0, 16)
-        self.table.setHorizontalHeaderLabels(['Nombre', 'Serial físico', 'Conexión ADB', 'Puerto / acceso', 'Modelo', 'Android', 'Estado', 'Inventario', 'Comprobación', 'Panda', 'Diagnóstico / siguiente paso', 'Rack', 'Posición', 'Número fijo Panda', 'Último snapshot', 'Recuperación 4.2'])
+        self.table.setHorizontalHeaderLabels(['Nombre', 'Serial físico', 'Conexión ADB', 'Puerto / acceso', 'Modelo', 'Android', 'Estado', 'Inventario', 'Comprobación', 'Panda', 'Diagnóstico / siguiente paso', 'Rack', 'Posición', 'Número fijo Panda', 'Último snapshot', 'Recuperación'])
+        self.table.setToolTip('Selecciona un dispositivo para consultar su diagnóstico. Los desconectados conservan su posición física asignada.')
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
-        self.table.horizontalHeader().setMinimumSectionSize(95)
-        for column, width in {0:210, 1:150, 2:175, 6:180, 10:300}.items():
+        self.table.horizontalHeader().setMinimumSectionSize(75)
+        for column, width in {0:210, 1:150, 2:175, 6:145, 9:120, 10:260, 11:80, 12:80, 14:185}.items():
             self.table.setColumnWidth(column, width)
         for logical, visual in [(11, 0), (12, 1), (13, 2)]:
             self.table.horizontalHeader().moveSection(self.table.horizontalHeader().visualIndex(logical), visual)
+        explanations = {
+            0:'Nombre o alias guardado para reconocer el dispositivo.',
+            1:'Serial declarado por Android; se valida para evitar confundir placas cuando cambia su IP.',
+            2:'Identificador del transporte ADB; puede cambiar y no es la identidad física.',
+            3:'Servidor ADB de origen y tipo de acceso observado.',
+            4:'Modelo reportado por Android.', 5:'Versión de Android reportada.',
+            6:'Validado: respondió. Los demás estados requieren revisar el diagnóstico.',
+            7:'Fecha de la última captura de inventario; puede contener datos históricos.',
+            8:'Hora de Guatemala de la última comprobación de esta conexión.',
+            9:'Si la API de Panda reconoce el serial y qué modo de conexión reporta.',
+            10:'Posibles causas y siguiente paso sugerido; no constituye una medida eléctrica del socket.',
+            11:'Identificador del rack asignado, por ejemplo R01.',
+            12:'Posición física asignada dentro del rack; no cambia al desconectarse.',
+            13:'Número permanente reservado para Panda en el mapa físico.',
+            14:'Último snapshot registrado, con fecha y estado completo o parcial.',
+            15:'Resultado guardado de la verificación o recuperación del snapshot.',
+        }
+        for column, tooltip in explanations.items():
+            self.table.horizontalHeaderItem(column).setToolTip(tooltip)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.setAlternatingRowColors(True)
         self.table.itemSelectionChanged.connect(self.show_detail)
         self.table.doubleClicked.connect(self.show_inventory)
-        layout.addWidget(self.table, 1)
-        actions = QHBoxLayout()
-        for text, callback in [('Ver ficha', self.show_inventory), ('Inventariar seleccionada', self.inventory_selected), ('Inventariar todas', self.inventory_all), ('Cambiar nombre', self.rename), ('Ver historial', self.history), ('Respaldar SQLite', self.backup)]:
-            button = QPushButton(text)
-            button.clicked.connect(callback)
-            actions.addWidget(button)
-        layout.addLayout(actions)
-        identity_actions = QHBoxLayout()
-        for text, callback in [('Snapshots 4.2', self.snapshot_panel), ('Asignar rack / posición', self.physical_position), ('Laboratorio Appium / Automate', self.automation_lab), ('API Panda', self.panda_api), ('Asociar conexión a otra ficha', self.link_connection), ('Ayuda de conexión', self.help)]:
-            button = QPushButton(text)
-            button.clicked.connect(callback)
-            identity_actions.addWidget(button)
-        identity_actions.addStretch()
-        layout.addLayout(identity_actions)
-        self.detail = QLabel('Al iniciar se intenta abrir Panda y recuperar conexiones conocidas. Selecciona una fila para consultar el diagnóstico.')
+        device_layout.addWidget(self.table, 1)
+        self.detail = QLabel('Selecciona una fila para ver su estado y el siguiente paso sugerido.')
+        self.detail.setToolTip('Explicación de la identidad, el resultado de conexión y el diagnóstico del dispositivo seleccionado.')
         self.detail.setWordWrap(True)
-        self.detail.setMinimumHeight(45)
-        layout.addWidget(self.detail)
+        device_layout.addWidget(self.detail)
+        layout.addWidget(device_group, 1)
+        execute_group = QGroupBox('3. Preparar y ejecutar')
+        execute_group.setToolTip('Puedes respaldar primero el estado y después crear la tarea. El snapshot es opcional, no un requisito para ejecutar.')
+        execute_layout = QVBoxLayout(execute_group)
+        execute_layout.addWidget(QLabel('Opcional: guarda un snapshot. Luego crea la tarea y selecciona sus dispositivos.'))
+        actions = QHBoxLayout()
+        for text, callback, tooltip in [
+            ('Snapshots', self.snapshot_panel, 'Crea y consulta snapshots. Al recuperar, solo repone archivos administrados ausentes; no restaura sesiones de otras aplicaciones.'),
+            ('Automatización', self.automation_lab, 'Crea una receta, selecciona uno o varios dispositivos y define likes, scroll y horario. Incluye resultados y auditoría del laboratorio local.'),
+        ]:
+            button = QPushButton(text)
+            button.setToolTip(tooltip)
+            if text == 'Automatización':
+                button.setStyleSheet('QPushButton { background:#246b4d; color:white; font-weight:600; } QPushButton:hover { background:#1e5940; }')
+            button.clicked.connect(callback)
+            actions.addWidget(button, 1)
+        execute_layout.addLayout(actions)
+        layout.addWidget(execute_group)
+        menu = QMenu(self.advanced_button)
+        menu.setToolTipsVisible(True)
+        def add(parent, text, callback, tooltip):
+            action = parent.addAction(text)
+            action.setToolTip(tooltip)
+            action.setStatusTip(tooltip)
+            action.triggered.connect(callback)
+            return action
+        inventory_menu = menu.addMenu('Inventario')
+        inventory_menu.setToolTipsVisible(True)
+        inventory_menu.menuAction().setToolTip('Actualizar las observaciones guardadas o consultar el historial de una ficha.')
+        for text, callback, tooltip in [
+            ('Actualizar seleccionada', self.inventory_selected, 'Consulta y guarda un inventario nuevo de la fila seleccionada.'),
+            ('Actualizar todas', self.inventory_all, 'Consulta y guarda el inventario de las conexiones validadas. Puede tardar varios minutos.'),
+            ('Ver historial', self.history, 'Consulta las últimas comprobaciones guardadas de la ficha seleccionada.'),
+        ]: add(inventory_menu, text, callback, tooltip)
+        identity_menu = menu.addMenu('Identidad y ubicación')
+        identity_menu.setToolTipsVisible(True)
+        identity_menu.menuAction().setToolTip('Administrar alias, mapa físico y asociaciones entre conexiones e identidades.')
+        for text, callback, tooltip in [
+            ('Cambiar nombre', self.rename, 'Cambia el alias local de la ficha seleccionada; no cambia el serial ni renombra Android.'),
+            ('Asignar rack / posición', self.physical_position, 'Verifica el serial y asigna una posición física. Desde ese diálogo puedes aplicar el nombre y número guardados a Panda.'),
+            ('Asociar conexión a otra ficha', self.link_connection, 'Corrige manualmente la asociación histórica de un transporte. Revisa cuidadosamente ambas identidades antes de confirmar.'),
+        ]: add(identity_menu, text, callback, tooltip)
+        connection_menu = menu.addMenu('Conexión y diagnóstico')
+        connection_menu.setToolTipsVisible(True)
+        connection_menu.menuAction().setToolTip('Consultar Panda, configurar puertos y ver el diagnóstico técnico de ADB.')
+        add(connection_menu, 'API Panda', self.panda_api, 'Consulta la API local y compara sus dispositivos con las fichas. No cambia nombres ni grupos.')
+        add(connection_menu, 'Configurar puertos ADB', self.configure, 'Define qué puertos locales consultar además de los detectados. No reinicia los servidores.')
+        def toggle(parent, text, tooltip, checked, callback):
+            action = parent.addAction(text)
+            action.setCheckable(True)
+            action.setChecked(checked)
+            action.setToolTip(tooltip)
+            action.toggled.connect(callback)
+            return action
+        toggle(connection_menu, 'Ver servidores ADB', 'Muestra u oculta la tabla técnica de puertos, procesos y conexiones.', False, self.server_table.setVisible)
+        toggle(connection_menu, 'Revisar cada 30 segundos', 'Repite la conciliación cuando no hay otra consulta en curso.', self.auto.isChecked(), self.auto.setChecked)
+        view_menu = menu.addMenu('Vista')
+        view_menu.setToolTipsVisible(True)
+        view_menu.menuAction().setToolTip('Cambiar la prioridad de orden o mostrar más columnas sin alterar los datos.')
+        toggle(view_menu, 'Activos primero', 'Prioriza los activos. Desactiva para conservar el orden físico fijo de rack y posición.', self.active_first.isChecked(), self.active_first.setChecked)
+        toggle(view_menu, 'Ver columnas técnicas', 'Muestra serial, transporte, versión Android y otros campos técnicos en la tabla.', False, self.show_technical_columns)
+        self.show_technical_columns(False)
+        menu.addSeparator()
+        add(menu, 'Respaldar SQLite', self.backup, 'Crea una copia coherente de la base principal: inventario, mapa físico y snapshots. La base de tareas es independiente.')
+        add(menu, 'Ayuda de conexión', self.help, 'Muestra los pasos para conectar placas mediante Panda y los límites del diagnóstico.')
+        self.advanced_button.setMenu(menu)
         self.progress = QProgressBar()
+        self.progress.setToolTip('Progreso de la consulta actual. Mientras se ejecuta, espera antes de cambiar configuración o cerrar.')
         self.progress.hide()
         layout.addWidget(self.progress)
-        self.notice = QLabel('SQLite local · Los registros guardados se verifican al iniciar una búsqueda. Doble clic para abrir una ficha.')
+        self.notice = QLabel('El programa comprueba las conexiones al abrir. Los registros históricos se conservan para revisión.')
+        self.notice.setToolTip('Resultado del último proceso. Los errores de consulta o recuperación se muestran aquí y se conservan en el historial correspondiente.')
         self.notice.setWordWrap(True)
         layout.addWidget(self.notice)
         self.render()
@@ -212,6 +340,10 @@ class Window(QMainWindow):
         self.timer.timeout.connect(lambda: self.scan() if self.auto.isChecked() else None)
         self.timer.start(30000)
         QTimer.singleShot(400, self.scan)
+
+    def show_technical_columns(self, visible):
+        for column in [1, 2, 3, 4, 5, 7, 8, 13, 15]:
+            self.table.setColumnHidden(column, not visible)
 
     def snapshot_panel(self):
         if self.worker is not None:
@@ -231,9 +363,9 @@ class Window(QMainWindow):
         self.scan_button.setEnabled(False)
         self.progress.setRange(0, 0)
         self.progress.show()
-        self.notice.setText('Subfase 4.2: verificando último snapshot y recuperando archivos administrados ausentes…')
+        self.notice.setText('Verificando snapshots y recuperando archivos administrados ausentes…')
         self.worker.progress.connect(lambda count, text: self.notice.setText(f'Snapshots: {count} · {text}'))
-        self.worker.result.connect(lambda results: self.notice.setText(f"Snapshots: {len(results)} placas procesadas · {sum(r['detail'].startswith('Error') for r in results)} errores. Consulta Snapshots 4.2 para ver estados y diferencias."))
+        self.worker.result.connect(lambda results: self.notice.setText(f"Snapshots: {len(results)} placas procesadas · {sum(r['detail'].startswith('Error') for r in results)} errores. Abre Snapshots para ver estados y diferencias."))
         self.worker.finished.connect(self.finished)
         self.worker.start()
 
@@ -307,9 +439,16 @@ class Window(QMainWindow):
             absent = sum(r['status'] == 'Desconectado' for r in all_rows)
             identities = len({r['id'] for r in all_rows})
             physical = len({r['hardware_serial'] for r in all_rows if r['status'] == 'Validado' and r['hardware_serial']})
-            self.summary.setText(f'{physical} seriales físicos activos · {valid} fichas activas   ·   {len(all_rows)-valid-absent} requieren atención   ·   {absent} desconectadas   ·   {identities} fichas')
+            ready = sum(r['status'] == 'Validado' and r['identity_state'] == 'Serial leído' for r in all_rows)
+            for key, value in dict(online=physical, ready=ready, review=identities-ready, saved=identities).items():
+                self.indicators[key].setText(str(value))
+            checked_at = max((r['last_check'] for r in all_rows), default='')
+            self.summary.setText(('Última comprobación: ' + checked_at[11:19] + ' GT · ' if checked_at else '') + 'Verde: respuesta confirmada · Revisa el diagnóstico de los pendientes.')
         else:
-            self.summary.setText(f'{len(self.rows)} placas guardadas · Pendientes de verificar')
+            for key in ('online', 'ready', 'review'):
+                self.indicators[key].setText('—')
+            self.indicators['saved'].setText(str(len({r['id'] for r in all_rows})))
+            self.summary.setText('Pendiente de comprobación · Los registros guardados todavía no representan el estado actual.')
 
     def scan(self):
         if self.worker is not None:
@@ -519,7 +658,7 @@ class Window(QMainWindow):
             '1. Abre Panda y comprueba la alimentación de las placas.\n'
             '2. Completa en Panda el proceso OTG habitual.\n'
             '3. Si Android solicita autorización USB, acéptala en la placa desde Panda.\n'
-            '4. Pulsa Buscar y validar / Reintentar.\n\n'
+            '4. Pulsa Conectar dispositivos.\n\n'
             'Validado significa que la placa respondió a una consulta real.\n'
             'Al iniciar abre Panda si falta y reintenta transportes conocidos en su servidor de origen.\n'
             'No reinicia ADB ni activa físicamente el rack. Sin telemetría no se puede confirmar energía por socket.')
@@ -544,7 +683,9 @@ def main():
     app.setStyleSheet('''
         QWidget { background: #f4f7fb; color: #172c43; font-family: 'Segoe UI'; font-size: 13px; }
         QLabel#title { font-size: 30px; font-weight: 700; }
-        QLabel#summary { background: #e1edf8; padding: 18px; border-radius: 10px; font-size: 18px; font-weight: 600; }
+        QLabel#summary { font-size: 14px; color: #42566b; }
+        QGroupBox { font-weight:600; border:1px solid #d5e0eb; border-radius:8px; margin-top:12px; padding:14px 10px 10px; }
+        QGroupBox::title { subcontrol-origin:margin; left:12px; padding:0 5px; }
         QPushButton { background: #ffffff; border: 1px solid #c7d5e3; border-radius: 7px; padding: 10px 14px; }
         QPushButton:hover { background: #e1edf8; }
         QPushButton:disabled { color: #94a3b8; }

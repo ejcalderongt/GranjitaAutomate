@@ -41,3 +41,4 @@
 - [x] Guardar métricas estructuradas y destino por tarea lab_like, indicadores globales y auditoría exportable en JSON (v2.8).
 - [x] Simplificar creador de tareas con selección por cantidad, indicadores de conectividad, likes por dispositivo, scroll y horario inicio/fin GT (v2.9).
 - [ ] Validar una tarea con horario futuro elegido por el usuario, manteniendo PC y panel abiertos; las pruebas de límites ya están automatizadas.
+- [x] Simplificar pantalla principal con pasos numerados, menú Avanzado, indicadores grandes y tooltips; nombres Snapshots y Automatización (v2.10).
