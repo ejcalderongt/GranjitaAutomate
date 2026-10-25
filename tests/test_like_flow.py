@@ -29,3 +29,11 @@ class LikeFlowTests(TestCase):
         recipe=load_recipe(ROOT/'recipes/lab-like.json')
         self.assertEqual(recipe['action'],'lab_like')
         self.assertNotIn('comment',recipe['parameters'])
+    def test_audit_failure_blocks_click(self):
+        session=MagicMock();session.call.return_value=PACKAGE;session.text.return_value='ME GUSTA: NO'
+        context=MagicMock();context.__enter__.return_value=session
+        def audit(kind,data):
+            if kind=='click_requested':raise OSError('SQLite no disponible')
+        with patch('granjita.automation.Session',return_value=context):
+            with self.assertRaises(OSError):run_like({},'test',audit=audit)
+        session.click.assert_not_called()

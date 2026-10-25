@@ -205,23 +205,29 @@ def run_lab(row, comment, task_id, cancelled=lambda:False):
         return f'Like local, comentario y scroll verificados. Evidencia: {image.name}'
 
 
-def run_like(row, task_id, cancelled=lambda:False):
+def run_like(row, task_id, cancelled=lambda:False, audit=lambda kind,data:None):
     if cancelled():
         raise AutomationError('Cancelado antes de iniciar.')
+    audit('started',{})
     with Session(row) as session:
         if session.call('GET','/appium/device/current_package') != PACKAGE:
             raise AutomationError('La app de laboratorio no está en primer plano.')
         if cancelled():raise AutomationError('Cancelado antes del like.')
         before=session.text('lab_like_01').upper()
+        audit('observed',{'state':before})
         if before not in ('ME GUSTA: SI','ME GUSTA: NO'):
             raise AutomationError('Estado del botón desconocido; revisar sin pulsar.')
         if cancelled():raise AutomationError('Cancelado antes de pulsar.')
-        if before=='ME GUSTA: NO':session.click('lab_like_01')
+        if before=='ME GUSTA: NO':
+            audit('click_requested',{})
+            session.click('lab_like_01')
         if session.text('lab_like_01').upper()!='ME GUSTA: SI':
             raise AutomationError('Resultado del like sin confirmar; revisar antes de repetir.')
+        audit('verified',{'outcome':'already_marked' if before=='ME GUSTA: SI' else 'applied','before':before,'after':'ME GUSTA: SI'})
         evidence=DATA/'lab-evidence';evidence.mkdir(exist_ok=True)
         path=evidence/(task_id+'.png')
         path.write_bytes(base64.b64decode(session.call('GET','/screenshot')))
+        audit('evidence',{'path':str(path),'sha256':hashlib.sha256(path.read_bytes()).hexdigest()})
         return ('Ya estaba marcado; no se volvió a pulsar.' if before=='ME GUSTA: SI' else 'Like local aplicado y verificado.') + ' Evidencia: '+path.name
 
 
@@ -246,12 +252,23 @@ class JobStore:
     def __init__(self,path=None):
         self.path=Path(path) if path else DATA/'automation.sqlite3'
         self.path.parent.mkdir(parents=True,exist_ok=True)
+        if self.path.exists():
+            source=sqlite3.connect(self.path)
+            try:
+                if not source.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='like_context'").fetchone():
+                    destination=sqlite3.connect(self.path.with_name(self.path.stem+'-antes-metricas.sqlite3'))
+                    try:source.backup(destination)
+                    finally:destination.close()
+            finally:source.close()
         with self.db() as db:
             db.executescript('''CREATE TABLE IF NOT EXISTS tasks (
                 id TEXT PRIMARY KEY,batch TEXT NOT NULL,device_id TEXT NOT NULL,name TEXT NOT NULL,
                 port INTEGER NOT NULL,serial TEXT NOT NULL,action TEXT NOT NULL,comment TEXT NOT NULL,
                 status TEXT NOT NULL,detail TEXT NOT NULL,created TEXT NOT NULL,updated TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS pilot_devices(device_id TEXT PRIMARY KEY);
+                CREATE TABLE IF NOT EXISTS like_context(task_id TEXT PRIMARY KEY,context TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS like_events(id INTEGER PRIMARY KEY,task_id TEXT NOT NULL,at TEXT NOT NULL,kind TEXT NOT NULL,data TEXT NOT NULL);
+                CREATE INDEX IF NOT EXISTS like_events_task ON like_events(task_id,id);
                 CREATE TABLE IF NOT EXISTS task_recipes(task_id TEXT PRIMARY KEY,recipe_id TEXT NOT NULL,spec TEXT NOT NULL,sha256 TEXT NOT NULL);
             ''')
             db.execute("UPDATE tasks SET status='Resultado incierto',detail='La aplicación se cerró durante una tarea. No se reintenta automáticamente.' WHERE status='Ejecutando'")
@@ -276,18 +293,55 @@ class JobStore:
             for row in rows:
                 identifier=str(uuid.uuid4())
                 db.execute('INSERT INTO tasks VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',(identifier,batch,row['id'],row['display_name'],row['port'],row['serial'],action,comment,'En cola','',now(),now()))
+                if action=='lab_like':
+                    context=dict(hardware_serial=row.get('hardware_serial'),device_id=row['id'],name=row['display_name'],rack=row.get('rack'),slot=row.get('slot'),port=row['port'],transport=row['serial'],environment='local_lab',package=PACKAGE,target='lab_like_01')
+                    db.execute('INSERT INTO like_context VALUES (?,?)',(identifier,json.dumps(context,ensure_ascii=False,sort_keys=True)))
                 tasks.append(dict(id=identifier,row=row,comment=comment,action=action))
         return tasks
 
     def update(self,identifier,status,detail=''):
         with self.db() as db:
             db.execute('UPDATE tasks SET status=?,detail=?,updated=? WHERE id=?',(status,detail,now(),identifier))
+            row=db.execute('SELECT action FROM tasks WHERE id=?',(identifier,)).fetchone()
+            if row and row['action']=='lab_like':
+                db.execute('INSERT INTO like_events(task_id,at,kind,data) VALUES (?,?,?,?)',(identifier,now(),'task_status',json.dumps(dict(status=status,detail=detail),ensure_ascii=False)))
 
     def attach_recipe(self,identifiers,recipe):
         spec=json.dumps(recipe,ensure_ascii=False,sort_keys=True)
         digest=hashlib.sha256(spec.encode('utf-8')).hexdigest()
         with self.db() as db:
             db.executemany('INSERT INTO task_recipes VALUES (?,?,?,?)',[(identifier,recipe['id'],spec,digest) for identifier in identifiers])
+
+    def like_event(self, identifier, kind, data):
+        if kind not in ('started','observed','click_requested','verified','evidence'):
+            raise ValueError('Tipo de evento no admitido.')
+        with self.db() as db:
+            if not db.execute('SELECT 1 FROM like_context WHERE task_id=?',(identifier,)).fetchone():
+                raise ValueError('Falta contexto auditable; no ejecutar acción.')
+            db.execute('INSERT INTO like_events(task_id,at,kind,data) VALUES (?,?,?,?)',(identifier,now(),kind,json.dumps(data,ensure_ascii=False,sort_keys=True)))
+
+    def like_report(self):
+        with self.db() as db:
+            rows=[dict(r) for r in db.execute("SELECT t.*,c.context,r.sha256 AS recipe_sha256,r.recipe_id,r.spec AS recipe_spec FROM tasks t LEFT JOIN like_context c ON c.task_id=t.id LEFT JOIN task_recipes r ON r.task_id=t.id WHERE t.action='lab_like' ORDER BY t.created,t.rowid")]
+            events={}
+            for row in db.execute('SELECT * FROM like_events ORDER BY id'):
+                item=dict(row);item['data']=json.loads(item['data'])
+                events.setdefault(item['task_id'],[]).append(item)
+        for row in rows:
+            row['recipe_spec']=json.loads(row['recipe_spec']) if row['recipe_spec'] else None
+            row['context']=json.loads(row['context']) if row['context'] else None
+            row['events']=events.get(row['id'],[])
+            verified=[e['data']['outcome'] for e in row['events'] if e['kind']=='verified']
+            row['outcome']=verified[-1] if verified else 'unconfirmed' if row['context'] else 'historical_unmeasured'
+            row['processed']=any(e['kind']=='started' for e in row['events'])
+        return rows
+
+    def like_metrics(self):
+        report=self.like_report()
+        return dict(scheduled=len(report),processed=sum(r['processed'] for r in report),
+            applied=sum(r['outcome']=='applied' for r in report),already_marked=sum(r['outcome']=='already_marked' for r in report),
+            unconfirmed=sum(r['outcome']=='unconfirmed' and r['processed'] for r in report),
+            historical_unmeasured=sum(r['outcome']=='historical_unmeasured' for r in report))
 
     def tasks(self):
         with self.db() as db:

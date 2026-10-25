@@ -56,7 +56,7 @@ def execute_recipe(recipe,rows):
     for task in tasks:
         jobs.update(task['id'],'Ejecutando',f"Receta {recipe['id']}")
         try:
-            detail=run_like(task['row'],task['id']) if like else run_lab(task['row'],task['comment'],task['id'])
+            detail=run_like(task['row'],task['id'],audit=lambda kind,data:jobs.like_event(task['id'],kind,data)) if like else run_lab(task['row'],task['comment'],task['id'])
             status='Completado'
         except Exception as exc:
             detail=str(exc)

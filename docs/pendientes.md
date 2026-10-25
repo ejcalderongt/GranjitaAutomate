@@ -38,3 +38,4 @@
 - [ ] Evaluar adaptadores de exportación/importación de datos internos de apps específicas; no existe respaldo integral Android ni restauración de sesiones en 4.2.
 - [x] Crear flujo básico lab_like reproducible en Granjita Lab, con selección, verificación y resultados SQLite.
 - [ ] Validar un lote elegido por el usuario con el flujo solo Me gusta; no confundir estado ya marcado con una interacción nueva.
+- [x] Guardar métricas estructuradas y destino por tarea lab_like, indicadores globales y auditoría exportable en JSON (v2.8).

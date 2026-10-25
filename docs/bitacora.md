@@ -65,3 +65,9 @@ Se agregaron manifiestos, archivos BLOB con hashes y eventos de recuperación a 
 ## 2026-10-24 · v2.7: primer flujo básico de likes
 
 Se agregó lab_like con receta local reproducible y acceso directo dentro del panel de laboratorio. Lee el estado, solo pulsa si falta y confirma SI; no comenta ni desplaza. Guarda acción y receta/perfil en SQLite, evidencia local y resultados inciertos sin reintento. 53 pruebas pasan. Ver docs/flujo-likes.md.
+
+## 2026-10-24 · v2.8: métricas auditables de likes
+
+Se agregaron contexto inmutable y eventos de ejecución a automation.sqlite3, contadores globales por tarea, detalle de destino y exportación JSON con receta/perfil y evidencia referenciada por SHA-256. Se separan aplicados de ya marcados y resultados sin confirmar; no se infieren resultados históricos desde texto. Respaldo previo a agregar las tablas. 56 pruebas pasan. Ver docs/metricas-likes.md.
+
+Piloto auditado 72a2a356-18f4-4896-9ecd-ab0229a92568 completado: 1 procesado, 0 aplicados nuevos, 1 ya marcado, 0 sin confirmar. El piloto anterior permanece histórico sin medición estructurada. Se verificó SHA-256 de evidencia y exportación local JSON.

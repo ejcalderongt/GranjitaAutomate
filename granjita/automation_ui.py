@@ -28,7 +28,7 @@ class BatchWorker(QThread):
             self.jobs.update(task['id'],'Ejecutando')
             self.changed.emit()
             try:
-                result=run_like(task['row'],task['id'],self.cancel.is_set) if task.get('action')=='lab_like' else run_lab(task['row'],task['comment'],task['id'],self.cancel.is_set)
+                result=run_like(task['row'],task['id'],self.cancel.is_set,audit=lambda kind,data:self.jobs.like_event(task['id'],kind,data)) if task.get('action')=='lab_like' else run_lab(task['row'],task['comment'],task['id'],self.cancel.is_set)
                 self.jobs.update(task['id'],'Completado',result)
             except Exception as exc:
                 self.jobs.update(task['id'],'Revisar resultado',str(exc))
@@ -58,7 +58,9 @@ class AutomationDialog(QDialog):
         self.worker=None
         self.rows=[]
         identifiers=set()
-        for row in store.fleet_devices():
+        from .physical import ordered_rows
+        candidates=ordered_rows(store.fleet_devices(),store.positions()) if hasattr(store,'positions') else store.fleet_devices()
+        for row in candidates:
             if row['status']=='Validado' and row['identity_state']=='Serial leído' and row['id'] not in identifiers:
                 self.rows.append(row)
                 identifiers.add(row['id'])
@@ -117,6 +119,12 @@ class AutomationDialog(QDialog):
         self.results.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.results.itemSelectionChanged.connect(self.details)
         layout.addWidget(self.results,1)
+        export=QPushButton('Exportar auditoría de likes (JSON)')
+        export.clicked.connect(self.export_likes)
+        layout.addWidget(export)
+        self.like_stats=QLabel()
+        self.like_stats.setWordWrap(True)
+        layout.addWidget(self.like_stats)
         self.stats=QLabel()
         layout.addWidget(self.stats)
         self.detail=QPlainTextEdit()
@@ -185,6 +193,8 @@ class AutomationDialog(QDialog):
 
     def refresh(self):
         self.tasks=self.jobs.tasks()
+        metrics=self.jobs.like_metrics()
+        self.like_stats.setText(f"Likes · Programados: {metrics['scheduled']} · Procesados: {metrics['processed']} · Aplicados: {metrics['applied']} · Ya marcados: {metrics['already_marked']} · Sin confirmar: {metrics['unconfirmed']} · Históricos sin medición: {metrics['historical_unmeasured']}")
         if hasattr(self,'stats'):
             completed=sum(t['status']=='Completado' for t in self.tasks)
             pending=sum(t['status'] in ('En cola','Ejecutando') for t in self.tasks)
@@ -196,11 +206,27 @@ class AutomationDialog(QDialog):
                 item.setToolTip(value)
                 self.results.setItem(i,j,item)
 
+    def export_likes(self):
+        if self.worker:return
+        path,_=QFileDialog.getSaveFileName(self,'Exportar auditoría de likes','auditoria-likes.json','JSON (*.json)')
+        if not path:return
+        import json
+        from .core import now
+        try:
+            Path(path).write_text(json.dumps(dict(schema_version=1,at=now(),metrics=self.jobs.like_metrics(),tasks=self.jobs.like_report()),ensure_ascii=False,indent=2),encoding='utf-8')
+            self.state.setText('Auditoría exportada: '+path)
+        except Exception as exc:
+            QMessageBox.warning(self,'No se pudo exportar',str(exc))
+
     def details(self):
         index=self.results.currentRow()
         if 0<=index<len(self.tasks):
             task=self.tasks[index]
             self.detail.setPlainText(f"Tarea: {task['id']}\nLote: {task['batch']}\n{task['status']}\n{task['detail']}")
+            if task['action']=='lab_like':
+                import json
+                report=next((r for r in self.jobs.like_report() if r['id']==task['id']),None)
+                if report:self.detail.appendPlainText(json.dumps(dict(context=report['context'],outcome=report['outcome'],recipe_sha256=report['recipe_sha256'],events=report['events']),ensure_ascii=False,indent=2))
 
     def toggle_pause(self):
         if isinstance(self.worker,BatchWorker):

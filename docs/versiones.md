@@ -15,4 +15,6 @@ Fechas de America/Guatemala. Los números 2.x identifican la aplicación; 4.2 id
 
 | 2.7 | 2026-10-24 | Flujo local de Me gusta, sin comentarios ni scroll | [Guía del flujo](flujo-likes.md) |
 
+| 2.8 | 2026-10-24 | Contadores de likes y auditoría estructurada SQLite/JSON | [Métricas](metricas-likes.md) |
+
 Para cada versión registrar alcance, migración/persistencia, instrucciones de uso, pruebas, límites y pendientes. La bitácora conserva las evidencias históricas; los conteos de una versión no son el estado actual de la granja.

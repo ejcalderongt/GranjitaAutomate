@@ -20,7 +20,8 @@ def main():
         parser.error('La ejecución requiere al menos un --device-id explícito.')
     store=FleetStore()
     store.save_fleet(scan_fleet([int(p) for p in store.setting('ports','5037,5038').split(',')]))
-    candidates={r['id']:r for r in store.fleet_devices() if r['status']=='Validado' and r['identity_state']=='Serial leído'}
+    from granjita.physical import ordered_rows
+    candidates={r['id']:r for r in ordered_rows(store.fleet_devices(),store.positions()) if r['status']=='Validado' and r['identity_state']=='Serial leído'}
     if set(args.device_id)-set(candidates):
         parser.error('Una identidad elegida no está validada o tiene conflicto. No se ejecutó el lote.')
     for result in execute_recipe(recipe,[candidates[k] for k in dict.fromkeys(args.device_id)]):
