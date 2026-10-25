@@ -2,7 +2,7 @@
 
 Repositorio de conocimiento, documentación y herramientas para administrar la granja de placas Android.
 
-## Aplicación v2.8
+## Aplicación v2.9
 
 Abrir **GranjitaAutomate** desde el escritorio o ejecutar `iniciar.vbs`. Consulta la [guía de inventario y servidores ADB](docs/version-2.md) y las [instrucciones de instalación](docs/version-1.md). Usa SQLite local en `data/`, excluida de Git.
 
@@ -21,6 +21,8 @@ Los [snapshots 4.2](docs/subfase-4-2-snapshots.md) guardan inventario y archivos
 El [primer flujo de Me gusta](docs/flujo-likes.md) se ejecuta en Granjita Lab, sin comentarios ni scroll, y conserva resultados en SQLite.
 
 Las [métricas de likes](docs/metricas-likes.md) distinguen aplicados, ya marcados y sin confirmar, con auditoría exportable por tarea y destino.
+
+El [creador de tareas](docs/creador-tareas.md) muestra dispositivos en línea/aptos/seleccionados y permite configurar cantidad de likes, scroll y ventana de inicio/fin de Guatemala.
 
 ## Organización
 

@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "id": "lab-like-flow-v1",
+  "name": "Likes y scroll de laboratorio",
+  "profile": "laboratorio",
+  "objective": "Procesar tarjetas locales, verificar cada like y desplazar el feed despu?s de cada paso.",
+  "context": {"environment": "local_lab", "audience": "laboratorio", "intent": "prueba educativa con auditor?a"},
+  "action": "lab_like_flow",
+  "parameters": {"count": 3, "scroll_after_like": true, "start_at": null, "end_at": null},
+  "execution": {"concurrency": 1, "automatic_retries": 0, "on_uncertain": "review"}
+}

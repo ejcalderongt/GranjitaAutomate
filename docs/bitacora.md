@@ -71,3 +71,7 @@ Se agregó lab_like con receta local reproducible y acceso directo dentro del pa
 Se agregaron contexto inmutable y eventos de ejecución a automation.sqlite3, contadores globales por tarea, detalle de destino y exportación JSON con receta/perfil y evidencia referenciada por SHA-256. Se separan aplicados de ya marcados y resultados sin confirmar; no se infieren resultados históricos desde texto. Respaldo previo a agregar las tablas. 56 pruebas pasan. Ver docs/metricas-likes.md.
 
 Piloto auditado 72a2a356-18f4-4896-9ecd-ab0229a92568 completado: 1 procesado, 0 aplicados nuevos, 1 ya marcado, 0 sin confirmar. El piloto anterior permanece histórico sin medición estructurada. Se verificó SHA-256 de evidencia y exportación local JSON.
+
+## 2026-10-24 · v2.9: creador de tareas, horario y scroll
+
+Se simplificó el panel en Tarea, Resultados y auditoría y Herramientas. Encabezado con en línea/aptos/seleccionados, selección por cantidad, refresco real antes de ejecutar, receta de máximo de tarjetas por dispositivo y scroll tras cada like. Desde–Hasta representa fecha/hora GT, según aclaración del usuario. Ventana y parámetros persistidos con selección real en SQLite; sin reanudación tras cierre. Métricas por tarjeta con destino exacto. 63 pruebas pasan y piloto real de tres tarjetas completado: dos likes nuevos, una ya marcada, tres scrolls. No se ejecutó lote de diez ni horario futuro real. Guía: docs/creador-tareas.md.

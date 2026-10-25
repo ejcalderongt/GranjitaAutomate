@@ -39,3 +39,5 @@
 - [x] Crear flujo básico lab_like reproducible en Granjita Lab, con selección, verificación y resultados SQLite.
 - [ ] Validar un lote elegido por el usuario con el flujo solo Me gusta; no confundir estado ya marcado con una interacción nueva.
 - [x] Guardar métricas estructuradas y destino por tarea lab_like, indicadores globales y auditoría exportable en JSON (v2.8).
+- [x] Simplificar creador de tareas con selección por cantidad, indicadores de conectividad, likes por dispositivo, scroll y horario inicio/fin GT (v2.9).
+- [ ] Validar una tarea con horario futuro elegido por el usuario, manteniendo PC y panel abiertos; las pruebas de límites ya están automatizadas.

@@ -272,7 +272,7 @@ class JobStore:
                 CREATE TABLE IF NOT EXISTS task_recipes(task_id TEXT PRIMARY KEY,recipe_id TEXT NOT NULL,spec TEXT NOT NULL,sha256 TEXT NOT NULL);
             ''')
             db.execute("UPDATE tasks SET status='Resultado incierto',detail='La aplicación se cerró durante una tarea. No se reintenta automáticamente.' WHERE status='Ejecutando'")
-            db.execute("UPDATE tasks SET status='Interrumpido',detail='Lote interrumpido. Crear un nuevo lote para continuar.' WHERE status='En cola'")
+            db.execute("UPDATE tasks SET status='Interrumpido',detail='Lote interrumpido. Crear un nuevo lote para continuar.' WHERE status IN ('En cola','Programado')")
 
     @contextmanager
     def db(self):
@@ -284,8 +284,8 @@ class JobStore:
         finally:
             db.close()
 
-    def create(self,rows,comment,action='lab_like_comment_scroll'):
-        if action not in ('lab_like_comment_scroll', 'lab_like'):
+    def create(self,rows,comment,action='lab_like_comment_scroll',parameters=None):
+        if action not in ('lab_like_comment_scroll', 'lab_like', 'lab_like_flow'):
             raise ValueError('Acción de tarea no admitida.')
         batch=str(uuid.uuid4())
         tasks=[]
@@ -293,17 +293,17 @@ class JobStore:
             for row in rows:
                 identifier=str(uuid.uuid4())
                 db.execute('INSERT INTO tasks VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',(identifier,batch,row['id'],row['display_name'],row['port'],row['serial'],action,comment,'En cola','',now(),now()))
-                if action=='lab_like':
-                    context=dict(hardware_serial=row.get('hardware_serial'),device_id=row['id'],name=row['display_name'],rack=row.get('rack'),slot=row.get('slot'),port=row['port'],transport=row['serial'],environment='local_lab',package=PACKAGE,target='lab_like_01')
+                if action in ('lab_like','lab_like_flow'):
+                    context=dict(hardware_serial=row.get('hardware_serial'),device_id=row['id'],name=row['display_name'],rack=row.get('rack'),slot=row.get('slot'),port=row['port'],transport=row['serial'],environment='local_lab',package=PACKAGE,target='feed' if action=='lab_like_flow' else 'lab_like_01',parameters=parameters)
                     db.execute('INSERT INTO like_context VALUES (?,?)',(identifier,json.dumps(context,ensure_ascii=False,sort_keys=True)))
-                tasks.append(dict(id=identifier,row=row,comment=comment,action=action))
+                tasks.append(dict(id=identifier,row=row,comment=comment,action=action,parameters=parameters))
         return tasks
 
     def update(self,identifier,status,detail=''):
         with self.db() as db:
             db.execute('UPDATE tasks SET status=?,detail=?,updated=? WHERE id=?',(status,detail,now(),identifier))
             row=db.execute('SELECT action FROM tasks WHERE id=?',(identifier,)).fetchone()
-            if row and row['action']=='lab_like':
+            if row and row['action'] in ('lab_like','lab_like_flow'):
                 db.execute('INSERT INTO like_events(task_id,at,kind,data) VALUES (?,?,?,?)',(identifier,now(),'task_status',json.dumps(dict(status=status,detail=detail),ensure_ascii=False)))
 
     def attach_recipe(self,identifiers,recipe):
@@ -313,7 +313,7 @@ class JobStore:
             db.executemany('INSERT INTO task_recipes VALUES (?,?,?,?)',[(identifier,recipe['id'],spec,digest) for identifier in identifiers])
 
     def like_event(self, identifier, kind, data):
-        if kind not in ('started','observed','click_requested','verified','evidence'):
+        if kind not in ('started','observed','click_requested','verified','evidence','scroll'):
             raise ValueError('Tipo de evento no admitido.')
         with self.db() as db:
             if not db.execute('SELECT 1 FROM like_context WHERE task_id=?',(identifier,)).fetchone():
@@ -322,7 +322,7 @@ class JobStore:
 
     def like_report(self):
         with self.db() as db:
-            rows=[dict(r) for r in db.execute("SELECT t.*,c.context,r.sha256 AS recipe_sha256,r.recipe_id,r.spec AS recipe_spec FROM tasks t LEFT JOIN like_context c ON c.task_id=t.id LEFT JOIN task_recipes r ON r.task_id=t.id WHERE t.action='lab_like' ORDER BY t.created,t.rowid")]
+            rows=[dict(r) for r in db.execute("SELECT t.*,c.context,r.sha256 AS recipe_sha256,r.recipe_id,r.spec AS recipe_spec FROM tasks t LEFT JOIN like_context c ON c.task_id=t.id LEFT JOIN task_recipes r ON r.task_id=t.id WHERE t.action IN ('lab_like','lab_like_flow') ORDER BY t.created,t.rowid")]
             events={}
             for row in db.execute('SELECT * FROM like_events ORDER BY id'):
                 item=dict(row);item['data']=json.loads(item['data'])
@@ -334,14 +334,24 @@ class JobStore:
             verified=[e['data']['outcome'] for e in row['events'] if e['kind']=='verified']
             row['outcome']=verified[-1] if verified else 'unconfirmed' if row['context'] else 'historical_unmeasured'
             row['processed']=any(e['kind']=='started' for e in row['events'])
+            units={}
+            for e in row['events']:
+                if e['kind'] not in ('started','verified'):continue
+                target=e['data'].get('target','lab_like_01')
+                unit=units.setdefault(target,dict(target=target,processed=False,outcome='unconfirmed'))
+                if e['kind']=='started':unit['processed']=True
+                if e['kind']=='verified':unit['outcome']=e['data']['outcome']
+            row['interactions']=list(units.values())
         return rows
 
     def like_metrics(self):
         report=self.like_report()
-        return dict(scheduled=len(report),processed=sum(r['processed'] for r in report),
-            applied=sum(r['outcome']=='applied' for r in report),already_marked=sum(r['outcome']=='already_marked' for r in report),
-            unconfirmed=sum(r['outcome']=='unconfirmed' and r['processed'] for r in report),
+        units=[u for r in report for u in r['interactions']]
+        return dict(scheduled=len(report),processed=sum(u['processed'] for u in units),
+            applied=sum(u['outcome']=='applied' for u in units),already_marked=sum(u['outcome']=='already_marked' for u in units),
+            unconfirmed=sum(u['outcome']=='unconfirmed' and u['processed'] for u in units),
             historical_unmeasured=sum(r['outcome']=='historical_unmeasured' for r in report))
+
 
     def tasks(self):
         with self.db() as db:

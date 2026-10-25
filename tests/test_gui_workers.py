@@ -47,7 +47,7 @@ class GuiWorkerTests(TestCase):
         row=dict(id='test-id',display_name='Prueba',port=5037,serial='192.0.2.1:5555',hardware_serial='TESTSERIAL',status='Validado',identity_state='Serial leído')
         jobs=JobStore(Path(folder)/'jobs.sqlite3')
         store=SimpleNamespace(fleet_devices=lambda:[row])
-        with patch('granjita.automation_ui.JobStore',return_value=jobs),patch('granjita.automation_ui.runtime',return_value={}),patch('granjita.automation_ui.appium_status',return_value='Disponible'),patch('granjita.automation_ui.automate_status',return_value='Instalado'),patch('granjita.automation_ui.run_lab',return_value='Prueba verificada'):
+        with patch('granjita.automation_ui.JobStore',return_value=jobs),patch('granjita.automation_ui.runtime',return_value={}),patch('granjita.automation_ui.appium_status',return_value='Disponible'),patch('granjita.automation_ui.automate_status',return_value='Instalado'),patch('granjita.automation_ui.run_lab',return_value='Prueba verificada'),patch('granjita.automation_ui.run_flow',return_value='Flujo verificado'):
             dialog=AutomationDialog(store)
             if run:
                 dialog.run_batch()
@@ -87,3 +87,26 @@ class GuiWorkerTests(TestCase):
                 window.finished()
                 schedule.assert_not_called()
             window.close()
+    def test_builder_selects_count_and_captures_schedule(self):
+        from datetime import timedelta
+        from granjita.taskflow import clock_now
+        from PySide6.QtCore import QDateTime,Qt
+        with TemporaryDirectory() as folder:
+            jobs=JobStore(Path(folder)/'jobs.sqlite3')
+            rows=[dict(id=f'd{i}',display_name=f'Placa {i}',port=5037,serial=f'192.0.2.{i}:5555',hardware_serial=f'SERIAL{i:03}',status='Validado',identity_state='Serial leído') for i in range(1,13)]
+            store=SimpleNamespace(fleet_devices=lambda:rows)
+            with patch('granjita.automation_ui.JobStore',return_value=jobs):
+                dialog=AutomationDialog(store)
+                dialog.limit.setValue(10);dialog.select_count();dialog.count.setValue(4)
+                self.assertEqual(len(dialog.checked()),10)
+                self.assertIn('10 seleccionados',dialog.fleet_stats.text())
+                dialog.mode.setCurrentIndex(1)
+                now=clock_now()
+                dialog.start_at.setDateTime(QDateTime.fromString((now+timedelta(minutes=1)).isoformat(),Qt.DateFormat.ISODate))
+                dialog.end_at.setDateTime(QDateTime.fromString((now+timedelta(minutes=2)).isoformat(),Qt.DateFormat.ISODate))
+                recipe=dialog.build_recipe()
+                self.assertEqual(recipe['parameters']['count'],4)
+                self.assertTrue(recipe['parameters']['scroll_after_like'])
+                self.assertTrue(recipe['parameters']['start_at'].endswith('-06:00'))
+                self.assertIsNotNone(recipe['parameters']['end_at'])
+                dialog.close()

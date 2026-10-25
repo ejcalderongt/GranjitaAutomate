@@ -125,7 +125,7 @@ class Window(QMainWindow):
         self.fresh = False
         self.reconciliation = {}
         self.startup_pending = True
-        self.setWindowTitle('GranjitaAutomate · v2.8')
+        self.setWindowTitle('GranjitaAutomate · v2.9')
         self.resize(1280, 900)
         central = QWidget()
         self.setCentralWidget(central)
@@ -135,7 +135,7 @@ class Window(QMainWindow):
         title = QLabel('GranjitaAutomate')
         title.setObjectName('title')
         layout.addWidget(title)
-        layout.addWidget(QLabel('Inventario de tu granja · API Panda y laboratorio · Versión 2.8 · Snapshots 4.2 y flujo Me gusta'))
+        layout.addWidget(QLabel('Inventario de tu granja · API Panda y laboratorio · Versión 2.9 · Snapshots 4.2 y flujo Me gusta'))
         self.summary = QLabel('Listo para buscar tus placas')
         self.summary.setObjectName('summary')
         layout.addWidget(self.summary)

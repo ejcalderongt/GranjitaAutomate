@@ -32,3 +32,6 @@ El destino actual es el paquete gt.granjita.lab, elemento lab_like_01. No se alm
 ## Validación
 
 56 pruebas pasan con salida 0. Se verifican conteo por tarea sin duplicar eventos, diferencia entre aplicado/ya marcado/sin confirmar, cancelación sin iniciar y preservación de históricos. Prueba real de la receta con auditoría estructurada documentada en bitácora.
+
+
+Actualización v2.9: el nuevo lab_like_flow se incluye en los indicadores. Cada tarjeta destino de una tarea es una interacción distinta; se deduplica por tarea y target. Programados cuenta tareas, mientras los demás contadores cuentan interacciones. Ver docs/creador-tareas.md.
