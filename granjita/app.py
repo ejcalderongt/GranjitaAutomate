@@ -124,7 +124,8 @@ class Window(QMainWindow):
         self.worker = None
         self.fresh = False
         self.reconciliation = {}
-        self.setWindowTitle('GranjitaAutomate · v2.5')
+        self.startup_pending = True
+        self.setWindowTitle('GranjitaAutomate · v2.6 · 4.2')
         self.resize(1280, 900)
         central = QWidget()
         self.setCentralWidget(central)
@@ -134,7 +135,7 @@ class Window(QMainWindow):
         title = QLabel('GranjitaAutomate')
         title.setObjectName('title')
         layout.addWidget(title)
-        layout.addWidget(QLabel('Inventario de tu granja · API Panda y laboratorio · Versión 2.5'))
+        layout.addWidget(QLabel('Inventario de tu granja · API Panda y laboratorio · Versión 2.6 · Subfase 4.2'))
         self.summary = QLabel('Listo para buscar tus placas')
         self.summary.setObjectName('summary')
         layout.addWidget(self.summary)
@@ -168,8 +169,8 @@ class Window(QMainWindow):
         self.filter.setPlaceholderText('Filtrar por nombre, dispositivo, modelo o puerto…')
         self.filter.textChanged.connect(self.render)
         layout.addWidget(self.filter)
-        self.table = QTableWidget(0, 14)
-        self.table.setHorizontalHeaderLabels(['Nombre', 'Serial físico', 'Conexión ADB', 'Puerto / acceso', 'Modelo', 'Android', 'Estado', 'Inventario', 'Comprobación', 'Panda', 'Diagnóstico / siguiente paso', 'Rack', 'Posición', 'Número fijo Panda'])
+        self.table = QTableWidget(0, 16)
+        self.table.setHorizontalHeaderLabels(['Nombre', 'Serial físico', 'Conexión ADB', 'Puerto / acceso', 'Modelo', 'Android', 'Estado', 'Inventario', 'Comprobación', 'Panda', 'Diagnóstico / siguiente paso', 'Rack', 'Posición', 'Número fijo Panda', 'Último snapshot', 'Recuperación 4.2'])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         self.table.horizontalHeader().setMinimumSectionSize(95)
         for column, width in {0:210, 1:150, 2:175, 6:180, 10:300}.items():
@@ -190,7 +191,7 @@ class Window(QMainWindow):
             actions.addWidget(button)
         layout.addLayout(actions)
         identity_actions = QHBoxLayout()
-        for text, callback in [('Asignar rack / posición', self.physical_position), ('Laboratorio Appium / Automate', self.automation_lab), ('API Panda', self.panda_api), ('Asociar conexión a otra ficha', self.link_connection), ('Ayuda de conexión', self.help)]:
+        for text, callback in [('Snapshots 4.2', self.snapshot_panel), ('Asignar rack / posición', self.physical_position), ('Laboratorio Appium / Automate', self.automation_lab), ('API Panda', self.panda_api), ('Asociar conexión a otra ficha', self.link_connection), ('Ayuda de conexión', self.help)]:
             button = QPushButton(text)
             button.clicked.connect(callback)
             identity_actions.addWidget(button)
@@ -211,6 +212,30 @@ class Window(QMainWindow):
         self.timer.timeout.connect(lambda: self.scan() if self.auto.isChecked() else None)
         self.timer.start(30000)
         QTimer.singleShot(400, self.scan)
+
+    def snapshot_panel(self):
+        if self.worker is not None:
+            QMessageBox.information(self, 'Proceso en curso', 'Espera a que termine la consulta o recuperación.');return
+        from .snapshots_ui import SnapshotDialog
+        self.timer.stop()
+        try:
+            SnapshotDialog(self.store, self.selected(), self).exec()
+        finally:
+            self.timer.start(30000)
+
+    def recover_startup(self):
+        if self.worker is not None:
+            return
+        from .snapshots_ui import SnapshotWorker
+        self.worker = SnapshotWorker(self.store)
+        self.scan_button.setEnabled(False)
+        self.progress.setRange(0, 0)
+        self.progress.show()
+        self.notice.setText('Subfase 4.2: verificando último snapshot y recuperando archivos administrados ausentes…')
+        self.worker.progress.connect(lambda count, text: self.notice.setText(f'Snapshots: {count} · {text}'))
+        self.worker.result.connect(lambda results: self.notice.setText(f"Snapshots: {len(results)} placas procesadas · {sum(r['detail'].startswith('Error') for r in results)} errores. Consulta Snapshots 4.2 para ver estados y diferencias."))
+        self.worker.finished.connect(self.finished)
+        self.worker.start()
 
     def change_order(self, checked):
         self.store.set_setting('active_first', int(checked))
@@ -250,6 +275,9 @@ class Window(QMainWindow):
                 item = QTableWidgetItem(value)
                 item.setToolTip(server['detail'] or server['at'])
                 self.server_table.setItem(i, j, item)
+        with self.store.connect() as db:
+            checkpoints = {r['hardware_serial']: dict(r) for r in db.execute('SELECT hardware_serial,at,status FROM device_checkpoints ORDER BY rowid')}
+            recoveries = {r['hardware_serial']: dict(r) for r in db.execute('SELECT hardware_serial,status,detail FROM recovery_events ORDER BY id')}
         self.table.setRowCount(0)
         colors = {'Validado': '#15803d', 'Desconectado': '#64748b', 'Requiere autorización': '#b45309'}
         for i, row in enumerate(self.rows):
@@ -261,6 +289,9 @@ class Window(QMainWindow):
             values = [row['display_name'], row['hardware_serial'] or 'No disponible', row['serial'], transport, row['model'], row['android'], row['status'] if self.fresh else 'Pendiente de verificar', inventory_at, checked]
             recognition, advice = diagnosis(row, self.reconciliation.get('panda', []), bool(self.reconciliation) and not self.reconciliation.get('panda_error'))
             values.extend([recognition if self.fresh else 'Sin comprobar', advice if self.fresh else 'Estado histórico: esperando conciliación.', row.get('rack', 'Sin asignar'), str(row.get('slot', '—')), str(row.get('panda_number', '—'))])
+            checkpoint = checkpoints.get(row['hardware_serial'])
+            recovery = recoveries.get(row['hardware_serial'])
+            values.extend([(checkpoint['at'] + ' · ' + checkpoint['status']) if checkpoint else 'Sin snapshot', (recovery['status'] + ' · ' + recovery['detail']) if recovery else 'Sin evaluación'])
             for j, value in enumerate(values):
                 item = QTableWidgetItem(value)
                 if self.fresh and row['status'] == 'Validado':
@@ -345,6 +376,10 @@ class Window(QMainWindow):
         self.worker = None
         self.scan_button.setEnabled(True)
         self.progress.hide()
+        self.render()
+        if self.startup_pending and self.fresh:
+            self.startup_pending = False
+            QTimer.singleShot(0, self.recover_startup)
 
     def show_detail(self):
         row = self.selected()

@@ -200,7 +200,7 @@ class FleetStore(Store):
         super().__init__(path)
         with self.connect() as db:
             version = db.execute('PRAGMA user_version').fetchone()[0]
-        if version > 4:
+        if version > 5:
             raise ValueError('La base pertenece a una versión más nueva. Usa la versión compatible del programa.')
         if version < 2:
             self.backup(self.path.with_name(self.path.stem + '-antes-v2.sqlite3'))
@@ -248,6 +248,20 @@ class FleetStore(Store):
                         slot INTEGER NOT NULL,panda_number INTEGER NOT NULL UNIQUE,at TEXT NOT NULL,
                         UNIQUE(rack,slot));
                     PRAGMA user_version=4;
+                """)
+
+        if version < 5:
+            self.backup(self.path.with_name(self.path.stem + '-antes-v5.sqlite3'))
+            with self.connect() as db:
+                db.executescript("""
+                    CREATE TABLE device_checkpoints(id TEXT PRIMARY KEY,hardware_serial TEXT NOT NULL,
+                        device_id TEXT NOT NULL,at TEXT NOT NULL,status TEXT NOT NULL,manifest TEXT NOT NULL,sha256 TEXT NOT NULL);
+                    CREATE INDEX checkpoint_serial ON device_checkpoints(hardware_serial,at);
+                    CREATE TABLE checkpoint_files(snapshot_id TEXT NOT NULL,name TEXT NOT NULL,content BLOB NOT NULL,
+                        sha256 TEXT NOT NULL,size INTEGER NOT NULL,PRIMARY KEY(snapshot_id,name));
+                    CREATE TABLE recovery_events(id INTEGER PRIMARY KEY,snapshot_id TEXT,hardware_serial TEXT NOT NULL,
+                        at TEXT NOT NULL,status TEXT NOT NULL,detail TEXT NOT NULL);
+                    PRAGMA user_version=5;
                 """)
 
     # La posición se vincula al serial físico, nunca a IP o puerto ADB.

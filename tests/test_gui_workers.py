@@ -67,3 +67,23 @@ class GuiWorkerTests(TestCase):
     def test_batch_finishes_in_dialog(self):
         with TemporaryDirectory() as folder:
             self.exercise_lab(folder,True)
+    def test_startup_recovery_is_scheduled_after_scan_thread_finishes(self):
+        from granjita.app import Window
+        from unittest.mock import MagicMock
+        with TemporaryDirectory() as folder:
+            store=FleetStore(Path(folder)/'inventory.sqlite3')
+            with patch('granjita.app.QTimer.singleShot') as schedule:
+                window=Window(store)
+                schedule.reset_mock()
+                window.fresh=True
+                window.worker=MagicMock()
+                window.finished()
+                self.assertIsNone(window.worker)
+                self.assertFalse(window.startup_pending)
+                self.assertEqual(schedule.call_args.args[0],0)
+                self.assertEqual(schedule.call_args.args[1],window.recover_startup)
+                schedule.reset_mock()
+                window.worker=MagicMock()
+                window.finished()
+                schedule.assert_not_called()
+            window.close()

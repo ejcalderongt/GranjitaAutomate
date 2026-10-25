@@ -57,3 +57,7 @@ El usuario confirmó que las pantallas ausentes son 30 (posición 17) y 65 (posi
 ## 2026-10-24 · Orden físico v2.5
 
 Se implementó mapa rack/posición/serial con número Panda único, vista fija predeterminada y activos primero opcional. Una fila por ficha evita duplicar sus transportes. La asignación verifica getprop y bloquea identidades ambiguas. La aplicación individual de nombre/número a Panda comprueba identidad, colisiones y lectura posterior, y conserva evidencia local. Migración SQLite v4 con respaldo. Sin asignaciones físicas inventadas ni renombres reales todavía: faltan rack y seriales verificados. Validación: 41 pruebas con salida 0 y panel revisado. Guía: docs/orden-fisico.md.
+
+## 2026-10-24 · v2.6, subfase 4.2: snapshots
+
+Se agregaron manifiestos, archivos BLOB con hashes y eventos de recuperación a granjita.sqlite3 (migración v5 con respaldo). Tras la conciliación inicial se crea base si no existe o se verifican/recuperan solo archivos propios ausentes. Archivos diferentes e inventario se comparan sin revertir datos recientes o ajustes. Panel y CLI incluidos; no se reanudan tareas inciertas ni se respaldan sesiones/datos internos de apps ajenas. 50 pruebas pasan con salida 0. Captura actualizada completa en 28/28 fichas elegibles; errores del intento con transportes obsoletos quedaron registrados. Recuperación real de un JSON propio verificada byte por byte. Integridad SQLite correcta. Sin prueba de corte completo del rack. Guía detallada: docs/subfase-4-2-snapshots.md; índice: docs/versiones.md.

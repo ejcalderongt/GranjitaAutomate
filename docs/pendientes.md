@@ -32,3 +32,7 @@
 - [ ] Obtener leyenda de indicadores del rack; posición 20/pantalla 51 reportada con Internet e indicador azul, por lo que azul no equivale a falla.
 - [x] Implementar orden físico permanente por serial, asignación verificada y vista opcional de activos primero (v2.5).
 - [ ] Completar mapa físico rack/posición/serial y elegir números Panda libres; aplicar desde el diálogo y comprobar persistencia tras reiniciar Panda.
+- [x] Subfase 4.2: snapshots lógicos y archivos propios en SQLite, verificación/recuperación inicial de ausentes, historial y CLI; v2.6.
+- [ ] Probar recuperación 4.2 tras apagado completo y arranque real del rack; confirmar cobertura de fichas que hoy tienen identidad ambigua o están desconectadas.
+- [ ] Definir archivos/puntos de control útiles para las tareas; incorporar captura posterior a tareas y política de retención/backups externos. Actualmente se captura al crear base o por acción explícita.
+- [ ] Evaluar adaptadores de exportación/importación de datos internos de apps específicas; no existe respaldo integral Android ni restauración de sesiones en 4.2.
