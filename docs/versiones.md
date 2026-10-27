@@ -20,4 +20,6 @@ Fechas de America/Guatemala. Los números 2.x identifican la aplicación; 4.2 id
 | 2.12 | 2026-10-24 | Análisis de resultados y estabilización de botones tras scroll | [Revisión de logs](revision-logs-2026-10-24.md) |
 | 2.13 | 2026-10-24 | Contador visual de likes logrados e historial por destino | [Indicador e historial](indicador-likes.md) |
 
+| 2.14 | 2026-10-26 | Perfil de app origen, apertura verificada y auditoría; TikTok pendiente de mapeo de likes | [App origen](app-origen.md) |
+
 Para cada versión registrar alcance, migración/persistencia, instrucciones de uso, pruebas, límites y pendientes. La bitácora conserva las evidencias históricas; los conteos de una versión no son el estado actual de la granja.

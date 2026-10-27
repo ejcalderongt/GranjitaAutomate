@@ -301,8 +301,11 @@ class JobStore:
         finally:
             db.close()
 
-    def create(self,rows,comment,action='lab_like_comment_scroll',parameters=None):
-        if action not in ('lab_like_comment_scroll', 'lab_like', 'lab_like_flow'):
+    def create(self,rows,comment,action='lab_like_comment_scroll',parameters=None,app_source='laboratorio'):
+        from .app_sources import source_profile,require_like_mapping
+        source_profile(app_source)
+        if action != 'app_prepare':require_like_mapping(app_source)
+        if action not in ('lab_like_comment_scroll', 'lab_like', 'lab_like_flow', 'app_prepare'):
             raise ValueError('Acción de tarea no admitida.')
         batch=str(uuid.uuid4())
         tasks=[]
@@ -311,9 +314,9 @@ class JobStore:
                 identifier=str(uuid.uuid4())
                 db.execute('INSERT INTO tasks VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',(identifier,batch,row['id'],row['display_name'],row['port'],row['serial'],action,comment,'En cola','',now(),now()))
                 if action in ('lab_like','lab_like_flow'):
-                    context=dict(hardware_serial=row.get('hardware_serial'),device_id=row['id'],name=row['display_name'],rack=row.get('rack'),slot=row.get('slot'),port=row['port'],transport=row['serial'],environment='local_lab',package=PACKAGE,target='feed' if action=='lab_like_flow' else 'lab_like_01',parameters=parameters)
+                    context=dict(hardware_serial=row.get('hardware_serial'),device_id=row['id'],name=row['display_name'],rack=row.get('rack'),slot=row.get('slot'),port=row['port'],transport=row['serial'],environment='local_lab',app_source=app_source,package=PACKAGE,target='feed' if action=='lab_like_flow' else 'lab_like_01',parameters=parameters)
                     db.execute('INSERT INTO like_context VALUES (?,?)',(identifier,json.dumps(context,ensure_ascii=False,sort_keys=True)))
-                tasks.append(dict(id=identifier,row=row,comment=comment,action=action,parameters=parameters))
+                tasks.append(dict(id=identifier,row=row,comment=comment,action=action,parameters=parameters,app_source=app_source))
         return tasks
 
     def update(self,identifier,status,detail=''):

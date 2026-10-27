@@ -1,4 +1,4 @@
-"""Panel de pruebas por lote, aislado de aplicaciones sociales reales."""
+"""Panel de tareas locales y preparación verificada de aplicaciones origen."""
 import threading
 import time
 import copy
@@ -7,6 +7,7 @@ from datetime import timedelta
 from PySide6.QtCore import QThread,Signal,Qt,QTimer,QDateTime
 from PySide6.QtWidgets import (QDialog,QVBoxLayout,QHBoxLayout,QLabel,QPushButton,QTableWidget,
     QTableWidgetItem,QHeaderView,QLineEdit,QMessageBox,QPlainTextEdit,QAbstractItemView,QFileDialog,QWidget,QGroupBox,QFormLayout,QSpinBox,QCheckBox,QComboBox,QDateTimeEdit,QTabWidget)
+from .app_sources import source_profile,require_like_mapping,prepare_app,SOURCES
 from .taskflow import run_flow,validate_parameters,window_state,clock_now
 from .automation import JobStore,run_lab,run_like,appium_status,runtime,automate_status,open_automate
 
@@ -39,7 +40,10 @@ class BatchWorker(QThread):
             self.jobs.update(task['id'],'Ejecutando')
             self.changed.emit()
             try:
-                if task.get('action')=='lab_like_flow':
+                if task.get('action')=='app_prepare':
+                    import json
+                    result=json.dumps(prepare_app(task['row'],task['app_source'],self.cancel.is_set,task_id=task['id']),ensure_ascii=False)
+                elif task.get('action')=='lab_like_flow':
                     result=run_flow(task['row'],task['id'],parameters,lambda:self.stop_check(parameters),audit=lambda kind,data:self.audit_event(task['id'],kind,data))
                 else:result=run_like(task['row'],task['id'],self.cancel.is_set,audit=lambda kind,data:self.audit_event(task['id'],kind,data)) if task.get('action')=='lab_like' else run_lab(task['row'],task['comment'],task['id'],self.cancel.is_set)
                 self.jobs.update(task['id'],'Completado',result)
@@ -85,7 +89,7 @@ class ProbeWorker(QThread):
 class AutomationDialog(QDialog):
     def __init__(self,store,preferred=None,parent=None):
         super().__init__(parent)
-        self.setWindowTitle('Automatización · GranjitaAutomate 2.13')
+        self.setWindowTitle('Automatización · GranjitaAutomate 2.14')
         self.resize(1160,900)
         self.store=store
         self.jobs=JobStore()
@@ -124,6 +128,14 @@ class AutomationDialog(QDialog):
         self.devices.itemChanged.connect(lambda item:self.selection_summary())
         task_layout.addWidget(self.devices)
         config=QGroupBox('Receta');form=QFormLayout(config)
+        self.app_source=QComboBox()
+        for identifier in SOURCES:self.app_source.addItem(source_profile(identifier)['name'],identifier)
+        self.app_source.setToolTip('Aplicación donde se ejecutará la tarea. Cada app necesita su propio mapeo del botón y del estado de like.')
+        self.prepare_button=QPushButton('Abrir y comprobar app')
+        self.prepare_button.setToolTip('Abre la app elegida en los dispositivos seleccionados si no está en primer plano. Registra el resultado sin pulsar likes ni modificar datos.')
+        self.prepare_button.clicked.connect(self.prepare_selected_app)
+        source_row=QHBoxLayout();source_row.addWidget(self.app_source);source_row.addWidget(self.prepare_button)
+        form.addRow('App origen',source_row)
         self.task_name=QLineEdit('Likes y scroll de laboratorio');self.task_name.setMaxLength(1000)
         self.count=QSpinBox();self.count.setRange(1,12);self.count.setValue(3)
         self.scroll=QCheckBox('Desplazar después de cada like');self.scroll.setChecked(True)
@@ -181,6 +193,7 @@ class AutomationDialog(QDialog):
         from .recipes import load_recipe
         from .core import ROOT
         self.recipe=load_recipe(ROOT/'recipes/lab-like-flow.json')
+        self.app_source.currentIndexChanged.connect(self.source_changed)
         self.populate_devices(preferred)
         self.refresh()
         self.connection_timer=QTimer(self);self.connection_timer.setInterval(30000)
@@ -211,7 +224,9 @@ class AutomationDialog(QDialog):
         self.fleet_stats.setText(f"{self.online} en línea · {len(self.rows)} aptos para ejecutar · {selected} seleccionados" + (' · Comprobado '+self.checked_at+' GT' if self.confirmed and self.checked_at else ' · Pendiente de comprobación actual'))
         if hasattr(self,'recipe_info'):
             mode='Horario GT · mantener abierto el programa' if self.mode.currentIndex() else 'Inicio inmediato'
-            self.recipe_info.setText(f"{selected} dispositivos × {self.count.value()} tarjetas = hasta {selected*self.count.value()} verificaciones · {mode} · Ejecución secuencial")
+            if hasattr(self,'app_source') and source_profile(self.app_source.currentData())['mapping_status']!='verified':
+                self.recipe_info.setText(f"{selected} dispositivos · Apertura y comprobación de {self.app_source.currentText()} disponibles ahora · Likes pendientes de validar")
+            else:self.recipe_info.setText(f"{selected} dispositivos × {self.count.value()} tarjetas = hasta {selected*self.count.value()} verificaciones · {mode} · Ejecución secuencial")
 
     def select_count(self):
         if self.worker:return
@@ -224,7 +239,7 @@ class AutomationDialog(QDialog):
         if self.worker:return
         for i in range(len(self.rows)):self.devices.item(i,0).setCheckState(Qt.CheckState.Unchecked)
     def update_schedule(self):
-        enabled=self.mode.currentIndex()==1
+        enabled=self.mode.currentIndex()==1 and source_profile(self.app_source.currentData())['mapping_status']=='verified'
         self.start_at.setEnabled(enabled);self.end_at.setEnabled(enabled)
         self.schedule_form.setRowVisible(self.start_at,enabled);self.schedule_form.setRowVisible(self.end_at,enabled)
 
@@ -245,9 +260,36 @@ class AutomationDialog(QDialog):
     def fleet_error(self,error):
         self.confirmed=False;self.launch_after_refresh=False;self.selection_summary();self.state.setText('No se pudo comprobar: '+error)
 
+    def source_changed(self,*args):
+        if not hasattr(self,'run_button'):return
+        source=source_profile(self.app_source.currentData())
+        preparing=getattr(self,'recipe',{}).get('action')=='app_prepare'
+        mapped=source['mapping_status']=='verified'
+        self.run_button.setEnabled(self.worker is None and (mapped or preparing))
+        self.run_button.setText('Ejecutar preparación' if preparing else 'Ejecutar tarea' if mapped else 'Likes pendientes de mapeo')
+        self.run_button.setToolTip('La apertura no confirma sesión iniciada, publicación visible ni un like verificado.')
+        flow=getattr(self,'recipe',{}).get('action')=='lab_like_flow' and mapped
+        self.count.setEnabled(flow);self.scroll.setEnabled(flow);self.mode.setEnabled(flow)
+        self.update_schedule();self.selection_summary()
+        self.intro.setText('Destino: '+source['name']+(' · Likes mapeados y verificados por tarjeta.' if source['mapping_status']=='verified' else ' · Apertura disponible. Likes pendientes de mapear y validar en una publicación de prueba.'))
+
+    def prepare_selected_app(self):
+        if self.worker:return
+        if not self.checked():QMessageBox.information(self,'Selecciona dispositivos','Marca al menos un dispositivo apto.');return
+        import copy
+        self.pending_spec=copy.deepcopy(self.recipe)
+        self.pending_spec.update(action='app_prepare',app_source=self.app_source.currentData(),parameters={},name='Abrir y comprobar '+source_profile(self.app_source.currentData())['name'],context=dict(environment='device_app',audience='dispositivos seleccionados',intent='comprobar aplicación en primer plano'))
+        self.pending_spec['_app_source_snapshot']=source_profile(self.app_source.currentData())
+        self.pending_serials={r['hardware_serial'] for r in self.checked()}
+        self.refresh_connections(True)
+
     def build_recipe(self):
         import copy
         spec=copy.deepcopy(self.recipe)
+        spec['app_source']=self.app_source.currentData()
+        spec['_app_source_snapshot']=source_profile(spec['app_source'])
+        if spec['action']=='app_prepare':
+            spec.update(parameters={},name='Abrir y comprobar '+source_profile(spec['app_source'])['name'])
         if spec['action']=='lab_like_flow':
             from .taskflow import GT
             def stamp(widget):return widget.dateTime().toPython().replace(tzinfo=GT).isoformat()
@@ -266,6 +308,7 @@ class AutomationDialog(QDialog):
         if not path:return
         import json
         spec.pop('_profile_snapshot',None)
+        spec.pop('_app_source_snapshot',None)
         try:Path(path).write_text(json.dumps(spec,ensure_ascii=False,indent=2),encoding='utf-8');self.state.setText('Receta guardada.')
         except Exception as exc:QMessageBox.warning(self,'No se pudo guardar',str(exc))
 
@@ -276,6 +319,7 @@ class AutomationDialog(QDialog):
         if self.worker:return
         if not self.checked():QMessageBox.information(self,'Selecciona dispositivos','Marca al menos un dispositivo apto.');return
         try:
+            if self.recipe['action']!='app_prepare':require_like_mapping(self.app_source.currentData())
             self.pending_spec=self.build_recipe()
             if self.pending_spec['action']=='lab_like_flow' and window_state(self.pending_spec['parameters'])=='expired':raise ValueError('El horario ya terminó.')
         except Exception as exc:QMessageBox.warning(self,'Revisa la tarea',str(exc));return
@@ -288,12 +332,13 @@ class AutomationDialog(QDialog):
         if len(rows)!=len(self.pending_serials):
             self.state.setText('Cambió la disponibilidad de la selección. Revisa dispositivos y vuelve a ejecutar.');return
         spec=self.pending_spec
-        action='lab_like_flow' if spec['action']=='lab_like_flow' else 'lab_like' if spec['action']=='lab_like' else 'lab_like_comment_scroll'
+        action='app_prepare' if spec['action']=='app_prepare' else 'lab_like_flow' if spec['action']=='lab_like_flow' else 'lab_like' if spec['action']=='lab_like' else 'lab_like_comment_scroll'
         parameters=spec['parameters'] if action=='lab_like_flow' else None
         if parameters and window_state(parameters)=='expired':self.state.setText('El horario terminó durante la validación.');return
-        if len(rows)>1 and not any(t['status']=='Completado' for t in self.jobs.tasks()):
+        if action!='app_prepare' and len(rows)>1 and not any(t['status']=='Completado' and t['action']!='app_prepare' for t in self.jobs.tasks()):
             QMessageBox.information(self,'Prueba piloto','Completa primero una tarea en una placa.');return
-        tasks=self.jobs.create(rows,spec['parameters'].get('comment',''),action,parameters)
+        if action!='app_prepare':require_like_mapping(spec.get('app_source','laboratorio'))
+        tasks=self.jobs.create(rows,spec['parameters'].get('comment',''),action,parameters,app_source=spec.get('app_source','laboratorio'))
         self.jobs.attach_recipe([t['id'] for t in tasks],spec)
         self.worker=BatchWorker(self.jobs,tasks);self.worker.changed.connect(self.refresh);self.worker.finished.connect(self.on_worker_finished)
         self.state.setText(f"Tarea registrada: {len(tasks)} dispositivos · {spec['name']}");self.tabs.setCurrentIndex(1)
@@ -322,6 +367,7 @@ class AutomationDialog(QDialog):
         self.display_recipe()
 
     def display_recipe(self):
+        self.app_source.setCurrentIndex(self.app_source.findData(self.recipe.get('app_source','laboratorio')))
         action=self.recipe['action']
         if action=='lab_like_flow':
             parameters=self.recipe['parameters'];self.task_name.setText(self.recipe['name']);self.count.setValue(parameters['count']);self.scroll.setChecked(parameters['scroll_after_like'])
@@ -334,10 +380,10 @@ class AutomationDialog(QDialog):
         self.count.setEnabled(action=='lab_like_flow');self.scroll.setEnabled(action=='lab_like_flow');self.mode.setEnabled(action=='lab_like_flow')
         self.comment.setEnabled(action=='lab_smoke');self.comment.setText(self.recipe['parameters'].get('comment',''))
         self.intro.setText('Destino: Granjita Lab · Likes y scroll auditados por tarjeta.' if action=='lab_like_flow' else 'Receta anterior: '+self.recipe['name']+' · cargar lab-like-flow.json para configurar repeticiones y horario.')
-        self.selection_summary();self.tabs.setCurrentIndex(0)
+        self.source_changed();self.selection_summary();self.tabs.setCurrentIndex(0)
 
     def refresh(self):
-        self.run_button.setEnabled(self.worker is None)
+        self.source_changed()
         self.tabs.widget(0).setEnabled(self.worker is None)
         self.tasks=self.jobs.tasks()
         metrics=self.jobs.like_metrics()

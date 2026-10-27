@@ -106,3 +106,8 @@ Consulta de lectura: Panda y ADB coinciden en 33 identidades físicas; 34 conexi
 ## 2026-10-26 · Reasociación de conexiones en conflicto
 
 Se respaldó SQLite y reasociaron siete conexiones a seis fichas existentes, verificando serial/fabricante/modelo con Android y Panda. Resultado: 33 equipos en línea, conjunto idéntico a Panda, cero conflictos de conexión y 29 aptos. Persisten duplicados históricos de 04, 11, 28 y 62, sin fusionar. Historial preservado, auditoría privada y 77 pruebas correctas. Procedimiento: docs/reasignacion-identidades-2026-10-26.md.
+
+
+## 2026-10-26 · v2.14: perfil de app origen y apertura
+
+Selector Granjita Lab/TikTok, preparación inmediata con validación de identidad, instalación existente y primer plano, sin relanzar si ya está abierta. Perfil y resultado persistidos en SQLite; preparación separada de métricas y piloto de likes. TikTok abierto en Panda 06 y segunda comprobación sin relanzar; captura del usuario muestra bienvenida, sin publicación para validar likes. Adaptador TikTok pendiente y bloqueado explícitamente; el like mapeado sigue siendo del laboratorio. 87 pruebas y revisión visual correctas. Guía: docs/app-origen.md.

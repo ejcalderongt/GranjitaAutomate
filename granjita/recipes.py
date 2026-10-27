@@ -15,7 +15,7 @@ def load_recipe(path):
     if path.stat().st_size>65536:
         raise ValueError('La receta excede 64 KB.')
     recipe=json.loads(path.read_text(encoding='utf-8'))
-    object_keys(recipe,{'schema_version','id','name','profile','objective','context','action','parameters','execution'},'receta')
+    object_keys(recipe,{'schema_version','id','name','profile','objective','context','action','parameters','execution','app_source'},'receta')
     if type(recipe.get('schema_version')) is not int or recipe['schema_version']!=1:
         raise ValueError('Versión de receta no admitida.')
     for key in ['id','profile']:
@@ -24,15 +24,17 @@ def load_recipe(path):
     for key in ['name','objective']:
         if not isinstance(recipe.get(key),str) or not 1<=len(recipe[key])<=1000:
             raise ValueError('Nombre u objetivo inválido.')
-    if recipe.get('action') not in ('lab_smoke','lab_like','lab_like_flow'):
-        raise ValueError('Solo se admiten acciones del laboratorio local.')
+    if recipe.get('action') not in ('lab_smoke','lab_like','lab_like_flow','app_prepare'):
+        raise ValueError('Acción no admitida.')
     context=recipe.get('context',{})
     object_keys(context,{'environment','audience','intent'},'contexto')
-    if context.get('environment')!='local_lab' or any(not isinstance(v,str) or len(v)>1000 for v in context.values()):
+    if context.get('environment')!=('device_app' if recipe['action']=='app_prepare' else 'local_lab') or any(not isinstance(v,str) or len(v)>1000 for v in context.values()):
         raise ValueError('Contexto de laboratorio inválido.')
     if recipe['action']=='lab_like_flow':
         from .taskflow import validate_parameters
         validate_parameters(recipe.get('parameters'))
+    elif recipe['action']=='app_prepare':
+        if recipe.get('parameters')!={}:raise ValueError('La preparación de app no admite parámetros de likes.')
     elif recipe['action']=='lab_like':
         if recipe.get('parameters')!={'target':'lab_like_01','desired_state':True} or type(recipe['parameters']['desired_state']) is not bool:
             raise ValueError('El flujo de likes solo marca lab_like_01 en la aplicación local.')
@@ -48,15 +50,20 @@ def load_recipe(path):
     object_keys(profile,{'schema_version','id','name','desired_packages','identity','permissions','execution_engine','app_package','adb','note'},'perfil')
     if type(profile.get('schema_version')) is not int or profile['schema_version']!=1 or profile.get('id')!=recipe['profile'] or profile.get('app_package')!=PACKAGE or profile.get('execution_engine')!='appium' or profile.get('permissions')!='manual_review':
         raise ValueError('Perfil incompatible con el laboratorio.')
-    return dict(recipe,_profile_snapshot=profile)
+    from .app_sources import source_profile
+    source=source_profile(recipe.get('app_source','laboratorio'))
+    return dict(recipe,_profile_snapshot=profile,_app_source_snapshot=source)
 
 
 @traced('recipe.execute')
 def execute_recipe(recipe,rows):
+    from .app_sources import require_like_mapping
+    preparing=recipe['action']=='app_prepare'
+    if not preparing:require_like_mapping(recipe.get('app_source','laboratorio'))
     jobs=JobStore()
     flow=recipe['action']=='lab_like_flow'
     like=recipe['action']=='lab_like'
-    tasks=jobs.create(rows,recipe['parameters'].get('comment',''), 'lab_like_flow' if flow else 'lab_like' if like else 'lab_like_comment_scroll',recipe['parameters'] if flow else None)
+    tasks=jobs.create(rows,recipe['parameters'].get('comment',''), 'app_prepare' if preparing else 'lab_like_flow' if flow else 'lab_like' if like else 'lab_like_comment_scroll',recipe['parameters'] if flow else None,app_source=recipe.get('app_source','laboratorio'))
     jobs.attach_recipe([task['id'] for task in tasks],recipe)
     results=[]
     for task in tasks:
@@ -68,7 +75,10 @@ def execute_recipe(recipe,rows):
                 continue
         jobs.update(task['id'],'Ejecutando',f"Receta {recipe['id']}")
         try:
-            if flow:
+            if preparing:
+                from .app_sources import prepare_app
+                detail=json.dumps(prepare_app(task['row'],recipe.get('app_source','laboratorio'),task_id=task['id']),ensure_ascii=False)
+            elif flow:
                 from .taskflow import run_flow
                 detail=run_flow(task['row'],task['id'],recipe['parameters'],audit=lambda kind,data:jobs.like_event(task['id'],kind,data))
             else:detail=run_like(task['row'],task['id'],audit=lambda kind,data:jobs.like_event(task['id'],kind,data)) if like else run_lab(task['row'],task['comment'],task['id'])

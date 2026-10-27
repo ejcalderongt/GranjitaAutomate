@@ -23,7 +23,7 @@ _READY=set()
 _FAILURE=None
 _WRITES=0
 _DROPPED=0
-SAFE={'device_id','hardware_serial','transport','port','task_id','snapshot_id','target','index','status','outcome','count','error_class','category','fingerprint','frames','response_bytes','response_type','method','route','command_kind','field','state','moved','can_scroll_more','size','source','saved','failed','available','version','remote_exit_code','http_status','error_code','api_code'}
+SAFE={'app_source','package','device_id','hardware_serial','transport','port','task_id','snapshot_id','target','index','status','outcome','count','error_class','category','fingerprint','frames','response_bytes','response_type','method','route','command_kind','field','state','moved','can_scroll_more','size','source','saved','failed','available','version','remote_exit_code','http_status','error_code','api_code'}
 
 
 def stamp():return datetime.now(timezone(timedelta(hours=-6))).isoformat(timespec='milliseconds')

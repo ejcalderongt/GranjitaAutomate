@@ -1,0 +1,68 @@
+"""Perfiles de aplicación origen y apertura verificada sin interacciones."""
+import re
+import time
+from .diagnostics import traced,emit
+
+SOURCES={
+    'laboratorio':dict(id='laboratorio',name='Granjita Lab',packages=['gt.granjita.lab'],like_adapter='lab_like_v1',mapping_status='verified'),
+    'tiktok':dict(id='tiktok',name='TikTok',packages=['com.zhiliaoapp.musically','com.ss.android.ugc.trill'],like_adapter=None,mapping_status='pending'),
+}
+
+
+def source_profile(identifier='laboratorio'):
+    import copy
+    if not isinstance(identifier,str) or identifier not in SOURCES:raise ValueError('Perfil de aplicación origen no admitido.')
+    return copy.deepcopy(SOURCES[identifier])
+
+
+def require_like_mapping(identifier):
+    profile=source_profile(identifier)
+    if profile['mapping_status']!='verified' or not profile['like_adapter']:
+        raise ValueError('El perfil '+profile['name']+' permite abrir y comprobar la app; el botón y el estado de like aún necesitan un mapeo verificado. No se ejecutó ningún like.')
+    return profile
+
+
+def foreground_package(raw):
+    # Solo interpretar el componente de la actividad enfocada, no actividades históricas.
+    for line in raw.splitlines():
+        if any(key in line for key in ('mResumedActivity:','topResumedActivity=','mCurrentFocus=')):
+            found=re.search(r'\b([A-Za-z][A-Za-z0-9_.]*)/[A-Za-z0-9_.$]+',line)
+            if found:return found.group(1)
+    return None
+
+
+@traced('app.source.prepare')
+def prepare_app(row,identifier,cancelled=lambda:False,task_id=None):
+    from .automation import validate_target,AutomationError
+    from .core import Adb
+    from .inventory import shell
+    profile=source_profile(identifier)
+    def check():
+        if cancelled():raise AutomationError('Preparación cancelada antes de la siguiente acción.')
+    check();validate_target(row)
+    adb=Adb(row['port'])
+    installed=[]
+    for package in profile['packages']:
+        check()
+        if any(line.startswith('package:') for line in shell(adb,row['serial'],'pm path '+package).splitlines()):installed.append(package)
+    if not installed:raise AutomationError(profile['name']+' no está instalada. No se instala ni se inicia sesión automáticamente.')
+    if len(installed)!=1:raise AutomationError('Hay varias variantes instaladas de '+profile['name']+'; se requiere un perfil específico antes de elegir.')
+    package=installed[0]
+    def current():return foreground_package(shell(adb,row['serial'],'dumpsys activity activities'))
+    before=current();check()
+    if before!=package:
+        activity=shell(adb,row['serial'],'cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.LAUNCHER '+package)
+        components=[line.strip() for line in activity.splitlines() if re.fullmatch(re.escape(package)+r'/[A-Za-z0-9_.$]+',line.strip())]
+        if len(components)!=1:raise AutomationError('No se pudo resolver una actividad de inicio única para '+profile['name']+'.')
+        check()
+        result=shell(adb,row['serial'],'am start -W -n '+components[0])
+        if 'Error:' in result or 'Exception' in result:raise AutomationError('Android no pudo abrir '+profile['name']+'.')
+    deadline=time.monotonic()+10
+    while True:
+        check()
+        if current()==package:break
+        if time.monotonic()>=deadline:raise AutomationError('No se confirmó '+profile['name']+' en primer plano. Revisar desbloqueo o diálogos del dispositivo.')
+        time.sleep(.25)
+    validate_target(row)
+    emit('app.source','foreground_verified',state='already_open' if before==package else 'launched',app_source=identifier,package=package)
+    return dict(app_source=identifier,package=package,foreground_verified=True,launched=before!=package,like_mapping=profile['mapping_status'],interaction_ready=False,readiness_reason='mapping_pending' if profile['mapping_status']!='verified' else 'requires_task_validation')

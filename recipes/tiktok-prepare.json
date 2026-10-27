@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "id": "tiktok-prepare-v1",
+  "name": "Abrir y comprobar TikTok",
+  "profile": "laboratorio",
+  "app_source": "tiktok",
+  "objective": "Verificar instalación y abrir TikTok si no está en primer plano. No pulsa likes.",
+  "context": {
+    "environment": "device_app",
+    "audience": "dispositivos seleccionados",
+    "intent": "preparación verificable"
+  },
+  "action": "app_prepare",
+  "parameters": {},
+  "execution": {
+    "concurrency": 1,
+    "automatic_retries": 0,
+    "on_uncertain": "review"
+  }
+}

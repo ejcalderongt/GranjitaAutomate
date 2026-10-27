@@ -110,3 +110,33 @@ class GuiWorkerTests(TestCase):
                 self.assertTrue(recipe['parameters']['start_at'].endswith('-06:00'))
                 self.assertIsNotNone(recipe['parameters']['end_at'])
                 dialog.close()
+
+    def test_app_source_prepare_is_audited_without_counting_likes(self):
+        import json
+        from granjita.recipes import load_recipe
+        from granjita.core import ROOT
+        with TemporaryDirectory() as folder:
+            jobs=JobStore(Path(folder)/'jobs.sqlite3')
+            row=dict(id='test-id',display_name='Prueba',port=5037,serial='192.0.2.1:5555',hardware_serial='TESTSERIAL',status='Validado',identity_state='Serial leído')
+            store=SimpleNamespace(fleet_devices=lambda:[row])
+            with patch('granjita.automation_ui.JobStore',return_value=jobs),patch('granjita.automation_ui.prepare_app',return_value=dict(foreground_verified=True,interaction_ready=False)) as prepare:
+                dialog=AutomationDialog(store)
+                dialog.app_source.setCurrentIndex(dialog.app_source.findData('tiktok'))
+                self.assertFalse(dialog.run_button.isEnabled())
+                self.assertEqual(dialog.build_recipe()['app_source'],'tiktok')
+                dialog.prepare_selected_app();settle(dialog)
+                self.assertEqual(jobs.tasks()[0]['action'],'app_prepare')
+                self.assertEqual(jobs.tasks()[0]['status'],'Completado')
+                self.assertEqual(jobs.like_metrics()['scheduled'],0)
+                with jobs.db() as db:
+                    spec=json.loads(db.execute('SELECT spec FROM task_recipes').fetchone()[0])
+                self.assertEqual(spec['app_source'],'tiktok')
+                self.assertEqual(spec['_app_source_snapshot']['mapping_status'],'pending')
+                self.assertEqual(spec['action'],'app_prepare')
+                self.assertEqual(prepare.call_args.args[1],'tiktok')
+                self.assertFalse(dialog.run_button.isEnabled())
+                dialog.app_source.setCurrentIndex(dialog.app_source.findData('laboratorio'))
+                self.assertTrue(dialog.run_button.isEnabled())
+                dialog.recipe=load_recipe(ROOT/'recipes/tiktok-prepare.json');dialog.display_recipe()
+                self.assertEqual(dialog.build_recipe()['action'],'app_prepare')
+                dialog.close()
