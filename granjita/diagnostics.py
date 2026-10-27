@@ -1,5 +1,5 @@
 """Trazas estructuradas locales sin cuerpos, comandos ni secretos."""
-from contextlib import contextmanager
+from contextlib import contextmanager,closing
 from contextvars import ContextVar,copy_context
 from datetime import datetime,timedelta,timezone
 from functools import wraps
@@ -176,4 +176,36 @@ def feedback(run_id):
     with _LOCK:
         db=database()
         try:return [dict(r) for r in db.execute('SELECT * FROM trace_feedback WHERE run_id=? ORDER BY id',(run_id,))]
+        finally:db.close()
+
+
+def clear_traces():
+    """Archiva SQLite y limpia solo eventos anteriores al corte, preservando auditoría."""
+    global _DROPPED,_FAILURE
+    import uuid
+    # No alterar tareas mediante JobStore: su constructor recupera estados.
+    jobs_path=Path(DB_PATH).parent/'automation.sqlite3'
+    if jobs_path.exists():
+        with closing(sqlite3.connect(jobs_path.resolve().as_uri()+'?mode=ro',uri=True)) as jobs:
+            if jobs.execute("SELECT COUNT(*) FROM tasks WHERE status IN ('Ejecutando','En cola','Programado')").fetchone()[0]:
+                raise ValueError('Espera a que termine o cancela el lote antes de limpiar logs.')
+    with _LOCK:
+        db=database()
+        try:
+            cutoff=db.execute('SELECT COALESCE(MAX(id),0) FROM trace_events').fetchone()[0]
+            folder=Path(DB_PATH).parent/'backups'
+            folder.mkdir(parents=True,exist_ok=True)
+            backup=folder/('traces-antes-limpiar-'+uuid.uuid4().hex+'.sqlite3')
+            with closing(sqlite3.connect(backup)) as target:
+                db.backup(target)
+                if target.execute('PRAGMA integrity_check').fetchone()[0]!='ok':
+                    raise RuntimeError('El respaldo de trazas no pasó la verificación; no se limpiaron logs.')
+            with db:
+                removed=db.execute('DELETE FROM trace_events WHERE id<=?',(cutoff,)).rowcount
+            result=dict(at=stamp(),removed=removed,cutoff_id=cutoff,backup=str(backup))
+            # Metadatos de limpieza separados: el visor puede quedar en cero eventos.
+            with (Path(DB_PATH).parent/'log-cleanups.jsonl').open('a',encoding='utf-8') as stream:
+                stream.write(json.dumps(result,ensure_ascii=False)+'\n')
+            _DROPPED=0;_FAILURE=None
+            return result
         finally:db.close()

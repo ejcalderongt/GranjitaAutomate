@@ -24,4 +24,6 @@ Fechas de America/Guatemala. Los números 2.x identifican la aplicación; 4.2 id
 
 | 2.15 | 2026-10-26 | Resumen del último lote y resultados distintos para apertura, mapeo pendiente y cancelación | [Revisión del lote](revision-batch-2026-10-26.md) |
 
+| 2.16 | 2026-10-26 | Archivo/limpieza de trazas y resumen visible de cierre y aperturas por lote | [Limpieza y resumen](limpieza-logs-y-resumen.md) |
+
 Para cada versión registrar alcance, migración/persistencia, instrucciones de uso, pruebas, límites y pendientes. La bitácora conserva las evidencias históricas; los conteos de una versión no son el estado actual de la granja.

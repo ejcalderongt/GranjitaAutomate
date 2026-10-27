@@ -89,7 +89,7 @@ class ProbeWorker(QThread):
 class AutomationDialog(QDialog):
     def __init__(self,store,preferred=None,parent=None):
         super().__init__(parent)
-        self.setWindowTitle('Automatización · GranjitaAutomate 2.15')
+        self.setWindowTitle('Automatización · GranjitaAutomate 2.16')
         self.resize(1160,900)
         self.store=store
         self.jobs=JobStore()
@@ -158,7 +158,7 @@ class AutomationDialog(QDialog):
             button=QPushButton(label);button.clicked.connect(callback);recipe_bar.addWidget(button)
         recipe_bar.addStretch();task_layout.addLayout(recipe_bar)
         history=QWidget();history_layout=QVBoxLayout(history);self.tabs.addTab(history,'Resultados y auditoría')
-        self.batch_summary=QLabel();self.batch_summary.setWordWrap(True);self.batch_summary.setStyleSheet('font-size:16px;padding:12px;background:#fff4d6;');history_layout.addWidget(self.batch_summary)
+        self.batch_summary=QLabel();self.batch_summary.setWordWrap(True);self.batch_summary.setStyleSheet('font-size:16px;padding:12px;background:#fff4d6;');layout.insertWidget(layout.indexOf(self.tabs),self.batch_summary)
         self.batch_summary.setToolTip('Resumen del último lote guardado. Abrir una app no equivale a ejecutar likes ni confirmar una sesión iniciada.')
         self.like_stats=QLabel();self.like_stats.setWordWrap(True);self.like_stats.setStyleSheet('font-size:15px;padding:10px;background:#e8f3ed;');history_layout.addWidget(self.like_stats)
         self.results=QTableWidget(0,6);self.results.setHorizontalHeaderLabels(['Dispositivo','App / acción','Puerto','Resultado de la acción','Actualizado GT','Detalle'])
@@ -191,6 +191,9 @@ class AutomationDialog(QDialog):
         self.run_button.clicked.connect(self.run_batch);controls.addWidget(self.run_button)
         for label,callback in [('Pausar / continuar',self.toggle_pause),('Cancelar',self.cancel_batch)]:
             button=QPushButton(label);button.clicked.connect(callback);controls.addWidget(button)
+        self.clear_logs_button=QPushButton('Limpiar logs')
+        self.clear_logs_button.setToolTip('Respalda las trazas y limpia los eventos visibles para una nueva prueba. Conserva tareas, recetas, likes, feedback y el log bruto de Appium. Disponible al terminar el lote.')
+        self.clear_logs_button.clicked.connect(self.clear_logs);controls.addWidget(self.clear_logs_button)
         layout.addLayout(controls)
         from .recipes import load_recipe
         from .core import ROOT
@@ -399,14 +402,10 @@ class AutomationDialog(QDialog):
             cancelled=sum(t['status']=='Cancelado' for t in self.tasks)
             self.stats.setText(f'Últimas {len(self.tasks)} tareas · {completed} completadas · {pending} en curso/cola · {cancelled} canceladas · {len(self.tasks)-completed-pending-cancelled} para revisar/interrumpidas/expiradas')
         batch=self.jobs.latest_batch_summary()
-        if batch:
-            states=batch['states']
-            text=f"Último lote · {batch['created'][:10]} {batch['created'][11:19]} GT · {batch['devices']} dispositivos · {', '.join(batch['actions'])}\n"
-            if 'app_prepare' in {t['action'] for t in self.tasks if t['batch']==batch['batch']}:
-                text+=f"{batch['opened']} apps abiertas/verificadas · {batch['mapping_pending']} con likes pendientes de mapeo · Esta acción no ejecuta likes.\n"
-            text+=' · '.join(f'{key}: {value}' for key,value in states.items())
-            self.batch_summary.setText(text)
-        else:self.batch_summary.setText('Todavía no hay lotes registrados.')
+        from .task_results import batch_text
+        self.batch_summary.setText(batch_text(batch))
+        self.batch_summary.setStyleSheet('font-size:16px;font-weight:600;padding:12px;background:'+('#e5f5e9' if batch and batch['finished'] and batch['completion_label'].endswith('Correcto') else '#fff4d6')+';')
+        self.clear_logs_button.setEnabled(self.worker is None)
         self.results.setRowCount(len(self.tasks))
         for i,task in enumerate(self.tasks):
             from .task_results import present_task
@@ -415,6 +414,14 @@ class AutomationDialog(QDialog):
                 item=QTableWidgetItem(value)
                 item.setToolTip(value)
                 self.results.setItem(i,j,item)
+
+    def clear_logs(self):
+        if self.worker:return
+        try:
+            from .diagnostics import clear_traces
+            result=clear_traces()
+            self.state.setText(f"Logs limpios: {result['removed']} eventos archivados. La siguiente ejecución generará trazas nuevas; el historial de tareas se conserva.")
+        except Exception as exc:QMessageBox.warning(self,'No se limpiaron los logs',str(exc))
 
     def render_like_history(self,*args):
         if not hasattr(self,'history_entries'):return
@@ -491,7 +498,8 @@ class AutomationDialog(QDialog):
     def on_worker_finished(self):
         self.worker.wait()
         if isinstance(self.worker,BatchWorker):
-            self.state.setText('Lote local finalizado. Consulta el estado y la evidencia de cada tarea.')
+            from .task_results import batch_text
+            self.state.setText(batch_text(self.jobs.latest_batch_summary()))
         self.worker.deleteLater()
         self.worker=None
         self.refresh()

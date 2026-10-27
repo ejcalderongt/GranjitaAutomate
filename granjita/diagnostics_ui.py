@@ -15,7 +15,7 @@ class DiagnosticsDialog(QDialog):
         self.filter=QLineEdit();self.filter.setPlaceholderText('Filtrar por proceso, tarea, serial, estado o identificador de ejecución…')
         self.filter.setToolTip('Busca entre los últimos 1000 eventos de la aplicación. Las pruebas unitarias no se incluyen.')
         self.filter.textChanged.connect(self.render);bar.addWidget(self.filter,1)
-        for title,callback,tip in [('Actualizar',self.refresh,'Vuelve a consultar las trazas locales.'),('Exportar ejecución',self.export,'Exporta hasta 10000 eventos de la ejecución seleccionada y su feedback. No incluye capturas ni logs brutos de Appium.')]:
+        for title,callback,tip in [('Actualizar',self.refresh,'Vuelve a consultar las trazas locales.'),('Limpiar logs',self.clear_logs,'Respalda y limpia las trazas; conserva historial de tareas, métricas y feedback. Espera a que termine el lote.'),('Exportar ejecución',self.export,'Exporta hasta 10000 eventos de la ejecución seleccionada y su feedback. No incluye capturas ni logs brutos de Appium.')]:
             button=QPushButton(title);button.setToolTip(tip);button.clicked.connect(callback);bar.addWidget(button)
         layout.addLayout(bar)
         self.table=QTableWidget(0,6);self.table.setHorizontalHeaderLabels(['Hora GT','Proceso / paso','Fase','Resultado','Tiempo ms','Tarea / dispositivo'])
@@ -44,6 +44,13 @@ class DiagnosticsDialog(QDialog):
             if health['dropped']:self.summary.setText(self.summary.text()+f" · Atención: {health['dropped']} eventos no pudieron guardarse durante esta sesión")
             self.render()
         except Exception as exc:self.summary.setText('No se pudieron consultar las trazas: '+type(exc).__name__)
+    def clear_logs(self):
+        try:
+            result=diagnostics.clear_traces()
+            self.detail.clear();self.filter.clear();self.refresh()
+            self.summary.setText(self.summary.text()+f" · Limpieza realizada: {result['removed']} eventos archivados. Respaldo: {result['backup']}")
+        except Exception as exc:QMessageBox.warning(self,'No se limpiaron los logs',str(exc))
+
     def render(self):
         query=self.filter.text().lower()
         self.rows=[r for r in self.events if query in json.dumps(r,ensure_ascii=False).lower()]

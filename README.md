@@ -2,7 +2,7 @@
 
 Repositorio de conocimiento, documentación y herramientas para administrar la granja de placas Android.
 
-## Aplicación v2.15
+## Aplicación v2.16
 
 Abrir **GranjitaAutomate** desde el escritorio o ejecutar `iniciar.vbs`. Consulta la [guía de inventario y servidores ADB](docs/version-2.md) y las [instrucciones de instalación](docs/version-1.md). Usa SQLite local en `data/`, excluida de Git.
 
@@ -33,6 +33,8 @@ La [revisión de logs](docs/revision-logs-2026-10-24.md) cruza resultados del lo
 El [indicador de likes logrados](docs/indicador-likes.md) muestra nuevos verificados e historial por dispositivo y tarjeta, con filtros y evidencia disponible.
 
 El [diagnóstico del último lote](docs/revision-batch-2026-10-26.md) distingue apertura de app, mapeo pendiente y ejecución de likes; el panel muestra app/acción y resumen del último lote.
+
+La [limpieza de logs y cierre de lotes](docs/limpieza-logs-y-resumen.md) permite archivar trazas para una prueba nueva y ver si terminó el lote, cuántas apps se abrieron y cuántas quedaron sin confirmar.
 
 ## Organización
 

@@ -41,3 +41,22 @@ class TaskResultTests(TestCase):
             self.assertEqual(jobs.latest_batch_summary()['devices'],301)
             self.assertEqual(jobs.latest_batch_summary()['states'],{'En cola':301})
             self.assertEqual(jobs.like_metrics()['processed'],0)
+
+    def test_completion_and_opening_summary_are_explicit(self):
+        from granjita.task_results import batch_text
+        tasks=[self.task(),self.task(id='u',device_id='e',status='Revisar resultado'),self.task(id='v',device_id='f',status='Cancelado')]
+        summary=summarize_batch(tasks)
+        self.assertTrue(summary['finished'])
+        self.assertEqual(summary['opened'],1)
+        self.assertEqual(summary['opening_unconfirmed'],1)
+        self.assertEqual(summary['not_executed'],1)
+        self.assertIn('LOTE TERMINADO',batch_text(summary))
+        self.assertIn('Apps abiertas: 1 de 3',batch_text(summary))
+        self.assertIn('Sin apertura confirmada: 1',batch_text(summary))
+
+    def test_pending_batch_is_never_reported_as_finished(self):
+        for status in ['En cola','Ejecutando','Programado','Estado desconocido']:
+            summary=summarize_batch([self.task(),self.task(id='u',device_id='e',status=status)])
+            self.assertFalse(summary['finished'])
+            self.assertEqual(summary['pending'],1)
+            self.assertNotIn('TERMINADO',summary['completion_label'])

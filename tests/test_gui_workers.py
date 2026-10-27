@@ -140,3 +140,22 @@ class GuiWorkerTests(TestCase):
                 dialog.recipe=load_recipe(ROOT/'recipes/tiktok-prepare.json');dialog.display_recipe()
                 self.assertEqual(dialog.build_recipe()['action'],'app_prepare')
                 dialog.close()
+
+    def test_logs_button_and_finished_batch_summary(self):
+        with TemporaryDirectory() as folder:
+            jobs=JobStore(Path(folder)/'jobs.sqlite3')
+            row=dict(id='test',display_name='Test',port=5037,serial='192.0.2.1:5555',hardware_serial='TESTSERIAL',status='Validado',identity_state='Serial leído')
+            store=SimpleNamespace(fleet_devices=lambda:[row])
+            with patch('granjita.automation_ui.JobStore',return_value=jobs),patch('granjita.automation_ui.prepare_app',return_value=dict(app_source='tiktok',foreground_verified=True,like_mapping='pending')):
+                dialog=AutomationDialog(store)
+                dialog.app_source.setCurrentIndex(dialog.app_source.findData('tiktok'))
+                dialog.prepare_selected_app();settle(dialog)
+                self.assertIn('LOTE TERMINADO',dialog.batch_summary.text())
+                self.assertIn('Apps abiertas: 1 de 1',dialog.batch_summary.text())
+                self.assertIn('LOTE TERMINADO',dialog.state.text())
+                with patch('granjita.diagnostics.clear_traces',return_value=dict(removed=12)) as clear:
+                    dialog.clear_logs_button.click()
+                    clear.assert_called_once()
+                self.assertIn('Logs limpios',dialog.state.text())
+                self.assertEqual(len(jobs.tasks()),1)
+                dialog.close()

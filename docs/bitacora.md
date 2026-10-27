@@ -116,3 +116,8 @@ Selector Granjita Lab/TikTok, preparación inmediata con validación de identida
 ## 2026-10-26 · v2.15: diagnóstico y resultados del lote
 
 El último envío 19:24 GT fue app_prepare para un dispositivo: TikTok abierto correctamente en 4.1 s, mapeo de likes pendiente; no hubo una ejecución de likes fallida. El último lote múltiple de laboratorio es histórico del 24: una completa, una detenida por cancelación y 26 canceladas. Se agregó resumen del lote completo, app/acción y presentación App abierta · Likes pendientes de mapeo, separando métricas históricas y cancelaciones. Estados originales intactos, sin reejecución. 91 pruebas y revisión visual correctas. Informe: docs/revision-batch-2026-10-26.md.
+
+
+## 2026-10-26 · v2.16: limpiar trazas y cierre visible
+
+Botón Limpiar logs en Automatización y visor, respaldo SQLite verificado y corte que conserva eventos nuevos, sin borrar auditoría de tareas. Resumen visible en todas las pestañas: cierre explícito, abiertas, sin confirmar, sin ejecutar y pendientes. Último lote: 13/29 abiertas, dos para revisar y 14 canceladas. Limpieza real 19:35 GT: 35 393 eventos archivados, cero posteriores al corte, 110 tareas preservadas. 98 pruebas correctas y revisión visual. Guía docs/limpieza-logs-y-resumen.md.

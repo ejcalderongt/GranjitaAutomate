@@ -1,3 +1,4 @@
+from contextlib import closing
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -53,3 +54,52 @@ class DiagnosticsTests(TestCase):
         import sys
         self.assertTrue(all(r['source']=='test' for r in d.read_events(include_tests=True)),repr(sys.argv))
         self.assertEqual(d.read_events(),[])
+
+    def test_clear_archives_events_and_preserves_feedback(self):
+        import sqlite3
+        with d.span('test.before_clear') as run:pass
+        d.add_feedback(run,'Nota histórica','No perderla')
+        before=len(d.read_events(include_tests=True))
+        result=d.clear_traces()
+        self.assertEqual(result['removed'],before)
+        self.assertEqual(d.read_events(include_tests=True),[])
+        self.assertEqual(len(d.feedback(run)),1)
+        with closing(sqlite3.connect(result['backup'])) as db:
+            self.assertEqual(db.execute('select count(*) from trace_events').fetchone()[0],before)
+        with d.span('test.after_clear'):pass
+        self.assertTrue(d.read_events(include_tests=True))
+
+    def test_clear_is_blocked_with_queued_or_executing_tasks(self):
+        import sqlite3
+        jobs=self.path.parent/'automation.sqlite3'
+        with closing(sqlite3.connect(jobs)) as db:
+            db.execute('CREATE TABLE tasks(status)');db.execute("INSERT INTO tasks VALUES('Ejecutando')");db.commit()
+        with d.span('test.keep'):pass
+        before=len(d.read_events(include_tests=True))
+        with self.assertRaises(ValueError):d.clear_traces()
+        self.assertEqual(len(d.read_events(include_tests=True)),before)
+
+    def test_backup_failure_preserves_events(self):
+        with d.span('test.keep_backup_failure'):pass
+        with patch('granjita.diagnostics.sqlite3.connect',side_effect=OSError('unavailable')):
+            with self.assertRaises(OSError):d.clear_traces()
+        self.assertTrue(d.read_events(include_tests=True))
+
+    def test_clear_keeps_events_written_after_backup_cutoff(self):
+        import sqlite3
+        with d.span('test.before_cutoff'):pass
+        original=d.database
+        class ConnectionProxy:
+            def __init__(self,connection):self.connection=connection
+            def __getattr__(self,key):return getattr(self.connection,key)
+            def __enter__(self):return self.connection.__enter__()
+            def __exit__(self,*args):return self.connection.__exit__(*args)
+            def backup(proxy,target):
+                proxy.connection.backup(target)
+                with closing(sqlite3.connect(self.path)) as writer:
+                    writer.execute("INSERT INTO trace_events(at,run_id,span_id,parent_id,task_id,process,phase,status,duration_ms,source,metadata) VALUES(?,?,?,?,?,?,?,?,?,?,?)",(d.stamp(),'new-run','new-span',None,None,'concurrent.operation','end','ok',1,'app','{}'));writer.commit()
+        with patch('granjita.diagnostics.database',side_effect=lambda:ConnectionProxy(original())):
+            d.clear_traces()
+        rows=d.read_events(include_tests=True)
+        self.assertEqual(len(rows),1)
+        self.assertEqual(rows[0]['run_id'],'new-run')

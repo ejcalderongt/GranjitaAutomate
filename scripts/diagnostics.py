@@ -8,10 +8,15 @@ from granjita.diagnostics import read_events,feedback,stamp
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--clear',action='store_true',help='Respaldar y limpiar trazas; conservar auditoría de tareas.')
     parser.add_argument('--run-id')
     parser.add_argument('--task-id')
     parser.add_argument('--export',type=Path)
     args=parser.parse_args()
+    if args.clear:
+        from granjita.diagnostics import clear_traces
+        print(json.dumps(clear_traces(),ensure_ascii=False,indent=2))
+        return
     rows=read_events(args.run_id,limit=10000,task_id=args.task_id)
     errors=[r for r in rows if r['status']=='error']
     slowest=sorted([r for r in rows if r['phase']=='end' and r['duration_ms'] is not None],key=lambda r:-r['duration_ms'])[:10]

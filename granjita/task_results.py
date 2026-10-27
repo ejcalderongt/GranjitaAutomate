@@ -36,7 +36,39 @@ def present_task(task):
     return dict(app=app,source=source,action_label=label,status_label=status,result=result)
 
 
+TERMINAL={'Completado','Revisar resultado','Cancelado','Expirado','Interrumpido','Resultado incierto','No ejecutado'}
+
+
 def summarize_batch(tasks):
     if not tasks:return None
     presented=[present_task(task) for task in tasks]
-    return dict(batch=tasks[0]['batch'],created=min(t['created'] for t in tasks),devices=len({t['device_id'] for t in tasks}),tasks=len(tasks),states=dict(Counter(t['status'] for t in tasks)),actions=sorted({p['action_label'] for p in presented}),opened=sum(t['action']=='app_prepare' and t['status']=='Completado' and p['result'].get('foreground_verified') is True for t,p in zip(tasks,presented)),mapping_pending=sum(t['action']=='app_prepare' and t['status']=='Completado' and p['result'].get('like_mapping')=='pending' for t,p in zip(tasks,presented)))
+    states=dict(Counter(t['status'] for t in tasks))
+    pending=sum(t['status'] not in TERMINAL for t in tasks)
+    finished=pending==0
+    if finished:
+        label='LOTE TERMINADO'
+        if any(states.get(s,0) for s in ('Revisar resultado','Resultado incierto','Interrumpido','No ejecutado','Expirado')):label+=' · Requiere revisión'
+        elif states.get('Cancelado'):label+=' · Con cancelaciones'
+        else:label+=' · Correcto'
+    elif states.get('Ejecutando'):label='LOTE EN EJECUCIÓN'
+    elif states.get('Programado'):label='LOTE PROGRAMADO'
+    else:label='LOTE PENDIENTE'
+    prep=[(t,p) for t,p in zip(tasks,presented) if t['action']=='app_prepare']
+    opened={t['device_id'] for t,p in prep if t['status']=='Completado' and p['result'].get('foreground_verified') is True}
+    not_executed={t['device_id'] for t,p in prep if t['status'] in ('Cancelado','Expirado','Interrumpido','No ejecutado')}-opened
+    unconfirmed={t['device_id'] for t,p in prep if t['status'] in TERMINAL and t['device_id'] not in opened|not_executed}
+    return dict(batch=tasks[0]['batch'],created=min(t['created'] for t in tasks),devices=len({t['device_id'] for t in tasks}),tasks=len(tasks),states=states,
+        actions=sorted({p['action_label'] for p in presented}),opened=len(opened),opening_unconfirmed=len(unconfirmed),not_executed=len(not_executed),preparation=bool(prep),
+        pending=pending,finished=finished,completion_label=label,
+        mapping_pending=len({t['device_id'] for t,p in prep if t['status']=='Completado' and p['result'].get('like_mapping')=='pending'}))
+
+
+def batch_text(batch):
+    if not batch:return 'Sin ejecuciones registradas.'
+    text=batch['completion_label']+'\n'
+    text+=f"{batch['created'][:10]} {batch['created'][11:19]} GT · {batch['devices']} dispositivos · {', '.join(batch['actions'])}\n"
+    if batch['preparation']:
+        text+=f"Apps abiertas: {batch['opened']} de {batch['devices']} · Sin apertura confirmada: {batch['opening_unconfirmed']} · Sin ejecutar: {batch['not_executed']} · Pendientes: {batch['pending']}\n"
+        if batch['mapping_pending']:text+=f"Likes pendientes de mapeo en {batch['mapping_pending']} dispositivos. Abrir la app no ejecuta likes.\n"
+    else:text+=f"Tareas pendientes: {batch['pending']} · "
+    return text+' · '.join(f'{key}: {value}' for key,value in batch['states'].items())
