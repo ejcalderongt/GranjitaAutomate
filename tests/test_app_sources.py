@@ -117,3 +117,14 @@ class AppSourceTests(unittest.TestCase):
                 VerificationWorker(jobs,tasks).run()
                 self.assertEqual(verify.call_count,1)
             self.assertEqual(jobs.latest_batch_summary()['verification_states'],{'not_executed':1,'error':1})
+
+    def test_foreground_supports_rom_resumed_activity_without_m_prefix(self):
+        self.assertEqual(foreground_package('    ResumedActivity: ActivityRecord{abc u0 '+PACKAGE+'/com.example.SplashActivity t115}'),PACKAGE)
+        self.assertEqual(foreground_package('mResumedActivity: null\n  ResumedActivity: ActivityRecord{abc u0 '+PACKAGE+'/.SplashActivity t115}'),PACKAGE)
+        self.assertIsNone(foreground_package('lastResumedActivity: '+PACKAGE+'/.SplashActivity'))
+        self.assertIsNone(foreground_package('Hist #0: ResumedActivity: '+PACKAGE+'/.SplashActivity'))
+
+    def test_multiple_distinct_resumed_packages_require_review(self):
+        raw='mResumedActivity: '+PACKAGE+'/.Main\nResumedActivity: com.other.app/.Other'
+        self.assertIsNone(foreground_package(raw))
+        self.assertEqual(foreground_package(FOCUS+'\nResumedActivity: '+PACKAGE+'/.Main'),PACKAGE)

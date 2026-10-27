@@ -67,3 +67,6 @@
 - [x] v2.17: comprobación posterior automática y manual, en trabajador separado, con historial SQLite y CLI independiente; sin relanzar apps.
 
 - [x] v2.18: revisar resultados actuales y simplificar indicador de Automatización a tres cifras, estado y verificación; detalle conservado.
+
+- [x] v2.19: corregir detección de primer plano para ResumedActivity sin prefijo m; confirmar nuevamente las 15 apps procesadas.
+- [ ] Resolver configuración inicial de TikTok en dispositivos de prueba con el usuario; apertura no confirma cuenta lista y no se han elegido datos de perfil automáticamente.

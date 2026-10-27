@@ -30,4 +30,6 @@ Fechas de America/Guatemala. Los números 2.x identifican la aplicación; 4.2 id
 
 | 2.18 | 2026-10-26 | Indicador compacto con tres cifras y estado; revisión de última ejecución sin relanzar | [Resumen compacto](resumen-compacto-automatizacion.md) |
 
+| 2.19 | 2026-10-26 | Corregir falso negativo de primer plano por variante ResumedActivity de Android | [Detección TikTok](tiktok-deteccion-inicial.md) |
+
 Para cada versión registrar alcance, migración/persistencia, instrucciones de uso, pruebas, límites y pendientes. La bitácora conserva las evidencias históricas; los conteos de una versión no son el estado actual de la granja.

@@ -23,12 +23,15 @@ def require_like_mapping(identifier):
 
 
 def foreground_package(raw):
-    # Solo interpretar el componente de la actividad enfocada, no actividades históricas.
+    # Android/ROM usa distintas etiquetas para la actividad actual.
+    # No usar historiales ni elegir arbitrariamente entre varios displays activos.
+    packages=set()
     for line in raw.splitlines():
-        if any(key in line for key in ('mResumedActivity:','topResumedActivity=','mCurrentFocus=')):
+        line=line.strip()
+        if re.match(r'^(?:mResumedActivity:|ResumedActivity:|topResumedActivity=|mCurrentFocus=)',line):
             found=re.search(r'\b([A-Za-z][A-Za-z0-9_.]*)/[A-Za-z0-9_.$]+',line)
-            if found:return found.group(1)
-    return None
+            if found:packages.add(found.group(1))
+    return next(iter(packages)) if len(packages)==1 else None
 
 
 @traced('app.source.prepare')

@@ -2,7 +2,7 @@
 
 Repositorio de conocimiento, documentación y herramientas para administrar la granja de placas Android.
 
-## Aplicación v2.18
+## Aplicación v2.19
 
 Abrir **GranjitaAutomate** desde el escritorio o ejecutar `iniciar.vbs`. Consulta la [guía de inventario y servidores ADB](docs/version-2.md) y las [instrucciones de instalación](docs/version-1.md). Usa SQLite local en `data/`, excluida de Git.
 
@@ -39,6 +39,8 @@ La [limpieza de logs y cierre de lotes](docs/limpieza-logs-y-resumen.md) permite
 La [verificación posterior](docs/verificacion-posterior-apps.md) relee el primer plano al terminar la apertura, en un trabajador separado, y conserva el resultado de ejecución junto a la comprobación independiente.
 
 El [resumen compacto del lote](docs/resumen-compacto-automatizacion.md) muestra estado, tres indicadores y verificación; el detalle sigue disponible en la tabla y al pasar el cursor.
+
+La [corrección de detección de TikTok](docs/tiktok-deteccion-inicial.md) reconoce las variantes de actividad actual de Android y distingue apertura de configuración de cuenta.
 
 ## Organización
 

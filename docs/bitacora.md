@@ -131,3 +131,8 @@ Otro trabajador relee identidad y primer plano tras el lote de apertura; indicad
 ## 2026-10-26 · v2.18: indicador compacto y revisión del último lote
 
 Último lote registrado: 29 tareas de apertura, 13 completas, dos para revisar y 14 canceladas antes de iniciar. Verificación posterior: 13 en primer plano, una fuera, una no identificable y 14 omitidas. Se aclara límite de trazas tras limpieza y se conservan resultados. Indicador reducido a estado/app, tres cifras grandes y estado/hora de comprobación; detalle en tabla y tooltip, cierre inferior compacto. 103 pruebas y revisión visual correctas; sin ejecutar tareas ni alterar auditoría. Guía docs/resumen-compacto-automatizacion.md.
+
+
+## 2026-10-26 · v2.19: falso negativo de apertura TikTok
+
+Diagnóstico de pantalla 24: Android declara ResumedActivity sin prefijo m, omitido por nuestro lector. Se admitió esa variante con lectura conservadora de paquetes actuales; históricos ignorados. Pantalla 56 está abierta en configuración inicial según captura; su tarea anterior se canceló. Segunda lectura 19:51 GT: 15 abiertas y 14 canceladas omitidas, sin relanzar ni completar onboarding. Se conservan estados históricos. 105 pruebas correctas. Guía docs/tiktok-deteccion-inicial.md.
