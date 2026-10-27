@@ -109,7 +109,7 @@ class ProbeWorker(QThread):
 class AutomationDialog(QDialog):
     def __init__(self,store,preferred=None,parent=None):
         super().__init__(parent)
-        self.setWindowTitle('Automatización · GranjitaAutomate 2.17')
+        self.setWindowTitle('Automatización · GranjitaAutomate 2.18')
         self.resize(1160,900)
         self.store=store
         self.jobs=JobStore()
@@ -425,9 +425,10 @@ class AutomationDialog(QDialog):
             cancelled=sum(t['status']=='Cancelado' for t in self.tasks)
             self.stats.setText(f'Últimas {len(self.tasks)} tareas · {completed} completadas · {pending} en curso/cola · {cancelled} canceladas · {len(self.tasks)-completed-pending-cancelled} para revisar/interrumpidas/expiradas')
         batch=self.jobs.latest_batch_summary()
-        from .task_results import batch_text
-        self.batch_summary.setText(('VERIFICANDO EJECUCIÓN…\n' if isinstance(self.worker,VerificationWorker) else '')+batch_text(batch))
-        self.batch_summary.setStyleSheet('font-size:16px;font-weight:600;padding:12px;background:'+('#e5f5e9' if batch and batch['finished'] and batch['completion_label'].endswith('Correcto') else '#fff4d6')+';')
+        from .task_results import batch_text,compact_batch
+        card=compact_batch(batch,isinstance(self.worker,VerificationWorker))
+        self.batch_summary.setText(card['html']);self.batch_summary.setToolTip(batch_text(batch))
+        self.batch_summary.setStyleSheet('font-size:16px;padding:10px;background:'+('#e5f5e9' if batch and batch['finished'] and batch['completion_label'].endswith('Correcto') and not card['review'] else '#fff4d6')+';')
         self.clear_logs_button.setEnabled(self.worker is None)
         self.verify_button.setEnabled(self.worker is None and bool(batch and batch['preparation'] and batch['finished']))
         self.results.setRowCount(len(self.tasks))
@@ -552,8 +553,8 @@ class AutomationDialog(QDialog):
         if tasks and any(t.get('action')=='app_prepare' for t in tasks):
             self.start_postcheck(tasks);return
         if isinstance(finished,(BatchWorker,VerificationWorker)):
-            from .task_results import batch_text
-            self.state.setText(batch_text(self.jobs.latest_batch_summary()))
+            from .task_results import compact_batch
+            self.state.setText(compact_batch(self.jobs.latest_batch_summary())['status'])
         self.refresh()
         if getattr(self,'launch_after_refresh',False):
             self.launch_after_refresh=False

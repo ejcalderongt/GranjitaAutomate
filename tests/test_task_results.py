@@ -60,3 +60,19 @@ class TaskResultTests(TestCase):
             self.assertFalse(summary['finished'])
             self.assertEqual(summary['pending'],1)
             self.assertNotIn('TERMINADO',summary['completion_label'])
+
+    def test_compact_card_uses_latest_verification_instead_of_old_success(self):
+        from granjita.task_results import compact_batch
+        task=self.task(verification_payload=json.dumps(dict(state='not_foreground',at='2026-10-26T20:00:00-06:00')))
+        card=compact_batch(summarize_batch([task]))
+        self.assertEqual(card['confirmed'],0)
+        self.assertEqual(card['review'],1)
+        self.assertIn('Verificación terminada',card['status'])
+        self.assertNotIn('observed_package',card['html'])
+
+    def test_compact_card_does_not_finish_an_active_postcheck(self):
+        from granjita.task_results import compact_batch
+        batch=summarize_batch([self.task()])
+        card=compact_batch(batch,verifying=True)
+        self.assertIn('Verificando ejecución',card['status'])
+        self.assertNotIn('Verificación terminada',card['status'])

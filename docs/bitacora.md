@@ -126,3 +126,8 @@ Botón Limpiar logs en Automatización y visor, respaldo SQLite verificado y cor
 ## 2026-10-26 · v2.17: comprobación posterior independiente
 
 Otro trabajador relee identidad y primer plano tras el lote de apertura; indicador Verificando ejecución…, columna con fecha/hora, conteos y cierre de comprobación. Botón Verificar último lote y CLI reproducible sin relanzar apps. Historial aditivo app_verifications con respaldo previo, estados originales intactos. Comprobación real en proceso Python separado del lote de 29: 13 en primer plano, una fuera, una no identificable y 14 canceladas omitidas. 101 pruebas y revisión visual correctas. Guía docs/verificacion-posterior-apps.md.
+
+
+## 2026-10-26 · v2.18: indicador compacto y revisión del último lote
+
+Último lote registrado: 29 tareas de apertura, 13 completas, dos para revisar y 14 canceladas antes de iniciar. Verificación posterior: 13 en primer plano, una fuera, una no identificable y 14 omitidas. Se aclara límite de trazas tras limpieza y se conservan resultados. Indicador reducido a estado/app, tres cifras grandes y estado/hora de comprobación; detalle en tabla y tooltip, cierre inferior compacto. 103 pruebas y revisión visual correctas; sin ejecutar tareas ni alterar auditoría. Guía docs/resumen-compacto-automatizacion.md.

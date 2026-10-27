@@ -65,3 +65,5 @@
 - [x] v2.17: comprobación independiente posterior al lote; verificar nuevamente primer plano sin relanzar la app.
 
 - [x] v2.17: comprobación posterior automática y manual, en trabajador separado, con historial SQLite y CLI independiente; sin relanzar apps.
+
+- [x] v2.18: revisar resultados actuales y simplificar indicador de Automatización a tres cifras, estado y verificación; detalle conservado.

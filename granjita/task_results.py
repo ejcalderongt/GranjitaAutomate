@@ -64,7 +64,7 @@ def summarize_batch(tasks):
     not_executed={t['device_id'] for t,p in prep if t['status'] in ('Cancelado','Expirado','Interrumpido','No ejecutado')}-opened
     unconfirmed={t['device_id'] for t,p in prep if t['status'] in TERMINAL and t['device_id'] not in opened|not_executed}
     return dict(batch=tasks[0]['batch'],created=min(t['created'] for t in tasks),devices=len({t['device_id'] for t in tasks}),tasks=len(tasks),states=states,
-        actions=sorted({p['action_label'] for p in presented}),opened=len(opened),opening_unconfirmed=len(unconfirmed),not_executed=len(not_executed),preparation=bool(prep),
+        actions=sorted({p['action_label'] for p in presented}),apps=sorted({p['app'] for p in presented}),verification_at=max((p['verification'].get('at','') for p in presented),default=''),opened=len(opened),opening_unconfirmed=len(unconfirmed),not_executed=len(not_executed),preparation=bool(prep),
         pending=pending,finished=finished,completion_label=label,
         verification_total=len(prep),verification_checked=sum(bool(p['verification']) for t,p in prep),
         verification_states=dict(Counter(p['verification'].get('state','pending') for t,p in prep)),
@@ -85,3 +85,36 @@ def batch_text(batch):
         if batch['verification_checked']==batch['verification_total']:text+='VERIFICACIÓN POSTERIOR TERMINADA · '
         else:text+='VERIFICACIÓN POSTERIOR PENDIENTE · '
     return text+' · '.join(f'{key}: {value}' for key,value in batch['states'].items())
+
+
+def compact_batch(batch,verifying=False):
+    """Tres cifras visibles; la explicación completa permanece en tooltip y tabla."""
+    from html import escape
+    if not batch:return dict(html='<b>Sin ejecuciones registradas</b>',status='Sin ejecuciones registradas.',review=0)
+    finished=batch['finished']
+    title='Verificando ejecución…' if verifying else 'Lote terminado' if finished else 'Lote en ejecución' if batch['states'].get('Ejecutando') else 'Lote programado' if batch['states'].get('Programado') else 'Lote pendiente'
+    apps=', '.join(batch.get('apps',[])) or 'Aplicación'
+    checks=batch['verification_states']
+    checked=batch['verification_checked']
+    total=batch['verification_total']
+    if batch['preparation']:
+        confirmed=checks.get('open',0) if checked else batch['opened']
+        review=sum(checks.get(state,0) for state in ('error','unconfirmed','not_foreground','cancelled')) if checked else batch['opening_unconfirmed']
+        caption='Apps verificadas' if checked else 'Aperturas confirmadas'
+        skipped=batch['not_executed']
+    else:
+        confirmed=batch['states'].get('Completado',0)
+        review=sum(batch['states'].get(state,0) for state in ('Revisar resultado','Resultado incierto'))
+        skipped=sum(batch['states'].get(state,0) for state in ('Cancelado','Expirado','Interrumpido','No ejecutado'))
+        caption='Completadas'
+    if batch['preparation']:
+        footer='Verificando: '+str(checked)+' de '+str(total) if verifying or checked<total else 'Verificación terminada'
+    else:footer='Ejecución terminada' if finished else str(batch['pending'])+' tareas pendientes'
+    at=batch.get('verification_at') or batch['created']
+    footer+=' · '+at[11:19]+' GT'
+    status=f"{title} · {apps} · {confirmed}/{batch['devices']} {caption.lower()} · {review} para revisar · {skipped} sin ejecutar · {footer}"
+    cells=[]
+    for value,label in [(str(confirmed)+' / '+str(batch['devices']),caption),(str(review),'Para revisar'),(str(skipped),'Sin ejecutar')]:
+        cells.append('<td width="33%"><span style="font-size:24px;font-weight:700">'+escape(value)+'</span><br><span style="font-size:13px;font-weight:400">'+escape(label)+'</span></td>')
+    html='<b>'+escape(title+' · '+apps)+'</b><table width="100%" cellspacing="3"><tr>'+''.join(cells)+'</tr></table><span style="font-size:12px;font-weight:400">'+escape(footer)+'</span>'
+    return dict(html=html,status=status,review=review,confirmed=confirmed,skipped=skipped)

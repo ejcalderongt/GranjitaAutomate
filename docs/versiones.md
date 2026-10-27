@@ -28,4 +28,6 @@ Fechas de America/Guatemala. Los números 2.x identifican la aplicación; 4.2 id
 
 | 2.17 | 2026-10-26 | Segundo trabajador para verificar primer plano después del lote, historial SQLite y comprobación manual/CLI | [Verificación posterior](verificacion-posterior-apps.md) |
 
+| 2.18 | 2026-10-26 | Indicador compacto con tres cifras y estado; revisión de última ejecución sin relanzar | [Resumen compacto](resumen-compacto-automatizacion.md) |
+
 Para cada versión registrar alcance, migración/persistencia, instrucciones de uso, pruebas, límites y pendientes. La bitácora conserva las evidencias históricas; los conteos de una versión no son el estado actual de la granja.
