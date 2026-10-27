@@ -23,7 +23,9 @@ def plan_changes(db, report, panda):
         if d['status']!='Validado' or not hardware or d.get('identity_conflict'):
             raise ValueError('Una conexión en conflicto no tiene identidad actual verificable.')
         matches=[p for p in panda if p.get('serial')==d['serial'] and p.get('onlySerial')==hardware]
-        targets=db.execute('SELECT * FROM device_identity WHERE hardware_serial=?',(hardware,)).fetchall()
+        has_aliases=db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='device_identity_aliases'").fetchone()
+        active_filter=' AND device_id NOT IN (SELECT alias_id FROM device_identity_aliases)' if has_aliases else ''
+        targets=db.execute('SELECT * FROM device_identity WHERE hardware_serial=?'+active_filter,(hardware,)).fetchall()
         if len(matches)!=1 or len(targets)!=1:
             raise ValueError('Panda o la ficha destino no confirman una correspondencia única.')
         target=targets[0]

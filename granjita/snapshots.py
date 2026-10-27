@@ -124,7 +124,9 @@ def capture(store,row):
         connection=sqlite3.connect(jobs.as_uri()+'?mode=ro',uri=True)
         try:
             connection.row_factory=sqlite3.Row
-            tasks=[dict(t) for t in connection.execute('SELECT id,action,status,updated FROM tasks WHERE device_id=? ORDER BY updated DESC LIMIT 20',(row['id'],))]
+            family=store.identity_family(row['id'])
+            marks=','.join('?' for _ in family)
+            tasks=[dict(t) for t in connection.execute('SELECT id,action,status,updated FROM tasks WHERE device_id IN ('+marks+') ORDER BY updated DESC LIMIT 20',family)]
         finally:connection.close()
     verify_identity(row)
     manifest=dict(schema_version=1,subphase='4.2',id=identifier,at=now(),hardware_serial=row['hardware_serial'],device_id=row['id'],

@@ -207,7 +207,7 @@ class FleetStore(Store):
         super().__init__(path)
         with self.connect() as db:
             version = db.execute('PRAGMA user_version').fetchone()[0]
-        if version > 5:
+        if version > 6:
             raise ValueError('La base pertenece a una versión más nueva. Usa la versión compatible del programa.')
         if version < 2:
             self.backup(self.path.with_name(self.path.stem + '-antes-v2.sqlite3'))
@@ -271,6 +271,25 @@ class FleetStore(Store):
                     PRAGMA user_version=5;
                 """)
 
+        if version < 6:
+            self.backup(self.path.with_name(self.path.stem+'-antes-v6.sqlite3'))
+            with self.connect() as db:
+                db.executescript("""
+                    CREATE TABLE device_identity_aliases(alias_id TEXT PRIMARY KEY,canonical_id TEXT NOT NULL,
+                        at TEXT NOT NULL,evidence TEXT NOT NULL);
+                    CREATE INDEX identity_alias_canonical ON device_identity_aliases(canonical_id);
+                    PRAGMA user_version=6;
+                """)
+
+    @staticmethod
+    def identity_family_db(db,identifier):
+        row=db.execute('SELECT canonical_id FROM device_identity_aliases WHERE alias_id=?',(identifier,)).fetchone()
+        canonical=row['canonical_id'] if row else identifier
+        return [canonical]+[r['alias_id'] for r in db.execute('SELECT alias_id FROM device_identity_aliases WHERE canonical_id=?',(canonical,))]
+
+    def identity_family(self,identifier):
+        with self.connect() as db:return self.identity_family_db(db,identifier)
+
     # La posición se vincula al serial físico, nunca a IP o puerto ADB.
     def positions(self):
         with self.connect() as db:
@@ -283,7 +302,7 @@ class FleetStore(Store):
         if type(slot) is not int or not 1 <= slot <= 999 or type(panda_number) is not int or not 1 <= panda_number <= 999999:
             raise ValueError('Posición o número Panda inválidos.')
         with self.connect() as db:
-            identities = db.execute('SELECT state FROM device_identity WHERE hardware_serial=?', (hardware_serial,)).fetchall()
+            identities = db.execute('SELECT state FROM device_identity WHERE hardware_serial=? AND device_id NOT IN (SELECT alias_id FROM device_identity_aliases)', (hardware_serial,)).fetchall()
             if len(identities) != 1 or identities[0]['state'] == 'Fuentes en conflicto':
                 raise ValueError('El serial debe corresponder a una única ficha sin conflicto.')
             occupied = db.execute('SELECT hardware_serial FROM physical_positions WHERE (rack=? AND slot=?) OR panda_number=?', (rack,slot,panda_number)).fetchall()
@@ -294,6 +313,12 @@ class FleetStore(Store):
     @staticmethod
     def _save_identity(db, identifier, data, stamp):
         serial = usable_serial(data.get('hardware_serial'))
+        has_aliases=db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='device_identity_aliases'").fetchone()
+        alias=db.execute('SELECT canonical_id FROM device_identity_aliases WHERE alias_id=?',(identifier,)).fetchone() if has_aliases else None
+        if alias:
+            canonical=db.execute('SELECT hardware_serial FROM device_identity WHERE device_id=?',(alias['canonical_id'],)).fetchone()
+            if not canonical or serial!=canonical['hardware_serial']:raise ValueError('La identidad no coincide con la ficha canónica.')
+            identifier=alias['canonical_id']
         if not serial:
             return
         state = 'Fuentes en conflicto' if data.get('identity_conflict') else 'Serial leído'
@@ -330,7 +355,7 @@ class FleetStore(Store):
                 identifier = row['device_id'] if row else str(uuid.uuid4())
                 matched = False
                 if not row:
-                    candidates = db.execute('SELECT * FROM device_identity WHERE hardware_serial=?', (hardware,)).fetchall() if hardware else []
+                    candidates = db.execute('SELECT * FROM device_identity WHERE hardware_serial=? AND device_id NOT IN (SELECT alias_id FROM device_identity_aliases)', (hardware,)).fetchall() if hardware else []
                     if len(candidates) == 1 and serial_counts[hardware] == 1 and not d.get('identity_conflict'):
                         candidate = candidates[0]
                         same_metadata = (candidate['manufacturer'] and candidate['model'] and candidate['manufacturer'] == d.get('manufacturer') and candidate['model'] == d.get('hardware_model'))
@@ -352,7 +377,7 @@ class FleetStore(Store):
         with self.connect() as db:
             rows = [dict(r) for r in db.execute('''SELECT c.*,d.alias,d.id,i.hardware_serial,i.state AS identity_state,i.at AS identity_at
                 FROM connections c JOIN inventory_devices d ON d.id=c.device_id LEFT JOIN device_identity i ON i.device_id=d.id ORDER BY d.alias,c.port,c.serial''')]
-            counts = {r['hardware_serial']:r['n'] for r in db.execute('SELECT hardware_serial,COUNT(*) AS n FROM device_identity GROUP BY hardware_serial')}
+            counts = {r['hardware_serial']:r['n'] for r in db.execute('SELECT hardware_serial,COUNT(*) AS n FROM device_identity WHERE device_id NOT IN (SELECT alias_id FROM device_identity_aliases) GROUP BY hardware_serial')}
             for row in rows:
                 serial = row['hardware_serial'] or ''
                 duplicate = counts.get(serial,0) > 1
@@ -369,14 +394,18 @@ class FleetStore(Store):
 
     def rename_device(self, identifier, name):
         with self.connect() as db:
+            identifier=self.identity_family_db(db,identifier)[0]
             db.execute('UPDATE inventory_devices SET alias=? WHERE id=?', (name, identifier))
 
     def device_history(self, identifier):
         with self.connect() as db:
-            return [dict(r) for r in db.execute('SELECT * FROM connection_events WHERE device_id=? ORDER BY id DESC LIMIT 100', (identifier,))]
+            family=self.identity_family_db(db,identifier)
+            marks=','.join('?' for _ in family)
+            return [dict(r) for r in db.execute('SELECT * FROM connection_events WHERE device_id IN ('+marks+') ORDER BY id DESC LIMIT 100',family)]
 
     def save_inventory(self, identifier, port, serial, observations):
         with self.connect() as db:
+            identifier=self.identity_family_db(db,identifier)[0]
             cursor = db.execute('INSERT INTO snapshots(device_id,port,serial,at) VALUES (?,?,?,?)', (identifier, port, serial, now()))
             db.executemany('INSERT INTO observations VALUES (?,?,?,?,?,?)', [(cursor.lastrowid, o['field'], o['value'], o['state'], o['source'], o['at']) for o in observations])
             values = {o['field']:o['value'] for o in observations if o['state'] == 'Disponible'}
@@ -385,7 +414,9 @@ class FleetStore(Store):
 
     def inventory(self, identifier):
         with self.connect() as db:
-            snapshots = db.execute('SELECT * FROM snapshots WHERE device_id=? ORDER BY id DESC LIMIT 2', (identifier,)).fetchall()
+            family=self.identity_family_db(db,identifier)
+            marks=','.join('?' for _ in family)
+            snapshots = db.execute('SELECT * FROM snapshots WHERE device_id IN ('+marks+') ORDER BY id DESC LIMIT 2',family).fetchall()
             if not snapshots:
                 return [], None, 0
             current = [dict(r) for r in db.execute('SELECT * FROM observations WHERE snapshot_id=?', (snapshots[0]['id'],))]
@@ -397,13 +428,14 @@ class FleetStore(Store):
     def link_connection(self, port, serial, target_id):
         """Asociación física explícita por el usuario; nunca se deduce de IP/modelo."""
         with self.connect() as db:
+            target_id=self.identity_family_db(db,target_id)[0]
             old = db.execute('SELECT device_id FROM connections WHERE port=? AND serial=?', (port, serial)).fetchone()
             if not old or not db.execute('SELECT id FROM inventory_devices WHERE id=?', (target_id,)).fetchone():
                 raise ValueError('Dispositivo no encontrado.')
             old_id = old['device_id']
             db.execute('UPDATE connections SET device_id=? WHERE port=? AND serial=?', (target_id, port, serial))
             # Transferir observaciones solo si la identidad anterior ya no tiene transportes.
-            if old_id != target_id and not db.execute('SELECT 1 FROM connections WHERE device_id=?', (old_id,)).fetchone():
+            if old_id != target_id and not db.execute('SELECT 1 FROM connections WHERE device_id=?', (old_id,)).fetchone() and not db.execute('SELECT 1 FROM device_identity_aliases WHERE alias_id=? OR canonical_id=?',(old_id,old_id)).fetchone():
                 db.execute('UPDATE snapshots SET device_id=? WHERE device_id=?', (target_id, old_id))
                 db.execute('UPDATE connection_events SET device_id=? WHERE device_id=?', (target_id, old_id))
                 db.execute('DELETE FROM inventory_devices WHERE id=?', (old_id,))

@@ -23,3 +23,7 @@ Pasaron 15 pruebas, incluyendo nombre automático, alias, cambio de IP, serial r
 ## Respaldo de avances
 
 Por instrucción del usuario, cada avance funcional verificado debe terminar con commit y push a origin/dev2026. Esta regla está en AGENTS.md para los próximos trabajos.
+
+## Actualización v2.20
+
+La [consolidación explícita](consolidacion-identidades.md) permite resolver duplicados históricos validados conservando todas las fichas como referencias. Solo la ficha canónica participa como candidato activo; el historial sigue consultable por cualquiera de sus UUID. No se fusionan seriales simultáneos en distintos transportes.

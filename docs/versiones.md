@@ -32,4 +32,6 @@ Fechas de America/Guatemala. Los números 2.x identifican la aplicación; 4.2 id
 
 | 2.19 | 2026-10-26 | Corregir falso negativo de primer plano por variante ResumedActivity de Android | [Detección TikTok](tiktok-deteccion-inicial.md) |
 
+| 2.20 | 2026-10-26 | Consolidar cuatro identidades con referencias históricas, esquema 6 y validación UI 33/33 | [Consolidación](consolidacion-identidades.md) |
+
 Para cada versión registrar alcance, migración/persistencia, instrucciones de uso, pruebas, límites y pendientes. La bitácora conserva las evidencias históricas; los conteos de una versión no son el estado actual de la granja.

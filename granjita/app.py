@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
     QMessageBox, QInputDialog, QFileDialog, QCheckBox, QProgressBar, QDialog, QTabWidget,
     QPlainTextEdit, QLineEdit, QGroupBox, QMenu)
 
+from . import __version__
 from .core import Adb, Store, ROOT
 from .diagnostics import emit
 from .inventory import FleetStore, scan_fleet, collect_inventory
@@ -126,7 +127,7 @@ class Window(QMainWindow):
         self.fresh = False
         self.reconciliation = {}
         self.startup_pending = True
-        self.setWindowTitle('GranjitaAutomate · v2.13')
+        self.setWindowTitle(f'GranjitaAutomate · v{__version__}')
         self.resize(1280, 930)
         central = QWidget()
         self.setCentralWidget(central)
@@ -138,7 +139,7 @@ class Window(QMainWindow):
         title.setObjectName('title')
         header.addWidget(title)
         header.addStretch()
-        version = QLabel('Versión 2.13')
+        version = QLabel(f'Versión {__version__}')
         version.setToolTip('Versión instalada del programa. Los cambios se documentan en el repositorio del proyecto.')
         header.addWidget(version)
         self.advanced_button = QPushButton('Avanzado')

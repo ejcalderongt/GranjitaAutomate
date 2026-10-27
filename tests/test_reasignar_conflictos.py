@@ -40,3 +40,9 @@ INSERT INTO device_identity VALUES('target','NEW-SERIAL','Serial leído','Samsun
     def test_no_conflicts_no_changes(self):
         self.db.execute("UPDATE connections SET status='Validado'")
         self.assertEqual(self.plan(),[])
+
+    def test_historical_alias_is_not_a_second_active_target(self):
+        self.db.execute('CREATE TABLE device_identity_aliases(alias_id,canonical_id)')
+        self.db.execute("INSERT INTO device_identity VALUES('historical','NEW-SERIAL','Serial leído','Samsung','Model')")
+        self.db.execute("INSERT INTO device_identity_aliases VALUES('historical','target')")
+        self.assertEqual(self.plan()[0]['target_id'],'target')

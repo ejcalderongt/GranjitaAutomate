@@ -146,3 +146,8 @@ Se ejecutaron mediante UI las 14 fichas canceladas del lote anterior. Nuevo lote
 ## 2026-10-26 · Repetición UI sobre todos los aptos
 
 Desde Tarea → Todos → Abrir y comprobar TikTok se procesaron los 29 aptos. Lote 2d6ef9db-2f7d-4e7a-9304-edbf0faa22f4, 20:08 GT: 29 completas, segunda verificación 29 en primer plano y cero errores. Todas ya estaban abiertas: esta repetición no prueba arranque en frío. Lectura de 04, 11, 28 y 62: conectadas, TikTok instalado, launcher en primer plano; excluidas por serial histórico repetido y sin intento de apertura. Sin cambios de cuentas ni identidades. Informe docs/prueba-todos-aptos-2026-10-26.md.
+
+
+## 2026-10-26 · v2.20: cuatro fichas integradas y lote 33/33
+
+Se consolidaron explícitamente 04, 11, 28 y 62 con serial/metadatos actuales únicos y Panda, bajo UUID canónico más antiguo y referencias históricas. Esquema SQLite 6 con respaldo; no se eliminaron fichas, identidades, snapshots, observaciones ni checkpoints. Resultado 33 en línea/aptos, cero duplicados activos e integridad ok. Prueba real UI: lote de85e30c-c095-4978-85aa-ceb360a0d57f, 20:22 GT, 33 completas/verificadas y cero errores; los cuatro se lanzaron y los otros 29 ya estaban abiertos. 112 pruebas, vista previa posterior sin cambios. Se corrigieron rótulos de versión principal. Guía docs/consolidacion-identidades.md.

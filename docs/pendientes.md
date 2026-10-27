@@ -54,7 +54,7 @@
 - [ ] Separar detectados de asociados/aptos en el indicador y revisar conflictos actuales de pantallas 06, 30, 46, 50, 51 y 65, conservando historial.
 
 - [x] Resolver las siete conexiones en conflicto de 06, 30, 46, 50, 51 y 65 mediante serial actual verificado, respaldo y auditoría (2026-10-26).
-- [ ] Revisar fichas históricas duplicadas de pantallas 04, 11, 28 y 62; hay 33 en línea y 29 aptos tras la reasociación. La separación visual detectados/aptos sigue pendiente.
+- [x] v2.20: resolver fichas históricas duplicadas de 04, 11, 28 y 62; ahora 33 en línea y 33 aptos.
 
 - [x] v2.14: agregar app origen y preparación verificable para Granjita Lab/TikTok con auditoría SQLite y receta reproducible.
 - [ ] Completar bienvenida/sesión de TikTok en placa de prueba y elegir publicación identificable; mapear y validar estado de like antes de habilitar el adaptador externo. Pantalla 06 solo tiene apertura comprobada.
@@ -72,8 +72,10 @@
 - [ ] Resolver configuración inicial de TikTok en dispositivos de prueba con el usuario; apertura no confirma cuenta lista y no se han elegido datos de perfil automáticamente.
 
 - [x] Validar desde la UI la apertura de TikTok en los 14 pendientes: 14/14 confirmados, lote terminado y verificación posterior correcta (20:03 GT).
-- [ ] Reemplazar los rótulos fijos v2.13 de la ventana principal por la versión del paquete; Automatización ya muestra 2.19.
+- [x] v2.20: reemplazar rótulos fijos v2.13 de la ventana principal por la versión del paquete.
 
 - [x] Repetir desde la UI sobre todos los 29 aptos: 29/29 en primer plano, lote correcto (20:08 GT); todas las apps ya estaban abiertas.
-- [ ] Completar cobertura de apertura de 04, 11, 28 y 62 después de resolver fichas duplicadas; hoy solo lectura, TikTok instalado y launcher en primer plano.
+- [x] v2.20: completar apertura de 04, 11, 28 y 62 tras consolidar sus fichas; cuatro lanzamientos y verificación en primer plano correctos.
 - [ ] Si se requiere evaluar arranque desde cerrado, preparar una prueba explícita fuera de TikTok; la repetición de todos los aptos verificó continuidad, no arranque en frío.
+
+- [x] v2.20: consolidar 04, 11, 28 y 62 sin pérdida de historia; 33/33 aptos y verificados desde la UI, cuatro lanzamientos confirmados.
