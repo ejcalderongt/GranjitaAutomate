@@ -395,4 +395,12 @@ class JobStore:
 
     def tasks(self):
         with self.db() as db:
-            return [dict(r) for r in db.execute('SELECT * FROM tasks ORDER BY created DESC,rowid DESC LIMIT 300')]
+            return [dict(r) for r in db.execute('SELECT t.*,r.spec AS recipe_spec FROM tasks t LEFT JOIN task_recipes r ON r.task_id=t.id ORDER BY t.created DESC,t.rowid DESC LIMIT 300')]
+
+    def latest_batch_summary(self):
+        from .task_results import summarize_batch
+        with self.db() as db:
+            latest=db.execute('SELECT batch FROM tasks ORDER BY created DESC,rowid DESC LIMIT 1').fetchone()
+            if not latest:return None
+            rows=[dict(r) for r in db.execute('SELECT t.*,r.spec AS recipe_spec FROM tasks t LEFT JOIN task_recipes r ON r.task_id=t.id WHERE t.batch=? ORDER BY t.rowid',(latest['batch'],))]
+        return summarize_batch(rows)

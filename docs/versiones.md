@@ -22,4 +22,6 @@ Fechas de America/Guatemala. Los números 2.x identifican la aplicación; 4.2 id
 
 | 2.14 | 2026-10-26 | Perfil de app origen, apertura verificada y auditoría; TikTok pendiente de mapeo de likes | [App origen](app-origen.md) |
 
+| 2.15 | 2026-10-26 | Resumen del último lote y resultados distintos para apertura, mapeo pendiente y cancelación | [Revisión del lote](revision-batch-2026-10-26.md) |
+
 Para cada versión registrar alcance, migración/persistencia, instrucciones de uso, pruebas, límites y pendientes. La bitácora conserva las evidencias históricas; los conteos de una versión no son el estado actual de la granja.

@@ -111,3 +111,8 @@ Se respaldó SQLite y reasociaron siete conexiones a seis fichas existentes, ver
 ## 2026-10-26 · v2.14: perfil de app origen y apertura
 
 Selector Granjita Lab/TikTok, preparación inmediata con validación de identidad, instalación existente y primer plano, sin relanzar si ya está abierta. Perfil y resultado persistidos en SQLite; preparación separada de métricas y piloto de likes. TikTok abierto en Panda 06 y segunda comprobación sin relanzar; captura del usuario muestra bienvenida, sin publicación para validar likes. Adaptador TikTok pendiente y bloqueado explícitamente; el like mapeado sigue siendo del laboratorio. 87 pruebas y revisión visual correctas. Guía: docs/app-origen.md.
+
+
+## 2026-10-26 · v2.15: diagnóstico y resultados del lote
+
+El último envío 19:24 GT fue app_prepare para un dispositivo: TikTok abierto correctamente en 4.1 s, mapeo de likes pendiente; no hubo una ejecución de likes fallida. El último lote múltiple de laboratorio es histórico del 24: una completa, una detenida por cancelación y 26 canceladas. Se agregó resumen del lote completo, app/acción y presentación App abierta · Likes pendientes de mapeo, separando métricas históricas y cancelaciones. Estados originales intactos, sin reejecución. 91 pruebas y revisión visual correctas. Informe: docs/revision-batch-2026-10-26.md.

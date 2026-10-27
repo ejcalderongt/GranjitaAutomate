@@ -58,3 +58,5 @@
 
 - [x] v2.14: agregar app origen y preparación verificable para Granjita Lab/TikTok con auditoría SQLite y receta reproducible.
 - [ ] Completar bienvenida/sesión de TikTok en placa de prueba y elegir publicación identificable; mapear y validar estado de like antes de habilitar el adaptador externo. Pantalla 06 solo tiene apertura comprobada.
+
+- [x] v2.15: revisar último envío y distinguir en UI apertura completada, likes pendientes de mapeo, historial y cancelación; sin relanzar tareas.

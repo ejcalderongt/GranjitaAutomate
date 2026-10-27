@@ -89,7 +89,7 @@ class ProbeWorker(QThread):
 class AutomationDialog(QDialog):
     def __init__(self,store,preferred=None,parent=None):
         super().__init__(parent)
-        self.setWindowTitle('Automatización · GranjitaAutomate 2.14')
+        self.setWindowTitle('Automatización · GranjitaAutomate 2.15')
         self.resize(1160,900)
         self.store=store
         self.jobs=JobStore()
@@ -158,8 +158,10 @@ class AutomationDialog(QDialog):
             button=QPushButton(label);button.clicked.connect(callback);recipe_bar.addWidget(button)
         recipe_bar.addStretch();task_layout.addLayout(recipe_bar)
         history=QWidget();history_layout=QVBoxLayout(history);self.tabs.addTab(history,'Resultados y auditoría')
+        self.batch_summary=QLabel();self.batch_summary.setWordWrap(True);self.batch_summary.setStyleSheet('font-size:16px;padding:12px;background:#fff4d6;');history_layout.addWidget(self.batch_summary)
+        self.batch_summary.setToolTip('Resumen del último lote guardado. Abrir una app no equivale a ejecutar likes ni confirmar una sesión iniciada.')
         self.like_stats=QLabel();self.like_stats.setWordWrap(True);self.like_stats.setStyleSheet('font-size:15px;padding:10px;background:#e8f3ed;');history_layout.addWidget(self.like_stats)
-        self.results=QTableWidget(0,5);self.results.setHorizontalHeaderLabels(['Dispositivo','Puerto','Estado','Actualizado GT','Resultado'])
+        self.results=QTableWidget(0,6);self.results.setHorizontalHeaderLabels(['Dispositivo','App / acción','Puerto','Resultado de la acción','Actualizado GT','Detalle'])
         self.results.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.results.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers);self.results.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.results.itemSelectionChanged.connect(self.details);history_layout.addWidget(self.results,1)
@@ -390,14 +392,26 @@ class AutomationDialog(QDialog):
         self.achieved_likes.setText(f"{metrics['applied']:,}")
         self.history_entries=self.jobs.like_history()
         self.render_like_history()
-        self.like_stats.setText(f"Likes · Programados: {metrics['scheduled']} · Procesados: {metrics['processed']} · Aplicados: {metrics['applied']} · Ya marcados: {metrics['already_marked']} · Sin confirmar: {metrics['unconfirmed']} · Históricos sin medición: {metrics['historical_unmeasured']}")
+        self.like_stats.setText(f"Likes históricos · Tareas registradas: {metrics['scheduled']} · Procesados: {metrics['processed']} · Aplicados: {metrics['applied']} · Ya marcados: {metrics['already_marked']} · Sin confirmar: {metrics['unconfirmed']} · Históricos sin medición: {metrics['historical_unmeasured']}")
         if hasattr(self,'stats'):
             completed=sum(t['status']=='Completado' for t in self.tasks)
             pending=sum(t['status'] in ('En cola','Ejecutando') for t in self.tasks)
-            self.stats.setText(f'Últimas {len(self.tasks)} tareas · {completed} completadas · {pending} en curso/cola · {len(self.tasks)-completed-pending} para revisar o interrumpidas')
+            cancelled=sum(t['status']=='Cancelado' for t in self.tasks)
+            self.stats.setText(f'Últimas {len(self.tasks)} tareas · {completed} completadas · {pending} en curso/cola · {cancelled} canceladas · {len(self.tasks)-completed-pending-cancelled} para revisar/interrumpidas/expiradas')
+        batch=self.jobs.latest_batch_summary()
+        if batch:
+            states=batch['states']
+            text=f"Último lote · {batch['created'][:10]} {batch['created'][11:19]} GT · {batch['devices']} dispositivos · {', '.join(batch['actions'])}\n"
+            if 'app_prepare' in {t['action'] for t in self.tasks if t['batch']==batch['batch']}:
+                text+=f"{batch['opened']} apps abiertas/verificadas · {batch['mapping_pending']} con likes pendientes de mapeo · Esta acción no ejecuta likes.\n"
+            text+=' · '.join(f'{key}: {value}' for key,value in states.items())
+            self.batch_summary.setText(text)
+        else:self.batch_summary.setText('Todavía no hay lotes registrados.')
         self.results.setRowCount(len(self.tasks))
         for i,task in enumerate(self.tasks):
-            for j,value in enumerate([task['name'],str(task['port']),task['status'],task['updated'][11:19],task['detail']]):
+            from .task_results import present_task
+            presentation=present_task(task)
+            for j,value in enumerate([task['name'],presentation['action_label'],str(task['port']),presentation['status_label'],task['updated'][11:19],task['detail']]):
                 item=QTableWidgetItem(value)
                 item.setToolTip(value)
                 self.results.setItem(i,j,item)
