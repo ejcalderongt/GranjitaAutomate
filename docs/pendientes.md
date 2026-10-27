@@ -73,3 +73,7 @@
 
 - [x] Validar desde la UI la apertura de TikTok en los 14 pendientes: 14/14 confirmados, lote terminado y verificación posterior correcta (20:03 GT).
 - [ ] Reemplazar los rótulos fijos v2.13 de la ventana principal por la versión del paquete; Automatización ya muestra 2.19.
+
+- [x] Repetir desde la UI sobre todos los 29 aptos: 29/29 en primer plano, lote correcto (20:08 GT); todas las apps ya estaban abiertas.
+- [ ] Completar cobertura de apertura de 04, 11, 28 y 62 después de resolver fichas duplicadas; hoy solo lectura, TikTok instalado y launcher en primer plano.
+- [ ] Si se requiere evaluar arranque desde cerrado, preparar una prueba explícita fuera de TikTok; la repetición de todos los aptos verificó continuidad, no arranque en frío.

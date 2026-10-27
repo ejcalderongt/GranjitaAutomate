@@ -141,3 +141,8 @@ Diagnóstico de pantalla 24: Android declara ResumedActivity sin prefijo m, omit
 ## 2026-10-26 · Prueba real desde Automatización 2.19
 
 Se ejecutaron mediante UI las 14 fichas canceladas del lote anterior. Nuevo lote dbe48acd-aaab-4836-bf41-1b45691b4ffd, 20:03 GT: 14 completas, 13 apps lanzadas y una ya abierta; verificación posterior 14 en primer plano y cero errores ligados. Indicador verde 14/14, cero para revisar y sin ejecutar. Se usó el panel real como ventana independiente por limitaciones del controlador con diálogos dependientes. Sin likes ni cambios de cuenta. Reproducción y límites: docs/prueba-apertura-ui-2026-10-26.md.
+
+
+## 2026-10-26 · Repetición UI sobre todos los aptos
+
+Desde Tarea → Todos → Abrir y comprobar TikTok se procesaron los 29 aptos. Lote 2d6ef9db-2f7d-4e7a-9304-edbf0faa22f4, 20:08 GT: 29 completas, segunda verificación 29 en primer plano y cero errores. Todas ya estaban abiertas: esta repetición no prueba arranque en frío. Lectura de 04, 11, 28 y 62: conectadas, TikTok instalado, launcher en primer plano; excluidas por serial histórico repetido y sin intento de apertura. Sin cambios de cuentas ni identidades. Informe docs/prueba-todos-aptos-2026-10-26.md.
