@@ -70,3 +70,6 @@
 
 - [x] v2.19: corregir detección de primer plano para ResumedActivity sin prefijo m; confirmar nuevamente las 15 apps procesadas.
 - [ ] Resolver configuración inicial de TikTok en dispositivos de prueba con el usuario; apertura no confirma cuenta lista y no se han elegido datos de perfil automáticamente.
+
+- [x] Validar desde la UI la apertura de TikTok en los 14 pendientes: 14/14 confirmados, lote terminado y verificación posterior correcta (20:03 GT).
+- [ ] Reemplazar los rótulos fijos v2.13 de la ventana principal por la versión del paquete; Automatización ya muestra 2.19.
