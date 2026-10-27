@@ -52,3 +52,6 @@
 
 - [x] Comparar activos Panda/ADB el 2026-10-26: coinciden 33 seriales físicos; ver docs/comparacion-panda-2026-10-26.md.
 - [ ] Separar detectados de asociados/aptos en el indicador y revisar conflictos actuales de pantallas 06, 30, 46, 50, 51 y 65, conservando historial.
+
+- [x] Resolver las siete conexiones en conflicto de 06, 30, 46, 50, 51 y 65 mediante serial actual verificado, respaldo y auditoría (2026-10-26).
+- [ ] Revisar fichas históricas duplicadas de pantallas 04, 11, 28 y 62; hay 33 en línea y 29 aptos tras la reasociación. La separación visual detectados/aptos sigue pendiente.

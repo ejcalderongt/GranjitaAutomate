@@ -101,3 +101,8 @@ Por solicitud del usuario se comprobó dev2026 contra origin con fetch: cero com
 ## 2026-10-26 · Comparación actual con Panda
 
 Consulta de lectura: Panda y ADB coinciden en 33 identidades físicas; 34 conexiones por duplicado del número 46 entre servidores. La base del panel conserva 27 validadas y siete conexiones en conflicto correspondientes a seis equipos. Logs del día: 68 timeouts de reconexión y uno de Panda, sin equivaler a equipos únicos averiados. Informe: docs/comparacion-panda-2026-10-26.md. No se reasignaron identidades.
+
+
+## 2026-10-26 · Reasociación de conexiones en conflicto
+
+Se respaldó SQLite y reasociaron siete conexiones a seis fichas existentes, verificando serial/fabricante/modelo con Android y Panda. Resultado: 33 equipos en línea, conjunto idéntico a Panda, cero conflictos de conexión y 29 aptos. Persisten duplicados históricos de 04, 11, 28 y 62, sin fusionar. Historial preservado, auditoría privada y 77 pruebas correctas. Procedimiento: docs/reasignacion-identidades-2026-10-26.md.
