@@ -96,3 +96,8 @@ Se agregó contador grande en verde en Automatización y tarjeta en la ventana p
 ## 2026-10-24 · Verificación de respaldo y sincronización
 
 Por solicitud del usuario se comprobó dev2026 contra origin con fetch: cero commits pendientes en ambos sentidos antes de este registro. La entrega funcional v2.13 está respaldada en 4b62efa; su guía, pruebas y límites constan en docs/indicador-likes.md y el registro de versiones. Se corrigió la continuidad de la tabla de versiones para mantener su lectura ordenada. Las bases SQLite, trazas, evidencias y respaldos privados de data/ permanecen locales y excluidos de Git; la sincronización del repositorio no constituye un respaldo externo de esos datos. No se ejecutaron nuevas tareas ni fue necesario repetir pruebas funcionales para este cierre documental.
+
+
+## 2026-10-26 · Comparación actual con Panda
+
+Consulta de lectura: Panda y ADB coinciden en 33 identidades físicas; 34 conexiones por duplicado del número 46 entre servidores. La base del panel conserva 27 validadas y siete conexiones en conflicto correspondientes a seis equipos. Logs del día: 68 timeouts de reconexión y uno de Panda, sin equivaler a equipos únicos averiados. Informe: docs/comparacion-panda-2026-10-26.md. No se reasignaron identidades.

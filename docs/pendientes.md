@@ -49,3 +49,6 @@
 - [ ] Medir snapshots con concurrencia acotada de dos identidades; el inicio secuencial observado tomó unos 60 s.
 - [ ] Distinguir listeners de forward/transporte de servidores host ADB antes de contar sus timeouts como incidentes operativos.
 - [x] Agregar indicador visual de likes nuevos verificados e historial por dispositivo/destino, con filtros y exportación (v2.13).
+
+- [x] Comparar activos Panda/ADB el 2026-10-26: coinciden 33 seriales físicos; ver docs/comparacion-panda-2026-10-26.md.
+- [ ] Separar detectados de asociados/aptos en el indicador y revisar conflictos actuales de pantallas 06, 30, 46, 50, 51 y 65, conservando historial.
