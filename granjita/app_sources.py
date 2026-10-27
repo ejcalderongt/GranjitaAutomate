@@ -66,3 +66,17 @@ def prepare_app(row,identifier,cancelled=lambda:False,task_id=None):
     validate_target(row)
     emit('app.source','foreground_verified',state='already_open' if before==package else 'launched',app_source=identifier,package=package)
     return dict(app_source=identifier,package=package,foreground_verified=True,launched=before!=package,like_mapping=profile['mapping_status'],interaction_ready=False,readiness_reason='mapping_pending' if profile['mapping_status']!='verified' else 'requires_task_validation')
+
+
+@traced('app.source.verify')
+def verify_app_open(row,identifier,task_id=None):
+    """Segunda lectura independiente: no lanza, instala ni pulsa controles."""
+    from .automation import validate_target
+    from .core import Adb,now
+    from .inventory import shell
+    profile=source_profile(identifier)
+    validate_target(row)
+    current=foreground_package(shell(Adb(row['port']),row['serial'],'dumpsys activity activities'))
+    state='open' if current in profile['packages'] else 'not_foreground' if current else 'unconfirmed'
+    emit('app.source','postcheck',state=state,app_source=identifier)
+    return dict(at=now(),app_source=identifier,state=state,observed_package=current,foreground_verified=state=='open',interaction_ready=False)

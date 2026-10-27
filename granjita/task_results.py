@@ -33,7 +33,13 @@ def present_task(task):
             status='App abierta'
             if result.get('like_mapping')=='pending':status+=' · Likes pendientes de mapeo'
         else:status='Preparación completada · revisar verificación'
-    return dict(app=app,source=source,action_label=label,status_label=status,result=result)
+    verification=task.get('verification_payload')
+    if isinstance(verification,str):verification=preparation_result(verification)
+    verification=verification or {}
+    labels={'open':'Abierta en primer plano','not_foreground':'No está en primer plano','unconfirmed':'No se pudo comprobar','error':'No se pudo comprobar','not_executed':'Sin ejecutar','cancelled':'Verificación cancelada'}
+    verification_label=labels.get(verification.get('state'),'Pendiente / sin comprobar') if preparing else 'No aplica'
+    if verification.get('at'):verification_label+=' · '+verification['at'][11:19]+' GT'
+    return dict(app=app,source=source,action_label=label,status_label=status,result=result,verification=verification,verification_label=verification_label)
 
 
 TERMINAL={'Completado','Revisar resultado','Cancelado','Expirado','Interrumpido','Resultado incierto','No ejecutado'}
@@ -60,6 +66,8 @@ def summarize_batch(tasks):
     return dict(batch=tasks[0]['batch'],created=min(t['created'] for t in tasks),devices=len({t['device_id'] for t in tasks}),tasks=len(tasks),states=states,
         actions=sorted({p['action_label'] for p in presented}),opened=len(opened),opening_unconfirmed=len(unconfirmed),not_executed=len(not_executed),preparation=bool(prep),
         pending=pending,finished=finished,completion_label=label,
+        verification_total=len(prep),verification_checked=sum(bool(p['verification']) for t,p in prep),
+        verification_states=dict(Counter(p['verification'].get('state','pending') for t,p in prep)),
         mapping_pending=len({t['device_id'] for t,p in prep if t['status']=='Completado' and p['result'].get('like_mapping')=='pending'}))
 
 
@@ -71,4 +79,9 @@ def batch_text(batch):
         text+=f"Apps abiertas: {batch['opened']} de {batch['devices']} · Sin apertura confirmada: {batch['opening_unconfirmed']} · Sin ejecutar: {batch['not_executed']} · Pendientes: {batch['pending']}\n"
         if batch['mapping_pending']:text+=f"Likes pendientes de mapeo en {batch['mapping_pending']} dispositivos. Abrir la app no ejecuta likes.\n"
     else:text+=f"Tareas pendientes: {batch['pending']} · "
+    if batch['preparation']:
+        checks=batch['verification_states']
+        text+=f"Verificación posterior procesada: {batch['verification_checked']} de {batch['verification_total']} · Abiertas ahora: {checks.get('open',0)} · No en primer plano: {checks.get('not_foreground',0)} · Sin comprobar: {checks.get('unconfirmed',0)+checks.get('error',0)+checks.get('pending',0)} · Sin ejecutar: {checks.get('not_executed',0)} · Comprobación cancelada: {checks.get('cancelled',0)}\n"
+        if batch['verification_checked']==batch['verification_total']:text+='VERIFICACIÓN POSTERIOR TERMINADA · '
+        else:text+='VERIFICACIÓN POSTERIOR PENDIENTE · '
     return text+' · '.join(f'{key}: {value}' for key,value in batch['states'].items())

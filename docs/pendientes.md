@@ -62,4 +62,6 @@
 - [x] v2.15: revisar último envío y distinguir en UI apertura completada, likes pendientes de mapeo, historial y cancelación; sin relanzar tareas.
 
 - [x] v2.16: limpieza de trazas con archivo previo y resumen explícito del cierre y aperturas del lote; historial preservado.
-- [ ] Agregar comprobación independiente posterior al lote: verificar nuevamente primer plano sin relanzar la app (solicitud siguiente del usuario).
+- [x] v2.17: comprobación independiente posterior al lote; verificar nuevamente primer plano sin relanzar la app.
+
+- [x] v2.17: comprobación posterior automática y manual, en trabajador separado, con historial SQLite y CLI independiente; sin relanzar apps.

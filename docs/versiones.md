@@ -26,4 +26,6 @@ Fechas de America/Guatemala. Los números 2.x identifican la aplicación; 4.2 id
 
 | 2.16 | 2026-10-26 | Archivo/limpieza de trazas y resumen visible de cierre y aperturas por lote | [Limpieza y resumen](limpieza-logs-y-resumen.md) |
 
+| 2.17 | 2026-10-26 | Segundo trabajador para verificar primer plano después del lote, historial SQLite y comprobación manual/CLI | [Verificación posterior](verificacion-posterior-apps.md) |
+
 Para cada versión registrar alcance, migración/persistencia, instrucciones de uso, pruebas, límites y pendientes. La bitácora conserva las evidencias históricas; los conteos de una versión no son el estado actual de la granja.

@@ -121,3 +121,8 @@ El último envío 19:24 GT fue app_prepare para un dispositivo: TikTok abierto c
 ## 2026-10-26 · v2.16: limpiar trazas y cierre visible
 
 Botón Limpiar logs en Automatización y visor, respaldo SQLite verificado y corte que conserva eventos nuevos, sin borrar auditoría de tareas. Resumen visible en todas las pestañas: cierre explícito, abiertas, sin confirmar, sin ejecutar y pendientes. Último lote: 13/29 abiertas, dos para revisar y 14 canceladas. Limpieza real 19:35 GT: 35 393 eventos archivados, cero posteriores al corte, 110 tareas preservadas. 98 pruebas correctas y revisión visual. Guía docs/limpieza-logs-y-resumen.md.
+
+
+## 2026-10-26 · v2.17: comprobación posterior independiente
+
+Otro trabajador relee identidad y primer plano tras el lote de apertura; indicador Verificando ejecución…, columna con fecha/hora, conteos y cierre de comprobación. Botón Verificar último lote y CLI reproducible sin relanzar apps. Historial aditivo app_verifications con respaldo previo, estados originales intactos. Comprobación real en proceso Python separado del lote de 29: 13 en primer plano, una fuera, una no identificable y 14 canceladas omitidas. 101 pruebas y revisión visual correctas. Guía docs/verificacion-posterior-apps.md.

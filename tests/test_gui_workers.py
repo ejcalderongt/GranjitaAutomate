@@ -119,7 +119,7 @@ class GuiWorkerTests(TestCase):
             jobs=JobStore(Path(folder)/'jobs.sqlite3')
             row=dict(id='test-id',display_name='Prueba',port=5037,serial='192.0.2.1:5555',hardware_serial='TESTSERIAL',status='Validado',identity_state='Serial leído')
             store=SimpleNamespace(fleet_devices=lambda:[row])
-            with patch('granjita.automation_ui.JobStore',return_value=jobs),patch('granjita.automation_ui.prepare_app',return_value=dict(foreground_verified=True,interaction_ready=False)) as prepare:
+            with patch('granjita.automation_ui.JobStore',return_value=jobs),patch('granjita.automation_ui.verify_app_open',return_value=dict(state='open',foreground_verified=True)),patch('granjita.automation_ui.prepare_app',return_value=dict(foreground_verified=True,interaction_ready=False)) as prepare:
                 dialog=AutomationDialog(store)
                 dialog.app_source.setCurrentIndex(dialog.app_source.findData('tiktok'))
                 self.assertFalse(dialog.run_button.isEnabled())
@@ -146,12 +146,15 @@ class GuiWorkerTests(TestCase):
             jobs=JobStore(Path(folder)/'jobs.sqlite3')
             row=dict(id='test',display_name='Test',port=5037,serial='192.0.2.1:5555',hardware_serial='TESTSERIAL',status='Validado',identity_state='Serial leído')
             store=SimpleNamespace(fleet_devices=lambda:[row])
-            with patch('granjita.automation_ui.JobStore',return_value=jobs),patch('granjita.automation_ui.prepare_app',return_value=dict(app_source='tiktok',foreground_verified=True,like_mapping='pending')):
+            with patch('granjita.automation_ui.JobStore',return_value=jobs),patch('granjita.automation_ui.verify_app_open',return_value=dict(state='open',foreground_verified=True)),patch('granjita.automation_ui.prepare_app',return_value=dict(app_source='tiktok',foreground_verified=True,like_mapping='pending')):
                 dialog=AutomationDialog(store)
                 dialog.app_source.setCurrentIndex(dialog.app_source.findData('tiktok'))
                 dialog.prepare_selected_app();settle(dialog)
                 self.assertIn('LOTE TERMINADO',dialog.batch_summary.text())
                 self.assertIn('Apps abiertas: 1 de 1',dialog.batch_summary.text())
+                self.assertIn('VERIFICACIÓN POSTERIOR TERMINADA',dialog.batch_summary.text())
+                self.assertIn('Abiertas ahora: 1',dialog.batch_summary.text())
+                self.assertTrue(dialog.verify_button.isEnabled())
                 self.assertIn('LOTE TERMINADO',dialog.state.text())
                 with patch('granjita.diagnostics.clear_traces',return_value=dict(removed=12)) as clear:
                     dialog.clear_logs_button.click()

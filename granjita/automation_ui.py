@@ -7,7 +7,7 @@ from datetime import timedelta
 from PySide6.QtCore import QThread,Signal,Qt,QTimer,QDateTime
 from PySide6.QtWidgets import (QDialog,QVBoxLayout,QHBoxLayout,QLabel,QPushButton,QTableWidget,
     QTableWidgetItem,QHeaderView,QLineEdit,QMessageBox,QPlainTextEdit,QAbstractItemView,QFileDialog,QWidget,QGroupBox,QFormLayout,QSpinBox,QCheckBox,QComboBox,QDateTimeEdit,QTabWidget)
-from .app_sources import source_profile,require_like_mapping,prepare_app,SOURCES
+from .app_sources import source_profile,require_like_mapping,prepare_app,verify_app_open,SOURCES
 from .taskflow import run_flow,validate_parameters,window_state,clock_now
 from .automation import JobStore,run_lab,run_like,appium_status,runtime,automate_status,open_automate
 
@@ -62,6 +62,26 @@ class BatchWorker(QThread):
         return self.cancel.is_set()
 
 
+class VerificationWorker(QThread):
+    changed=Signal()
+    def __init__(self,jobs,tasks):
+        super().__init__();self.jobs,self.tasks=jobs,tasks;self.cancel=threading.Event()
+    def run(self):
+        from .core import now
+        saved={t['id']:t for t in self.jobs.batch_tasks(self.tasks[0]['batch'])} if self.tasks else {}
+        for task in self.tasks:
+            if task.get('action')!='app_prepare':continue
+            previous=saved.get(task['id'],{})
+            if previous.get('status') in ('Cancelado','Expirado','Interrumpido','No ejecutado'):
+                result=dict(state='not_executed',at=now())
+            elif self.cancel.is_set():result=dict(state='cancelled',at=now())
+            else:
+                try:result=verify_app_open(task['row'],task['app_source'],task_id=task['id'])
+                except Exception as exc:result=dict(state='error',error_class=type(exc).__name__,at=now())
+            self.jobs.record_app_verification(task['id'],result)
+            self.changed.emit()
+
+
 class FleetWorker(QThread):
     result=Signal(dict)
     error=Signal(str)
@@ -89,7 +109,7 @@ class ProbeWorker(QThread):
 class AutomationDialog(QDialog):
     def __init__(self,store,preferred=None,parent=None):
         super().__init__(parent)
-        self.setWindowTitle('Automatización · GranjitaAutomate 2.16')
+        self.setWindowTitle('Automatización · GranjitaAutomate 2.17')
         self.resize(1160,900)
         self.store=store
         self.jobs=JobStore()
@@ -161,7 +181,7 @@ class AutomationDialog(QDialog):
         self.batch_summary=QLabel();self.batch_summary.setWordWrap(True);self.batch_summary.setStyleSheet('font-size:16px;padding:12px;background:#fff4d6;');layout.insertWidget(layout.indexOf(self.tabs),self.batch_summary)
         self.batch_summary.setToolTip('Resumen del último lote guardado. Abrir una app no equivale a ejecutar likes ni confirmar una sesión iniciada.')
         self.like_stats=QLabel();self.like_stats.setWordWrap(True);self.like_stats.setStyleSheet('font-size:15px;padding:10px;background:#e8f3ed;');history_layout.addWidget(self.like_stats)
-        self.results=QTableWidget(0,6);self.results.setHorizontalHeaderLabels(['Dispositivo','App / acción','Puerto','Resultado de la acción','Actualizado GT','Detalle'])
+        self.results=QTableWidget(0,7);self.results.setHorizontalHeaderLabels(['Dispositivo','App / acción','Puerto','Resultado de la acción','Verificación posterior','Actualizado GT','Detalle'])
         self.results.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.results.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers);self.results.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.results.itemSelectionChanged.connect(self.details);history_layout.addWidget(self.results,1)
@@ -191,6 +211,9 @@ class AutomationDialog(QDialog):
         self.run_button.clicked.connect(self.run_batch);controls.addWidget(self.run_button)
         for label,callback in [('Pausar / continuar',self.toggle_pause),('Cancelar',self.cancel_batch)]:
             button=QPushButton(label);button.clicked.connect(callback);controls.addWidget(button)
+        self.verify_button=QPushButton('Verificar último lote')
+        self.verify_button.setToolTip('Relee identidad y app en primer plano en otro trabajador, sin volver a abrirla. Guarda una comprobación nueva con fecha/hora.')
+        self.verify_button.clicked.connect(self.verify_last_batch);controls.addWidget(self.verify_button)
         self.clear_logs_button=QPushButton('Limpiar logs')
         self.clear_logs_button.setToolTip('Respalda las trazas y limpia los eventos visibles para una nueva prueba. Conserva tareas, recetas, likes, feedback y el log bruto de Appium. Disponible al terminar el lote.')
         self.clear_logs_button.clicked.connect(self.clear_logs);controls.addWidget(self.clear_logs_button)
@@ -403,17 +426,40 @@ class AutomationDialog(QDialog):
             self.stats.setText(f'Últimas {len(self.tasks)} tareas · {completed} completadas · {pending} en curso/cola · {cancelled} canceladas · {len(self.tasks)-completed-pending-cancelled} para revisar/interrumpidas/expiradas')
         batch=self.jobs.latest_batch_summary()
         from .task_results import batch_text
-        self.batch_summary.setText(batch_text(batch))
+        self.batch_summary.setText(('VERIFICANDO EJECUCIÓN…\n' if isinstance(self.worker,VerificationWorker) else '')+batch_text(batch))
         self.batch_summary.setStyleSheet('font-size:16px;font-weight:600;padding:12px;background:'+('#e5f5e9' if batch and batch['finished'] and batch['completion_label'].endswith('Correcto') else '#fff4d6')+';')
         self.clear_logs_button.setEnabled(self.worker is None)
+        self.verify_button.setEnabled(self.worker is None and bool(batch and batch['preparation'] and batch['finished']))
         self.results.setRowCount(len(self.tasks))
         for i,task in enumerate(self.tasks):
             from .task_results import present_task
             presentation=present_task(task)
-            for j,value in enumerate([task['name'],presentation['action_label'],str(task['port']),presentation['status_label'],task['updated'][11:19],task['detail']]):
+            for j,value in enumerate([task['name'],presentation['action_label'],str(task['port']),presentation['status_label'],presentation['verification_label'],task['updated'][11:19],task['detail']]):
                 item=QTableWidgetItem(value)
                 item.setToolTip(value)
                 self.results.setItem(i,j,item)
+
+    def verify_last_batch(self):
+        if self.worker:return
+        batch=self.jobs.latest_batch_summary()
+        if not batch or not batch['finished']:return
+        from .physical import ordered_rows
+        from .task_results import present_task
+        rows={r['id']:r for r in ordered_rows(self.store.fleet_devices(),self.store.positions() if hasattr(self.store,'positions') else [])}
+        tasks=[]
+        for saved in self.jobs.batch_tasks(batch['batch']):
+            if saved['action']!='app_prepare':continue
+            row=rows.get(saved['device_id'])
+            if row is None:row=dict(id=saved['device_id'],status='Sin verificar',port=saved['port'],serial=saved['serial'],hardware_serial='')
+            tasks.append(dict(saved,row=row,app_source=present_task(saved)['source']))
+        self.start_postcheck(tasks)
+
+    def start_postcheck(self,tasks):
+        if not tasks:return
+        self.worker=VerificationWorker(self.jobs,tasks)
+        self.worker.changed.connect(self.refresh);self.worker.finished.connect(self.on_worker_finished)
+        self.state.setText('Verificando ejecución… Releyendo cada app sin abrirla de nuevo.')
+        self.refresh();self.worker.start()
 
     def clear_logs(self):
         if self.worker:return
@@ -464,6 +510,7 @@ class AutomationDialog(QDialog):
         if 0<=index<len(self.tasks):
             task=self.tasks[index]
             self.detail.setPlainText(f"Tarea: {task['id']}\nLote: {task['batch']}\n{task['status']}\n{task['detail']}")
+            if task.get('verification_payload'):self.detail.appendPlainText('Verificación posterior: '+task['verification_payload'])
             if task['action'] in ('lab_like','lab_like_flow'):
                 import json
                 report=next((r for r in self.jobs.like_report() if r['id']==task['id']),None)
@@ -479,6 +526,8 @@ class AutomationDialog(QDialog):
                 self.state.setText('Pausa solicitada: se aplicará antes de la siguiente acción; el horario de fin sigue vigente.')
 
     def cancel_batch(self):
+        if isinstance(self.worker,VerificationWorker):
+            self.worker.cancel.set();return
         if isinstance(self.worker,BatchWorker):
             self.worker.cancel.set()
             self.state.setText('Cancelación solicitada. Se conservarán los resultados de los pasos ya ejecutados.')
@@ -496,12 +545,15 @@ class AutomationDialog(QDialog):
         self.worker.start()
 
     def on_worker_finished(self):
-        self.worker.wait()
-        if isinstance(self.worker,BatchWorker):
+        finished=self.worker
+        finished.wait()
+        tasks=finished.tasks if isinstance(finished,BatchWorker) else []
+        finished.deleteLater();self.worker=None
+        if tasks and any(t.get('action')=='app_prepare' for t in tasks):
+            self.start_postcheck(tasks);return
+        if isinstance(finished,(BatchWorker,VerificationWorker)):
             from .task_results import batch_text
             self.state.setText(batch_text(self.jobs.latest_batch_summary()))
-        self.worker.deleteLater()
-        self.worker=None
         self.refresh()
         if getattr(self,'launch_after_refresh',False):
             self.launch_after_refresh=False

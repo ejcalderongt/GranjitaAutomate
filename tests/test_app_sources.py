@@ -77,3 +77,43 @@ class AppSourceTests(unittest.TestCase):
         with patch('granjita.automation.validate_target') as validate:
             with self.assertRaises(Exception):prepare_app(ROW,'tiktok',lambda:True)
             validate.assert_not_called()
+
+    def test_independent_postcheck_never_opens_the_app(self):
+        from granjita.app_sources import verify_app_open
+        for focus,wanted in [(FOCUS,'open'),('mResumedActivity: com.other.app/.Main','not_foreground'),('','unconfirmed')]:
+            with patch('granjita.automation.validate_target'),patch('granjita.inventory.shell',return_value=focus) as shell:
+                result=verify_app_open(ROW,'tiktok',task_id='test')
+            self.assertEqual(result['state'],wanted)
+            self.assertEqual(shell.call_count,1)
+            self.assertEqual(shell.call_args.args[2],'dumpsys activity activities')
+            self.assertFalse(result['interaction_ready'])
+
+    def test_postcheck_records_history_without_changing_original_task(self):
+        from granjita.automation_ui import VerificationWorker
+        with TemporaryDirectory() as folder:
+            jobs=JobStore(Path(folder)/'test.sqlite3')
+            tasks=jobs.create([ROW],'','app_prepare',app_source='tiktok')
+            jobs.update(tasks[0]['id'],'Completado','original result')
+            with patch('granjita.automation_ui.verify_app_open',return_value=dict(state='not_foreground',at='2026-10-26T20:00:00-06:00')) as verify:
+                VerificationWorker(jobs,tasks).run()
+                verify.assert_called_once()
+            self.assertEqual(jobs.tasks()[0]['status'],'Completado')
+            self.assertEqual(jobs.tasks()[0]['detail'],'original result')
+            self.assertEqual(jobs.latest_batch_summary()['verification_states'],{'not_foreground':1})
+            with patch('granjita.automation_ui.verify_app_open',return_value=dict(state='open',at='2026-10-26T20:01:00-06:00')):
+                VerificationWorker(jobs,tasks).run()
+            self.assertEqual(jobs.latest_batch_summary()['verification_states'],{'open':1})
+            with jobs.db() as db:self.assertEqual(db.execute('SELECT COUNT(*) FROM app_verifications').fetchone()[0],2)
+            self.assertEqual(jobs.like_metrics()['processed'],0)
+
+    def test_postcheck_skips_cancelled_tasks_and_records_unreachable(self):
+        from granjita.automation_ui import VerificationWorker
+        with TemporaryDirectory() as folder:
+            jobs=JobStore(Path(folder)/'test.sqlite3')
+            tasks=jobs.create([ROW,dict(ROW,id='other')],'','app_prepare',app_source='tiktok')
+            jobs.update(tasks[0]['id'],'Cancelado')
+            jobs.update(tasks[1]['id'],'Revisar resultado')
+            with patch('granjita.automation_ui.verify_app_open',side_effect=RuntimeError('unreachable')) as verify:
+                VerificationWorker(jobs,tasks).run()
+                self.assertEqual(verify.call_count,1)
+            self.assertEqual(jobs.latest_batch_summary()['verification_states'],{'not_executed':1,'error':1})

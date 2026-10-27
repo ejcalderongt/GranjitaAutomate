@@ -276,12 +276,18 @@ class JobStore:
                     destination=sqlite3.connect(self.path.with_name(self.path.stem+'-antes-metricas.sqlite3'))
                     try:source.backup(destination)
                     finally:destination.close()
+                if not source.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='app_verifications'").fetchone():
+                    destination=sqlite3.connect(self.path.with_name(self.path.stem+'-antes-verificacion-app.sqlite3'))
+                    try:source.backup(destination)
+                    finally:destination.close()
             finally:source.close()
         with self.db() as db:
             db.executescript('''CREATE TABLE IF NOT EXISTS tasks (
                 id TEXT PRIMARY KEY,batch TEXT NOT NULL,device_id TEXT NOT NULL,name TEXT NOT NULL,
                 port INTEGER NOT NULL,serial TEXT NOT NULL,action TEXT NOT NULL,comment TEXT NOT NULL,
                 status TEXT NOT NULL,detail TEXT NOT NULL,created TEXT NOT NULL,updated TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS app_verifications(id INTEGER PRIMARY KEY,task_id TEXT NOT NULL,at TEXT NOT NULL,payload TEXT NOT NULL);
+                CREATE INDEX IF NOT EXISTS app_verifications_task ON app_verifications(task_id,id);
                 CREATE TABLE IF NOT EXISTS pilot_devices(device_id TEXT PRIMARY KEY);
                 CREATE TABLE IF NOT EXISTS like_context(task_id TEXT PRIMARY KEY,context TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS like_events(id INTEGER PRIMARY KEY,task_id TEXT NOT NULL,at TEXT NOT NULL,kind TEXT NOT NULL,data TEXT NOT NULL);
@@ -316,7 +322,7 @@ class JobStore:
                 if action in ('lab_like','lab_like_flow'):
                     context=dict(hardware_serial=row.get('hardware_serial'),device_id=row['id'],name=row['display_name'],rack=row.get('rack'),slot=row.get('slot'),port=row['port'],transport=row['serial'],environment='local_lab',app_source=app_source,package=PACKAGE,target='feed' if action=='lab_like_flow' else 'lab_like_01',parameters=parameters)
                     db.execute('INSERT INTO like_context VALUES (?,?)',(identifier,json.dumps(context,ensure_ascii=False,sort_keys=True)))
-                tasks.append(dict(id=identifier,row=row,comment=comment,action=action,parameters=parameters,app_source=app_source))
+                tasks.append(dict(id=identifier,batch=batch,row=row,comment=comment,action=action,parameters=parameters,app_source=app_source))
         return tasks
 
     def update(self,identifier,status,detail=''):
@@ -393,14 +399,38 @@ class JobStore:
             historical_unmeasured=sum(r['outcome']=='historical_unmeasured' for r in report))
 
 
+    @staticmethod
+    def verification_select(db):
+        exists=db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='app_verifications'").fetchone()
+        return '(SELECT v.payload FROM app_verifications v WHERE v.task_id=t.id ORDER BY v.id DESC LIMIT 1)' if exists else 'NULL'
+
+    def record_app_verification(self,identifier,payload):
+        with self.db() as db:
+            if not db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='app_verifications'").fetchone():
+                destination=sqlite3.connect(self.path.with_name(self.path.stem+'-antes-verificacion-app.sqlite3'))
+                try:db.backup(destination)
+                finally:destination.close()
+            db.execute('CREATE TABLE IF NOT EXISTS app_verifications(id INTEGER PRIMARY KEY,task_id TEXT NOT NULL,at TEXT NOT NULL,payload TEXT NOT NULL)')
+            db.execute('CREATE INDEX IF NOT EXISTS app_verifications_task ON app_verifications(task_id,id)')
+            if not db.execute("SELECT 1 FROM tasks WHERE id=? AND action='app_prepare'",(identifier,)).fetchone():
+                raise ValueError('La verificación posterior solo aplica a tareas de apertura.')
+            db.execute('INSERT INTO app_verifications(task_id,at,payload) VALUES(?,?,?)',(identifier,now(),json.dumps(payload,ensure_ascii=False,sort_keys=True)))
+
+    def batch_tasks(self,batch):
+        with self.db() as db:
+            verification=self.verification_select(db)
+            return [dict(r) for r in db.execute('SELECT t.*,r.spec AS recipe_spec,'+verification+' AS verification_payload FROM tasks t LEFT JOIN task_recipes r ON r.task_id=t.id WHERE t.batch=? ORDER BY t.rowid',(batch,))]
+
     def tasks(self):
         with self.db() as db:
-            return [dict(r) for r in db.execute('SELECT t.*,r.spec AS recipe_spec FROM tasks t LEFT JOIN task_recipes r ON r.task_id=t.id ORDER BY t.created DESC,t.rowid DESC LIMIT 300')]
+            verification=self.verification_select(db)
+            return [dict(r) for r in db.execute('SELECT t.*,r.spec AS recipe_spec,'+verification+' AS verification_payload FROM tasks t LEFT JOIN task_recipes r ON r.task_id=t.id ORDER BY t.created DESC,t.rowid DESC LIMIT 300')]
 
     def latest_batch_summary(self):
         from .task_results import summarize_batch
         with self.db() as db:
             latest=db.execute('SELECT batch FROM tasks ORDER BY created DESC,rowid DESC LIMIT 1').fetchone()
             if not latest:return None
-            rows=[dict(r) for r in db.execute('SELECT t.*,r.spec AS recipe_spec FROM tasks t LEFT JOIN task_recipes r ON r.task_id=t.id WHERE t.batch=? ORDER BY t.rowid',(latest['batch'],))]
+            verification=self.verification_select(db)
+            rows=[dict(r) for r in db.execute('SELECT t.*,r.spec AS recipe_spec,'+verification+' AS verification_payload FROM tasks t LEFT JOIN task_recipes r ON r.task_id=t.id WHERE t.batch=? ORDER BY t.rowid',(latest['batch'],))]
         return summarize_batch(rows)
