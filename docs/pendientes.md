@@ -79,3 +79,9 @@
 - [ ] Si se requiere evaluar arranque desde cerrado, preparar una prueba explícita fuera de TikTok; la repetición de todos los aptos verificó continuidad, no arranque en frío.
 
 - [x] v2.20: consolidar 04, 11, 28 y 62 sin pérdida de historia; 33/33 aptos y verificados desde la UI, cuatro lanzamientos confirmados.
+
+
+- [x] v2.21: inventario de apps/cuentas y declaraciones manuales persistentes; 25 fichas TikTok indexadas (19 con cuenta, 6 sin cuenta), sin alterar sesiones.
+- [ ] Completar declaración de los 8 equipos restantes e identificar cuentas propias mediante perfil visible; validar piloto real del adaptador positivo de TikTok.
+- [ ] Revisar ocho pantallas históricamente no comprobadas y crear adaptadores de cuenta para otras apps; no inferir sesión desde feed.
+- [ ] Definir respaldo externo privado de SQLite; Git no incluye datos de cuentas.

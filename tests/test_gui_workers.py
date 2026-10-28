@@ -162,3 +162,46 @@ class GuiWorkerTests(TestCase):
                 self.assertIn('Logs limpios',dialog.state.text())
                 self.assertEqual(len(jobs.tasks()),1)
                 dialog.close()
+
+    def test_apps_and_accounts_assignment_filter_and_manual_observation(self):
+        from granjita.app_inventory_ui import AppAccountsDialog
+        from granjita.app_inventory import AppInventory
+        from test_inventory import device,report
+        with TemporaryDirectory() as folder:
+            store=FleetStore(Path(folder)/'fleet.sqlite3')
+            row=dict(device(5037,'192.0.2.1:5555'),hardware_serial='TESTSERIAL',manufacturer='samsung',hardware_model='Board')
+            store.save_fleet(report([row]))
+            dialog=AppAccountsDialog(store)
+            self.assertEqual(dialog.table.rowCount(),1)
+            dialog.assignment.setText('@esperada');dialog.assign()
+            self.assertEqual(dialog.entries[0][1]['expected_account'],'@esperada')
+            self.assertEqual(dialog.entries[0][1]['match'],'unverified')
+            dialog.observed.setText('@diferente');dialog.manual_state.setCurrentIndex(dialog.manual_state.findData('session_observed'));dialog.confirm()
+            self.assertEqual(dialog.entries[0][1]['match'],'mismatch')
+            dialog.status_filter.setCurrentIndex(dialog.status_filter.findData('mismatch'))
+            self.assertEqual(dialog.table.rowCount(),1)
+            dialog.app_filter.setCurrentIndex(dialog.app_filter.findData('instagram'))
+            self.assertEqual(dialog.table.rowCount(),0)
+            dialog.close()
+
+    def test_apps_inventory_worker_keeps_screen_proof_during_technical_refresh(self):
+        from granjita.app_inventory_ui import AppAuditWorker
+        from granjita.app_inventory import AppInventory
+        from test_inventory import device,report
+        with TemporaryDirectory() as folder:
+            store=FleetStore(Path(folder)/'fleet.sqlite3')
+            row=dict(device(5037,'192.0.2.1:5555'),hardware_serial='TESTSERIAL',manufacturer='samsung',hardware_model='Board')
+            fleet=report([row]);store.save_fleet(fleet);saved=store.fleet_devices()[0]
+            inventory=AppInventory(store);inventory.confirm(saved,'tiktok','@prueba','session_observed')
+            payload=dict(status='ok',installation='installed',variants=[dict(package='com.zhiliaoapp.musically',version_code='1',version_name='1.0')],foreground=True)
+            with patch('granjita.app_inventory_ui.scan_fleet',return_value=fleet),patch('granjita.app_inventory_ui.collect_technical',return_value=dict(tiktok=payload)):
+                worker=AppAuditWorker(store,[saved],'technical','tiktok');worker.run()
+            self.assertEqual(inventory.view(saved,'tiktok')['observed_account'],'@prueba')
+            self.assertEqual(inventory.view(saved,'tiktok')['installation'],'installed')
+
+    def test_main_apps_panel_returns_without_stale_method(self):
+        from granjita.app import Window
+        with TemporaryDirectory() as folder:
+            store=FleetStore(Path(folder)/'fleet.sqlite3')
+            with patch('granjita.app.QTimer.singleShot'),patch('granjita.app_inventory_ui.AppAccountsDialog') as panel:
+                window=Window(store);window.app_accounts();panel.return_value.exec.assert_called_once();window.close()

@@ -271,6 +271,7 @@ class Window(QMainWindow):
         execute_layout.addWidget(QLabel('Opcional: guarda un snapshot. Luego crea la tarea y selecciona sus dispositivos.'))
         actions = QHBoxLayout()
         for text, callback, tooltip in [
+            ('Apps y cuentas', self.app_accounts, 'Consulta instalación, versiones, cuenta asignada/observada y auditoría por dispositivo; no guarda contraseñas ni inicia sesión.'),
             ('Snapshots', self.snapshot_panel, 'Crea y consulta snapshots. Al recuperar, solo repone archivos administrados ausentes; no restaura sesiones de otras aplicaciones.'),
             ('Automatización', self.automation_lab, 'Crea una receta, selecciona uno o varios dispositivos y define likes, scroll y horario. Incluye resultados y auditoría del laboratorio local.'),
         ]:
@@ -478,6 +479,16 @@ class Window(QMainWindow):
         self.worker.failed.connect(self.scan_failed)
         self.worker.finished.connect(self.finished)
         self.worker.start()
+
+    def app_accounts(self):
+        if self.worker is not None:
+            QMessageBox.information(self,'Proceso en curso','Espera a que termine la consulta antes de abrir apps y cuentas.');return
+        from .app_inventory_ui import AppAccountsDialog
+        self.timer.stop()
+        try:AppAccountsDialog(self.store,preferred=self.selected(),parent=self).exec()
+        finally:
+            if self.auto.isChecked():self.timer.start()
+            self.render()
 
     def automation_lab(self):
         if self.worker is not None:

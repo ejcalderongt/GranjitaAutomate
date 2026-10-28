@@ -151,3 +151,8 @@ Desde Tarea → Todos → Abrir y comprobar TikTok se procesaron los 29 aptos. L
 ## 2026-10-26 · v2.20: cuatro fichas integradas y lote 33/33
 
 Se consolidaron explícitamente 04, 11, 28 y 62 con serial/metadatos actuales únicos y Panda, bajo UUID canónico más antiguo y referencias históricas. Esquema SQLite 6 con respaldo; no se eliminaron fichas, identidades, snapshots, observaciones ni checkpoints. Resultado 33 en línea/aptos, cero duplicados activos e integridad ok. Prueba real UI: lote de85e30c-c095-4978-85aa-ceb360a0d57f, 20:22 GT, 33 completas/verificadas y cero errores; los cuatro se lanzaron y los otros 29 ya estaban abiertos. 112 pruebas, vista previa posterior sin cambios. Se corrigieron rótulos de versión principal. Guía docs/consolidacion-identidades.md.
+
+
+## 2026-10-27 · v2.21: apps, cuentas y declaración del usuario
+
+Panel Apps y cuentas, inventario técnico de cuatro apps, asignación separada de observación y lectura conservadora de TikTok. Esquema SQLite 7 con respaldo e historial. Auditoría inicial histórica: 33 equipos, 132 observaciones técnicas y 33 de pantalla; no se atribuyeron cuentas desde feeds. Hoy se importaron 25 declaraciones del usuario, vinculadas inequívocamente por API Panda/serial: 19 con cuenta, 6 sin cuenta y 8 pendientes. Se conserva fuente manual, sin inventar identificadores ni confirmar sesiones. Importador transaccional con respaldo previo; 131 pruebas. Guía docs/inventario-apps-y-cuentas.md.

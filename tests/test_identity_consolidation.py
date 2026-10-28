@@ -54,12 +54,12 @@ class ConsolidationTests(TestCase):
         observations=[dict(field='Serie hardware',value='TESTSERIAL',state='Disponible',source='test',at='2026-10-26T00:00:00-06:00')]
         self.store.save_inventory(row['id'],row['port'],row['serial'],observations)
         with self.store.connect() as db:
-            for table in ['device_identity_aliases','device_identity','physical_positions','checkpoint_files','device_checkpoints','recovery_events']:
+            for table in ['device_app_observations','device_app_assignments','device_identity_aliases','device_identity','physical_positions','checkpoint_files','device_checkpoints','recovery_events']:
                 db.execute('DROP TABLE '+table)
             db.execute('PRAGMA user_version=2')
         restored=FleetStore(self.store.path)
         self.assertTrue(any(r['hardware_serial']=='TESTSERIAL' for r in restored.fleet_devices()))
-        with restored.connect() as db:self.assertEqual(db.execute('PRAGMA user_version').fetchone()[0],6)
+        with restored.connect() as db:self.assertEqual(db.execute('PRAGMA user_version').fetchone()[0],7)
 
     def test_alias_history_and_rename_resolve_to_canonical(self):
         plans=self.plan();apply_consolidations(self.store,plans)

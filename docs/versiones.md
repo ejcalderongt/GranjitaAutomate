@@ -35,3 +35,5 @@ Fechas de America/Guatemala. Los números 2.x identifican la aplicación; 4.2 id
 | 2.20 | 2026-10-26 | Consolidar cuatro identidades con referencias históricas, esquema 6 y validación UI 33/33 | [Consolidación](consolidacion-identidades.md) |
 
 Para cada versión registrar alcance, migración/persistencia, instrucciones de uso, pruebas, límites y pendientes. La bitácora conserva las evidencias históricas; los conteos de una versión no son el estado actual de la granja.
+
+| 2.21 | 2026-10-27 | Apps y cuentas: inventario técnico, observación conservadora, asignación y declaración manual por dispositivo; SQLite 7 | [Guía](inventario-apps-y-cuentas.md) |

@@ -36,7 +36,7 @@ class InventoryTests(TestCase):
         again = FleetStore(self.path)
         self.assertEqual(len(again.fleet_devices()), 1)
         with again.connect() as db:
-            self.assertEqual(db.execute('PRAGMA user_version').fetchone()[0], 6)
+            self.assertEqual(db.execute('PRAGMA user_version').fetchone()[0], 7)
 
     def test_failed_server_does_not_disconnect_its_devices(self):
         store = FleetStore(self.path)

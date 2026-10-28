@@ -207,7 +207,7 @@ class FleetStore(Store):
         super().__init__(path)
         with self.connect() as db:
             version = db.execute('PRAGMA user_version').fetchone()[0]
-        if version > 6:
+        if version > 7:
             raise ValueError('La base pertenece a una versión más nueva. Usa la versión compatible del programa.')
         if version < 2:
             self.backup(self.path.with_name(self.path.stem + '-antes-v2.sqlite3'))
@@ -279,6 +279,20 @@ class FleetStore(Store):
                         at TEXT NOT NULL,evidence TEXT NOT NULL);
                     CREATE INDEX identity_alias_canonical ON device_identity_aliases(canonical_id);
                     PRAGMA user_version=6;
+                """)
+
+        if version < 7:
+            self.backup(self.path.with_name(self.path.stem+'-antes-v7.sqlite3'))
+            with self.connect() as db:
+                db.executescript("""
+                    CREATE TABLE device_app_observations(id INTEGER PRIMARY KEY,device_id TEXT NOT NULL,
+                        hardware_serial TEXT NOT NULL,app_id TEXT NOT NULL,at TEXT NOT NULL,scope TEXT NOT NULL,
+                        method TEXT NOT NULL,payload TEXT NOT NULL);
+                    CREATE INDEX app_observation_device ON device_app_observations(device_id,app_id,id);
+                    CREATE TABLE device_app_assignments(id INTEGER PRIMARY KEY,device_id TEXT NOT NULL,
+                        hardware_serial TEXT NOT NULL,app_id TEXT NOT NULL,at TEXT NOT NULL,expected_account TEXT NOT NULL);
+                    CREATE INDEX app_assignment_device ON device_app_assignments(device_id,app_id,id);
+                    PRAGMA user_version=7;
                 """)
 
     @staticmethod

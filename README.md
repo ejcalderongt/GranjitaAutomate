@@ -2,7 +2,7 @@
 
 Repositorio de conocimiento, documentación y herramientas para administrar la granja de placas Android.
 
-## Aplicación v2.20
+## Aplicación v2.21
 
 Abrir **GranjitaAutomate** desde el escritorio o ejecutar `iniciar.vbs`. Consulta la [guía de inventario y servidores ADB](docs/version-2.md) y las [instrucciones de instalación](docs/version-1.md). Usa SQLite local en `data/`, excluida de Git.
 
@@ -43,6 +43,8 @@ El [resumen compacto del lote](docs/resumen-compacto-automatizacion.md) muestra 
 La [corrección de detección de TikTok](docs/tiktok-deteccion-inicial.md) reconoce las variantes de actividad actual de Android y distingue apertura de configuración de cuenta.
 
 La [consolidación de identidades históricas](docs/consolidacion-identidades.md) integra fichas duplicadas sin borrar su historia. Validación real: 33 equipos aptos y 33 apps verificadas, incluidos 04, 11, 28 y 62.
+
+El panel **Apps y cuentas** separa instalación, cuenta asignada, sesión observada y presencia de cuenta declarada por el operador. Conserva historial en SQLite. Consulta la [guía de inventario de apps y cuentas](docs/inventario-apps-y-cuentas.md).
 
 ## Organización
 
