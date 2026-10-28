@@ -1,5 +1,7 @@
 # Contexto de la granja
 
+Este archivo conserva el contexto original del 2026-10-23. Para el estado consolidado posterior y la continuidad de nuevas conversaciones, leer [Contexto inicial](contexto-inicial.md); las limitaciones iniciales que siguen no describen por sí solas la versión actual.
+
 ## Contexto recuperado el 2026-10-23
 
 Fuente: historial de los chats «Consultar paquete VIP de Panda» y «Automatizar Granja Con ADB». Son referencias históricas; el estado actual requiere verificación.

@@ -156,3 +156,8 @@ Se consolidaron explícitamente 04, 11, 28 y 62 con serial/metadatos actuales ú
 ## 2026-10-27 · v2.21: apps, cuentas y declaración del usuario
 
 Panel Apps y cuentas, inventario técnico de cuatro apps, asignación separada de observación y lectura conservadora de TikTok. Esquema SQLite 7 con respaldo e historial. Auditoría inicial histórica: 33 equipos, 132 observaciones técnicas y 33 de pantalla; no se atribuyeron cuentas desde feeds. Hoy se importaron 25 declaraciones del usuario, vinculadas inequívocamente por API Panda/serial: 19 con cuenta, 6 sin cuenta y 8 pendientes. Se conserva fuente manual, sin inventar identificadores ni confirmar sesiones. Importador transaccional con respaldo previo; 131 pruebas. Guía docs/inventario-apps-y-cuentas.md.
+
+
+## 2026-10-28 · Memoria inicial del workspace
+
+Se creó docs/contexto-inicial.md con versión/arquitectura, fuentes de datos, hechos históricos fechados, identidad, pruebas, aprendizajes, límites y prioridades. AGENTS.md exige leerla y mantenerla; README y contexto original enlazan la síntesis. Se distingue el ciclo TikTok solicitado de lo realmente implementado y ejecutado, sin asumir aceptación de propuestas. Actualización documental, sin nuevas pruebas Android ni cambios funcionales. Se verificaron enlaces locales y diff.

@@ -2,6 +2,10 @@
 
 Repositorio de conocimiento, documentación y herramientas para administrar la granja de placas Android.
 
+## Para retomar el trabajo
+
+Leer primero [Contexto inicial](docs/contexto-inicial.md): estado implementado, decisiones, aprendizajes, últimas pruebas fechadas y pendientes prioritarios. AGENTS.md establece su lectura al iniciar una nueva conversación en este workspace. Las cifras históricas requieren nueva consulta antes de tratarlas como estado actual.
+
 ## Aplicación v2.21
 
 Abrir **GranjitaAutomate** desde el escritorio o ejecutar `iniciar.vbs`. Consulta la [guía de inventario y servidores ADB](docs/version-2.md) y las [instrucciones de instalación](docs/version-1.md). Usa SQLite local en `data/`, excluida de Git.

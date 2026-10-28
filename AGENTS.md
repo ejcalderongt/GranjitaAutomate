@@ -2,8 +2,8 @@
 
 Este repositorio es la fuente persistente del conocimiento y del trabajo de la granja. El usuario pidió respaldar y organizar aquí el conocimiento y todo lo que vayamos creando.
 
-- Al iniciar, leer README.md y la documentación relevante en docs/.
-- Registrar hallazgos y decisiones útiles en docs/ y actualizar docs/pendientes.md.
+- Al iniciar, leer docs/contexto-inicial.md, README.md y la documentación relevante en docs/. docs/contexto-inicial.md es la síntesis de continuidad; no es telemetría en vivo.
+- Registrar hallazgos y decisiones útiles en docs/ y actualizar docs/pendientes.md. Mantener docs/contexto-inicial.md al cambiar el estado material, decisiones o próximos pasos; fechar las verificaciones y enlazar el detalle sin copiar logs ni datos privados.
 - Actualizar docs/bitacora.md cuando haya avances materiales; usar fechas de America/Guatemala.
 - Separar hechos confirmados, referencias históricas y supuestos. No presentar datos antiguos como estado actual.
 - Guardar los scripts y archivos necesarios para reproducir el trabajo, con instrucciones de uso y validaciones pertinentes.

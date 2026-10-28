@@ -85,3 +85,7 @@
 - [ ] Completar declaración de los 8 equipos restantes e identificar cuentas propias mediante perfil visible; validar piloto real del adaptador positivo de TikTok.
 - [ ] Revisar ocho pantallas históricamente no comprobadas y crear adaptadores de cuenta para otras apps; no inferir sesión desde feed.
 - [ ] Definir respaldo externo privado de SQLite; Git no incluye datos de cuentas.
+
+
+- [x] 2026-10-28: crear memoria inicial docs/contexto-inicial.md y enlazar su lectura/mantenimiento desde AGENTS.md y README; conserva síntesis fechada sin necesitar todo el chat.
+- [ ] Mantener la memoria inicial al cerrar avances materiales; priorizar su sección de pendientes para resolver entradas históricas ya superadas, sin borrar la cronología.
