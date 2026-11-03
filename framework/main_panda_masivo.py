@@ -93,7 +93,26 @@ def validar_parametros(args):
         raise ValueError('Cantidad esperada invalida')
 
 
+async def ejecutar_preflight_proxy_solo(args) -> int:
+    try:
+        await asyncio.to_thread(load_project_environment)
+        await ProxyManager.verificar_preflight(run_id='proxy-'+uuid4().hex)
+    except ValueError as exc:
+        if str(exc)=='Proxy no configurado':
+            log.error('Proxy no configurado')
+        else:
+            log.error('Proxy invalido')
+        return 1
+    except Exception:
+        log.error('Proxy no verificable')
+        return 4
+    log.info('Proxy verificado')
+    return 0
+
+
 async def main_async(args):
+    if args.preflight_proxy and not args.execute_read_only:
+        return await ejecutar_preflight_proxy_solo(args)
     validar_parametros(args)
     gate=RateGate(args.rpm)
     placas=await asyncio.to_thread(cargar_placas_activas_desde_csv,args.inventory)
