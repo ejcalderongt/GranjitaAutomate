@@ -1,22 +1,22 @@
 # Continuidad del framework
 
-Este directorio local se respalda en el repositorio
-`https://github.com/ejcalderongt/GranjitaAutomate`, rama `dev2026`, bajo `framework/`.
-Su Git local independiente no tiene seguimiento remoto: no asumir que hacer
-cambios aquí los sincroniza automáticamente con GitHub.
+La raiz operativa es C:\dev\Framwork\framework.
+El repositorio independiente esta en C:\dev\Framwork, rama dev2026-work.
+El remoto es https://github.com/ejcalderongt/GranjitaAutomate.git.
+La distribucion framework/ se conserva junto con la historia del repositorio.
 
-El respaldo inicial se preparó en el checkout aislado hermano
-`AGX-respaldo-framework/framework/`. Antes de futuros respaldos, comprobar Git,
-el remoto y los cambios pendientes. Revisar y copiar únicamente archivos de
-código/documentación autorizados al checkout correspondiente y sincronizar sin
-push forzado. El checkout histórico `AGX` puede tener cambios pendientes ajenos:
-no incorporarlos ni sobrescribirlos por accidente.
+Las carpetas anteriores bajo OneDrive y AGX-respaldo-framework son respaldos
+no activos. No ejecutar el framework desde ellas ni incorporar cambios ajenos.
+Cada hito autorizado y verificado debe quedar commiteado y pusheado a la rama autorizada
+antes de avanzar. El traslado se publica en dev2026-work; no actualizar dev2026
+sin autorizacion explicita. No usar push forzado.
 
-Leer `docs/POC_UI.md`, `docs/AI_TEXT_QA.md` y, en el repositorio padre,
-`docs/framework-qa-2026-11-02.md`. Ejecutar `python scripts/run_tests.py` para
-pruebas herméticas; no heredar credenciales reales en tests.
+Leer docs/POC_UI.md, docs/AI_TEXT_QA.md y la documentacion del repositorio padre.
+Ejecutar la suite sin credenciales reales mediante scripts/run_tests.py.
+Para pytest, usar PANDA_ENV_FILE apuntando a un archivo vacio temporal y
+GHOST_CURSOR_AUTOCLONE=0, sin OPENAI_API_KEY heredada.
 
-No versionar `.env`, proxies reales, cookies, sesiones, bases SQLite, capturas,
-logs, binarios descargados ni datos privados. Las bases necesitan respaldo
-privado separado. No afirmar VPN operativa, interacción social lograda ni
-sincronización remota sin evidencia actual.
+No versionar .env, proxies reales, cookies, sesiones, bases SQLite, capturas,
+logs, binarios descargados ni configuraciones locales. Respaldar datos privados
+por separado. No afirmar VPN operativa, interacciones logradas o sincronizacion
+remota sin evidencia actual. Las ejecuciones reales requieren autorizacion.

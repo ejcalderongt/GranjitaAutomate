@@ -20,3 +20,6 @@ config/web_accounts.json
 screenshots/
 telemetria_panda.db*
 telemetry_qa.db*
+
+# Local test cache.
+.pytest_cache/
