@@ -1,0 +1,11 @@
+{
+  "login": "[data-e2e='login-modal']",
+  "authenticated": "a[data-e2e='profile-icon']",
+  "active_video": "[data-e2e='recommend-list-item-container']:has(video):visible",
+  "comment_close": "[data-e2e='comment-close']",
+  "metadata": {
+    "autor": "h3[data-e2e='video-author-uniqueid']",
+    "descripcion": "div[data-e2e='video-desc']",
+    "sonido_original": "div[data-e2e='video-music']"
+  }
+}

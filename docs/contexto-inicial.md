@@ -123,3 +123,10 @@ El último comando **abre la aplicación y su conciliación de inicio**; no es u
 Actualizar este archivo al cambiar versión, arquitectura, decisiones, resultados materiales o siguiente bloqueo; fechar cifras y citar su guía. Mantenerlo como resumen de lectura rápida, no volcar logs ni todo el chat. Añadir detalle reproducible en docs/, avance en bitácora, tareas en pendientes y versión solo cuando cambie el programa. Conservar incertidumbres y distinguir propuesta, prueba automatizada, observación remota y reporte humano.
 
 Revisar diff, preservar cambios ajenos, comprobar lo pertinente y sincronizar dev2026. Al preparar esta guía había cambios locales ajenos a este bloque (edición del burrito en documentación/imagen); no incluirlos accidentalmente. Esa observación es temporal: verificar Git nuevamente. Las instrucciones operativas persistentes viven en AGENTS.md, no en el historial del chat.
+
+## Actualización 2026-11-02 — framework QA
+
+Se incorpora el desarrollo nuevo en `framework/`, conservando la app histórica.
+319 pruebas QA aprobadas; UI por tarjetas revisada con datos de ejemplo.
+Estado, exclusiones de datos y arranque: [respaldo del framework](framework-qa-2026-11-02.md).
+Las cifras históricas anteriores no se revalidaron en esta entrega.

@@ -1,0 +1,20 @@
+"""Carga de credenciales del proyecto, sin ejecutar ni expandir contenido de .env."""
+import os
+from pathlib import Path
+
+
+def load_project_environment(path=None):
+    path=Path(path or os.getenv('PANDA_ENV_FILE') or Path(__file__).resolve().parents[1]/'.env')
+    if not path.is_file():
+        return bool(os.getenv('OPENAI_API_KEY'))
+    allowed={'OPENAI_API_KEY','GHOST_CURSOR_REPOSITORY','GHOST_CURSOR_AUTOCLONE'}
+    for line in path.read_text(encoding='utf-8-sig').splitlines():
+        name,separator,value=line.strip().partition('=')
+        name=name.strip()
+        if separator and name in allowed and not os.getenv(name):
+            value=value.strip()
+            if len(value)>=2 and value[0]==value[-1] and value[0] in ('"',"'"):
+                value=value[1:-1]
+            if value and '\x00' not in value and not any(c.isspace() for c in value):
+                os.environ[name]=value
+    return bool(os.getenv('OPENAI_API_KEY'))

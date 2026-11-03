@@ -89,3 +89,10 @@
 
 - [x] 2026-10-28: crear memoria inicial docs/contexto-inicial.md y enlazar su lectura/mantenimiento desde AGENTS.md y README; conserva síntesis fechada sin necesitar todo el chat.
 - [ ] Mantener la memoria inicial al cerrar avances materiales; priorizar su sección de pendientes para resolver entradas históricas ya superadas, sin borrar la cronología.
+
+## Framework QA — 2026-11-02
+
+- [x] Incorporar código, documentación y pruebas del framework en `framework/`.
+- [ ] Validar feed real tras resolver el filtro GeoIP y completar login manual.
+- [ ] Definir respaldo privado de SQLite y sesiones excluidas de Git.
+- [ ] Trabajar desde `framework/` del repositorio o revisar explícitamente futuras copias.

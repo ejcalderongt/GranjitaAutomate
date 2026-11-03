@@ -1,0 +1,4 @@
+# Una entrada hostname:puerto por placa. Hasta 40 entradas únicas.
+# Sin esquema, credenciales ni IPv6. Usar allowlist de IP en el proveedor.
+proxy01.example.test:8000
+proxy02.example.test:8000

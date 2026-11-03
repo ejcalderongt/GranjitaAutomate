@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="org.agx.vpntunnel" android:versionCode="1" android:versionName="0.1-lab">
+    <uses-sdk android:minSdkVersion="29" android:targetSdkVersion="32" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <application android:allowBackup="false" android:label="AGX VPN Lockdown Helper" android:supportsRtl="true">
+        <service android:name=".VpnConfigService" android:permission="android.permission.BIND_VPN_SERVICE" android:exported="true">
+            <intent-filter><action android:name="android.net.VpnService" /></intent-filter>
+            <meta-data android:name="android.net.VpnService.SUPPORTS_ALWAYS_ON" android:value="true" />
+        </service>
+        <activity android:name=".ConsentActivity" android:exported="true" android:permission="android.permission.DUMP" />
+        <receiver android:name=".ControlReceiver" android:exported="true" android:permission="android.permission.DUMP" />
+        <provider android:name=".StatusProvider" android:authorities="org.agx.vpntunnel.status" android:exported="true" android:permission="android.permission.DUMP" />
+    </application>
+</manifest>

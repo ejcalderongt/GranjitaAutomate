@@ -1,0 +1,6 @@
+{
+  "proxies": [
+    {"host": "192.0.2.20", "port": 8000, "exit_ip": "203.0.113.20", "enabled": true},
+    {"host": "192.0.2.21", "port": 8000, "exit_ip": "203.0.113.21", "enabled": true}
+  ]
+}

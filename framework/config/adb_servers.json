@@ -1,0 +1,7 @@
+{
+  "devices_file": "adb_devices.local.json",
+  "servers": [
+    {"host": "127.0.0.1", "port": 5037},
+    {"host": "127.0.0.1", "port": 5038}
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "login": "REEMPLAZAR_SELECTOR_DIALOGO_LOGIN_VISIBLE",
+  "authenticated": "REEMPLAZAR_INDICADOR_CUENTA_AUTENTICADA",
+  "active_video": "REEMPLAZAR_CONTENEDOR_UNICO_VIDEO_ACTIVO",
+  "comment_send": "REEMPLAZAR_ENVIAR_COMENTARIO",
+  "comment_close": "REEMPLAZAR_CERRAR_COMENTARIOS",
+  "metadata": {
+    "autor": "h3[data-e2e='video-author-uniqueid']",
+    "descripcion": "div[data-e2e='video-desc']",
+    "sonido_original": "div[data-e2e='video-music']"
+  }
+}

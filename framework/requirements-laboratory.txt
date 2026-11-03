@@ -1,0 +1,2 @@
+# Dependencia opcional del proxy HTTP local para Windows; no instala certificados.
+proxy.py==2.4.10

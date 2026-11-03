@@ -1,0 +1,5 @@
+openai
+python-dotenv
+patchright
+pproxy==2.7.9
+httpx[socks]>=0.28,<1

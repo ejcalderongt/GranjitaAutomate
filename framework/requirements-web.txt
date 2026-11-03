@@ -1,0 +1,4 @@
+# Instalar junto con requirements.txt. Comprobado en Windows/Python del proyecto.
+patchright==1.64.3
+pproxy==2.7.9
+python-dotenv>=1,<2

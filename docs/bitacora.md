@@ -161,3 +161,9 @@ Panel Apps y cuentas, inventario técnico de cuatro apps, asignación separada d
 ## 2026-10-28 · Memoria inicial del workspace
 
 Se creó docs/contexto-inicial.md con versión/arquitectura, fuentes de datos, hechos históricos fechados, identidad, pruebas, aprendizajes, límites y prioridades. AGENTS.md exige leerla y mantenerla; README y contexto original enlazan la síntesis. Se distingue el ciclo TikTok solicitado de lo realmente implementado y ejecutado, sin asumir aceptación de propuestas. Actualización documental, sin nuevas pruebas Android ni cambios funcionales. Se verificaron enlaces locales y diff.
+
+## 2026-11-02 — respaldo del framework QA (America/Guatemala)
+
+Se incorpora en `framework/` el código desarrollado en la carpeta local Framwork,
+sin modificar la aplicación histórica ni datos privados. Suite de referencia:
+319 pruebas aprobadas. Ver [detalle y límites](framework-qa-2026-11-02.md).

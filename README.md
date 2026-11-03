@@ -64,3 +64,8 @@ Guardar aquí el conocimiento útil y los archivos creados. Cada avance debe inc
 No guardar contraseñas, tokens, códigos de activación, cookies ni datos privados de cuentas. Las capturas deben revisarse antes de incluirlas.
 
 Fecha de inicio: 2026-10-23 (America/Guatemala).
+
+## Framework QA web y Android
+
+El framework desarrollado en noviembre de 2026 está en [framework/](framework/).
+Leer [respaldo y continuidad](docs/framework-qa-2026-11-02.md) antes de ejecutarlo.
