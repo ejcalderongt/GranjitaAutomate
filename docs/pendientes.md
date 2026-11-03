@@ -96,3 +96,10 @@
 - [ ] Validar feed real tras resolver el filtro GeoIP y completar login manual.
 - [ ] Definir respaldo privado de SQLite y sesiones excluidas de Git.
 - [ ] Trabajar desde `framework/` del repositorio o revisar explícitamente futuras copias.
+
+## QA Panda — 2026-11-02
+
+- [x] Implementar adaptador y flujo finito QA con visión opt-in; 329 tests.
+- [x] Verificar inventario real y seis vínculos de ejemplo, sin acciones físicas.
+- [ ] Validar captura fresca y aceptación de un swipe con operador presente.
+- [ ] Definir retención y respaldo privado de screenshots y telemetria_panda.db.

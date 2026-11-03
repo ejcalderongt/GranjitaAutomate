@@ -6,7 +6,7 @@ from core.database import ROOT
 
 def huella_codigo(root=ROOT):
     root=Path(root)
-    files={root/'main.py',root/'requirements.txt'}
+    files={root/'main.py',root/'main_panda.py',root/'requirements.txt'}
     for directory in ('core','config','ui','scripts','tests'):
         files.update((root/directory).glob('*.py'))
     digest=hashlib.sha256()

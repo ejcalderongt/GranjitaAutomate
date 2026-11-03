@@ -174,3 +174,10 @@ Se corrigió país Aleatorio por España en el generador SOCKS5 y se aplicó
 la conexión generada al entorno privado. Preflight real: HTTPS 200, ES/EU,
 status passed y cierre confirmado; sin TikTok ni OpenAI. El filtro EU sigue
 activo. Detalle: [configuración residencial](../framework/docs/PROXY_CHEAP_RESIDENTIAL.md).
+
+## 2026-11-02 — QA físico Panda asíncrono
+
+Se agrega main_panda.py con API WebSocket documentada, vínculo onlySerial,
+capturas frescas, visión opt-in y transacciones por lote. Suite: 329 pruebas
+aprobadas. Preflight real: seis placas de ejemplo vinculadas; sin capturas,
+gestos ni OpenAI. Ver [guía Panda QA](../framework/docs/PANDA_QA.md).

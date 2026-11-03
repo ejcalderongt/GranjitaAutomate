@@ -17,3 +17,6 @@ config/native_dependencies.local.json
 config/adb_devices.local.json
 config/local_proxy.local.json
 config/web_accounts.json
+screenshots/
+telemetria_panda.db*
+telemetry_qa.db*

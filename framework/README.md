@@ -979,3 +979,11 @@ Este diagnóstico no confirma la asignación Android ni el tráfico del reproduc
 En laboratorio los tres endpoints comparten IP pública. Las trazas de acciones
 registran intentos, comandos enviados y omisiones; la aceptación por TikTok
 permanece sin verificar. Un intento sin confirmación de comando es incierto.
+# QA físico centralizado con Panda
+
+El flujo adicional `main_panda.py` usa la API WebSocket local documentada de
+Panda, con selección explícita por número visual e identidad vinculada al inicio.
+Consultar [guía de QA Panda](docs/PANDA_QA.md) para el preflight, la admisión
+manual, los ciclos finitos y la autorización opt-in de envío de capturas a OpenAI.
+Las auditorías visuales privadas se separan de las tablas QA de métricas puras.
+

@@ -137,3 +137,11 @@ La conexión residencial SOCKS5 del framework pasó HTTPS y GeoIP ES/EU tras
 seleccionar España en el generador, manteniendo el filtro europeo. No se
 validó feed ni IA en esta prueba. Credenciales privadas fuera de Git;
 ver `framework/docs/PROXY_CHEAP_RESIDENTIAL.md`.
+
+### QA físico centralizado — 2026-11-02
+
+`framework/main_panda.py` incorpora Panda WebSocket y auditoría visual privada.
+329 pruebas aprobadas; seis números visuales vinculados en preflight real.
+La ejecución física de capturas/gestos requiere --execute-read-only --ready;
+Vision requiere además --allow-vision-upload. No se ejecutó ese lote real.
+Ver `framework/docs/PANDA_QA.md`.

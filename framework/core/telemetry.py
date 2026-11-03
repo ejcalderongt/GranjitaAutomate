@@ -216,9 +216,11 @@ def ultima_ip_validada_ref(account_id,proxy_endpoint,*,db_path=DEFAULT_DB):
 
 
 def registrar_evento_ia(run_id,account_id,request_id,estado,*,db_path=DEFAULT_DB,cycle_id=None,
-        latencia_ms=None,latencia_total_ms=None,api_llamada=False,error_codigo=None):
+        latencia_ms=None,latencia_total_ms=None,api_llamada=False,error_codigo=None,modelo='gpt-4o-mini'):
     from core.browser import validar_account_id
     validar_account_id(account_id)
+    if modelo not in ('gpt-4o-mini','gpt-4o'):
+        raise ValueError('Modelo de telemetría inválido')
     if estado not in ('éxito','fallo_api','omitido','cancelado'):
         raise ValueError('Estado IA inválido')
     if error_codigo is not None and not re.fullmatch('[a-z0-9_]{1,64}',error_codigo):
@@ -227,7 +229,7 @@ def registrar_evento_ia(run_id,account_id,request_id,estado,*,db_path=DEFAULT_DB
         con.execute('''INSERT INTO eventos_ia_qa(timestamp_utc,run_id,account_id,cycle_id,request_id,
             modelo,estado,latencia_ms,latencia_total_ms,api_llamada,error_codigo) VALUES (?,?,?,?,?,?,?,?,?,?,?)''',
             (datetime.now(timezone.utc).isoformat(timespec='microseconds'),run_id,account_id,cycle_id,request_id,
-             'gpt-4o-mini',estado,_metric(latencia_ms),_metric(latencia_total_ms),int(bool(api_llamada)),error_codigo))
+             modelo,estado,_metric(latencia_ms),_metric(latencia_total_ms),int(bool(api_llamada)),error_codigo))
     logger.info('IA QA persistida: estado=%s latencia_ms=%s llamada=%s',estado,latencia_ms,bool(api_llamada))
 
 

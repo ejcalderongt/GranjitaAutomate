@@ -7,6 +7,7 @@ selenium>=4.26,<5
 defusedxml>=0.7.1,<1
 Pillow>=11,<13
 streamlit>=1.49,<2
+websocket-client>=1.9,<2
 # Ejecutar scripts/preparar_tun2socks.py para poblar la wheelhouse en otra PC Windows.
 --find-links ./tools/tun2socks-python/wheelhouse
 tun2socks==2.7.0.1; python_version >= '3.11'
