@@ -56,3 +56,44 @@ class ProjectEnvironmentTests(unittest.TestCase):
             load_project_environment(path)
             self.assertEqual(os.environ['PANDA_PROXY_COUNTRY'],'ES')
             self.assertNotIn('UNRELATED',os.environ)
+
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_panda_device_salt_loads_from_project_file(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)/'.env'
+            path.write_text('PANDA_DEVICE_SALT='+'a'*32+'\n',encoding='ascii')
+            load_project_environment(path)
+            self.assertEqual(os.environ['PANDA_DEVICE_SALT'],'a'*32)
+
+    @patch.dict(os.environ, {'PANDA_DEVICE_SALT':'b'*32}, clear=True)
+    def test_panda_device_salt_preserves_explicit_environment(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)/'.env'
+            path.write_text('PANDA_DEVICE_SALT='+'a'*32+'\n',encoding='ascii')
+            load_project_environment(path)
+            self.assertEqual(os.environ['PANDA_DEVICE_SALT'],'b'*32)
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_panda_device_map_keep_loads_from_project_file(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)/'.env'
+            path.write_text('PANDA_DEVICE_MAP_KEEP=5\n',encoding='ascii')
+            load_project_environment(path)
+            self.assertEqual(os.environ['PANDA_DEVICE_MAP_KEEP'],'5')
+
+    @patch.dict(os.environ, {'PANDA_DEVICE_MAP_KEEP':'7'}, clear=True)
+    def test_panda_device_map_keep_preserves_explicit_environment(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)/'.env'
+            path.write_text('PANDA_DEVICE_MAP_KEEP=5\n',encoding='ascii')
+            load_project_environment(path)
+            self.assertEqual(os.environ['PANDA_DEVICE_MAP_KEEP'],'7')
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_device_allowlist_does_not_load_unrelated_variable(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)/'.env'
+            path.write_text('PANDA_DEVICE_SALT='+'a'*32+'\nPANDA_DEVICE_MAP_KEEP=5\nUNRELATED=ignore\n',encoding='ascii')
+            load_project_environment(path)
+            self.assertNotIn('UNRELATED',os.environ)
