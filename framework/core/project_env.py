@@ -9,7 +9,10 @@ def load_project_environment(path=None):
         return bool(os.getenv('OPENAI_API_KEY'))
     allowed={'OPENAI_API_KEY','GHOST_CURSOR_REPOSITORY','GHOST_CURSOR_AUTOCLONE','PANDA_PROXY_COUNTRY',
              'PANDA_POLICY_STAGE','PANDA_POLICY_HOLD_MIN','PANDA_POLICY_HOLD_MAX',
-             'PANDA_POLICY_ABORT_ON_FAIL','PANDA_POLICY_ABORT_ON_WARN','PANDA_POLICY_COUNTRY'}
+             'PANDA_POLICY_ABORT_ON_FAIL','PANDA_POLICY_ABORT_ON_WARN','PANDA_POLICY_COUNTRY',
+             'PANDA_POLICY_PROXY_MIN_DISTINCT_EXIT_IPS','PANDA_POLICY_PROXY_STICKY_TTL',
+             'PANDA_POLICY_MAX_CAPTCHAS','PANDA_POLICY_MAX_SOFTBLOCKS',
+             'PANDA_POLICY_MAX_LOGOUTS','PANDA_POLICY_MIN_METRIC_SAMPLES'}
     for line in path.read_text(encoding='utf-8-sig').splitlines():
         name,separator,value=line.strip().partition('=')
         name=name.strip()

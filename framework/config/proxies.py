@@ -81,6 +81,62 @@ class ProxyManager:
     def browser_proxy(self):
         return dict(self._proxy)
 
+    async def contar_salidas_distintas(self, *, muestras: int, timeout: float) -> dict:
+        """Read public exits in memory only; no audit, database or retry layer."""
+        import math
+        import httpx
+        import logging
+        if type(muestras) is not int or not 1 <= muestras <= 32:
+            raise ValueError('Muestras fuera de rango')
+        if type(timeout) not in (int, float) or not math.isfinite(timeout) or not 1 <= timeout <= 60:
+            raise ValueError('Timeout fuera de rango')
+        try:
+            options = self.browser_proxy()
+            if not options.get('server'):
+                raise ValueError()
+            if bool(options.get('username')) != bool(options.get('password')):
+                raise ValueError()
+        except (AttributeError, TypeError, ValueError):
+            raise ValueError('Proxy no configurado') from None
+
+        async def sample():
+            injected = getattr(self, '_proxy_client', None)
+            if injected is not None:
+                response = await injected.get('https://api.ipify.org?format=json', timeout=timeout)
+            else:
+                auth = (options['username'], options['password']) if options.get('username') else None
+                async with httpx.AsyncClient(proxy=httpx.Proxy(options['server'], auth=auth),
+                        timeout=timeout, trust_env=False, follow_redirects=False,
+                        limits=httpx.Limits(max_keepalive_connections=0)) as client:
+                    response = await client.get('https://api.ipify.org?format=json')
+            if response.status_code != 200:
+                raise ValueError()
+            address = ipaddress.ip_address(response.json()['ip'])
+            if not address.is_global:
+                raise ValueError()
+            return str(address)
+
+        exits = set()
+        result = {'distinct': 0, 'total': 0, 'errors': 0, 'timeouts': 0}
+        quiet = [logging.getLogger(name) for name in ('httpx', 'httpcore')]
+        states = [logger.disabled for logger in quiet]
+        for logger in quiet:
+            logger.disabled = True
+        try:
+            for _ in range(muestras):
+                try:
+                    exits.add(await asyncio.wait_for(sample(), timeout=timeout))
+                except (asyncio.TimeoutError, httpx.TimeoutException):
+                    result['timeouts'] += 1
+                except Exception:
+                    result['errors'] += 1
+                result['total'] += 1
+        finally:
+            for logger, state in zip(quiet, states):
+                logger.disabled = state
+        result['distinct'] = len(exits)
+        return result
+
     @staticmethod
     def _normalizar_panda(values):
         # PROXY_SCHEME/PROTOCOL, HOST, PORT, USER/USERNAME, PASS/PASSWORD, COUNTRY migrate to PANDA_PROXY_*.

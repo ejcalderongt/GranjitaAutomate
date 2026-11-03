@@ -21,6 +21,9 @@ EXIT_MESSAGES = MappingProxyType({
 POLICY_VARIABLES = (
     'PANDA_POLICY_STAGE', 'PANDA_POLICY_HOLD_MIN', 'PANDA_POLICY_HOLD_MAX',
     'PANDA_POLICY_ABORT_ON_FAIL', 'PANDA_POLICY_ABORT_ON_WARN', 'PANDA_POLICY_COUNTRY',
+    'PANDA_POLICY_PROXY_MIN_DISTINCT_EXIT_IPS', 'PANDA_POLICY_PROXY_STICKY_TTL',
+    'PANDA_POLICY_MAX_CAPTCHAS', 'PANDA_POLICY_MAX_SOFTBLOCKS',
+    'PANDA_POLICY_MAX_LOGOUTS', 'PANDA_POLICY_MIN_METRIC_SAMPLES',
 )
 
 
@@ -32,6 +35,12 @@ class FarmPolicy:
     abort_on_fail: bool = True
     abort_on_warn: bool = False
     country: str = ''
+    proxy_min_distinct_exit_ips: int = 3
+    proxy_sticky_ttl: int = 0
+    max_captchas: int = 0
+    max_softblocks: int = 0
+    max_logouts: int = 0
+    min_metric_samples: int = 1
 
     def __post_init__(self):
         if (type(self.stage) is not int or self.stage not in (3, 10, 34)
@@ -43,6 +52,12 @@ class FarmPolicy:
                 or self.country and (len(self.country) != 2 or not self.country.isascii()
                                      or not self.country.isalpha() or not self.country.isupper())):
             raise ValueError('Politica de granja invalida')
+        for value, minimum, maximum in (
+                (self.proxy_min_distinct_exit_ips, 1, 32), (self.proxy_sticky_ttl, 0, 86400),
+                (self.max_captchas, 0, 1000000), (self.max_softblocks, 0, 1000000),
+                (self.max_logouts, 0, 1000000), (self.min_metric_samples, 1, 1000000)):
+            if type(value) is not int or not minimum <= value <= maximum:
+                raise ValueError('Politica de granja invalida')
 
 
 def load_farm_policy(path=None):
@@ -60,6 +75,12 @@ def load_farm_policy(path=None):
             abort_on_fail=boolean('PANDA_POLICY_ABORT_ON_FAIL', 'true'),
             abort_on_warn=boolean('PANDA_POLICY_ABORT_ON_WARN', 'false'),
             country=os.getenv('PANDA_POLICY_COUNTRY', '').upper(),
+            proxy_min_distinct_exit_ips=int(os.getenv('PANDA_POLICY_PROXY_MIN_DISTINCT_EXIT_IPS', '3')),
+            proxy_sticky_ttl=int(os.getenv('PANDA_POLICY_PROXY_STICKY_TTL', '0')),
+            max_captchas=int(os.getenv('PANDA_POLICY_MAX_CAPTCHAS', '0')),
+            max_softblocks=int(os.getenv('PANDA_POLICY_MAX_SOFTBLOCKS', '0')),
+            max_logouts=int(os.getenv('PANDA_POLICY_MAX_LOGOUTS', '0')),
+            min_metric_samples=int(os.getenv('PANDA_POLICY_MIN_METRIC_SAMPLES', '1')),
         )
     except (ValueError, TypeError, OverflowError):
         raise ValueError('Politica de granja invalida') from None

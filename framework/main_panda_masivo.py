@@ -18,7 +18,7 @@ from openai import AsyncOpenAI
 from config.proxies import ProxyManager
 from config.farm_policy import (load_farm_policy, EXIT_OK, EXIT_CONFIG_ERROR,
     EXIT_FARM_ABORT_FAIL, EXIT_FARM_ABORT_WARN, EXIT_FARM_ABORT_PRECHECK, EXIT_MESSAGES)
-from config.farm_preflight import load_synthetic_fixture, run_farm_preflight, decide, write_evidence
+from config.farm_preflight import load_synthetic_fixture, run_farm_preflight, decide, write_evidence, build_real_context
 from core.browser import ROOT
 from core.database import Database
 from core.mass_orchestrator import bloquear_granja
@@ -127,8 +127,10 @@ async def ejecutar_preflight_proxy_solo(args) -> int:
 
 async def ejecutar_preflight_farm_solo(args) -> int:
     import sqlite3
+    from dataclasses import replace
     run_id='farm-'+uuid4().hex
     policy=None
+    ctx={'synthetic': not args.preflight_proxy}
     verdicts=[]
     cancelled=False
     code=EXIT_FARM_ABORT_PRECHECK
@@ -142,7 +144,13 @@ async def ejecutar_preflight_farm_solo(args) -> int:
                 cancelled=code==130
                 return code
         policy=load_farm_policy()
-        ctx=load_synthetic_fixture(ROOT/'tests/fixtures/farm_stage3.json')
+        if args.preflight_proxy:
+            manager=ProxyManager.desde_panda()
+            if not policy.country:
+                policy=replace(policy,country=getattr(manager,'_panda_country','').upper())
+            ctx=await build_real_context(policy,manager,run_id,True)
+        else:
+            ctx=load_synthetic_fixture(ROOT/'tests/fixtures/farm_stage3.json')
         ctx={**ctx,'run_id':run_id}
         db=sqlite3.connect(args.db,timeout=5)
         try:
@@ -169,7 +177,7 @@ async def ejecutar_preflight_farm_solo(args) -> int:
         code=EXIT_FARM_ABORT_PRECHECK
         return code
     finally:
-        write_evidence(ROOT,run_id,policy,verdicts,code,cancelled=cancelled)
+        write_evidence(ROOT,run_id,policy,verdicts,code,cancelled=cancelled,ctx=ctx)
 
 
 async def main_async(args):
@@ -259,7 +267,7 @@ def main():
     parser.add_argument('--preflight-proxy',action='store_true',
         help='Ejecuta preflight Patchright aislado antes de consultar Panda y exige PANDA_PROXY_*')
     parser.add_argument('--preflight-farm',action='store_true',default=False,
-        help='Ejecuta C1 a C5 sinteticos y termina sin consultar Panda ni Android')
+        help='Ejecuta C1 a C5 sinteticos; junto a preflight-proxy usa adaptadores reales de lectura')
     parser.add_argument('--ready',action='store_true')
     parser.add_argument('--allow-vision-upload',action='store_true')
     handler=logging.StreamHandler()
