@@ -22,12 +22,33 @@ class PandaMassiveTests(unittest.IsolatedAsyncioTestCase):
         with tempfile.TemporaryDirectory() as folder:
             path=Path(folder)/'inventory.csv'
             self.write_csv(path,['numero_panda','serial_fisico','alias_agx','transporte','estado'],[
-                ['01','physical01','offline','192.0.2.1:5555','vinculado'],
-                ['02','physical02','alias02','192.0.2.2:5555','vinculado'],
-                ['03','','empty','192.0.2.3:5555','vinculado'],
-                ['04','physical04','pending','192.0.2.4:5555','sin_adb_verificado']])
+                ['','','','',''],
+                ['invalid','','','','sin_adb_verificado'],
+                ['7','fixture','','fixture','vinculado']])
             rows=cargar_placas_activas_desde_csv(path)
-            self.assertEqual(rows,[{'panda_id':'02','serial':'physical02','alias':'alias02','transporte':'192.0.2.2:5555'}])
+            self.assertEqual(rows,[{'panda_id':'07','serial':'fixture','alias':'','transporte':'fixture'}])
+
+    def test_numero_panda_invalido_lanza_error_humano(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)/'inventory.csv'
+            for number in ('0','invalid'):
+                with self.subTest(number=number):
+                    self.write_csv(path,['numero_panda','serial_fisico','transporte','estado'],[
+                        [number,'fixture','fixture','vinculado']])
+                    with self.assertRaisesRegex(ValueError,'^Numero Panda invalido$'):
+                        cargar_placas_activas_desde_csv(path)
+
+    def test_serial_ausente_lanza_error_humano_con_placa(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)/'inventory.csv'
+            for number,expected in (('7','07'),('12','12')):
+                with self.subTest(number=number):
+                    self.write_csv(path,['numero_panda','serial_fisico','transporte','estado'],[
+                        [number,'','fixture','vinculado']])
+                    message='Serial ausente en placa '+expected
+                    with self.assertRaisesRegex(ValueError,'^'+message+'$') as raised:
+                        cargar_placas_activas_desde_csv(path)
+                    self.assertEqual(str(raised.exception),message)
 
     def test_example_headers_and_duplicate_hardware(self):
         with tempfile.TemporaryDirectory() as folder:

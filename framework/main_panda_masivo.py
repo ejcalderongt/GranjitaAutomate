@@ -51,9 +51,9 @@ def cargar_placas_activas_desde_csv(path=CSV_INVENTARIO_PATH):
                 continue
             if not number.isdigit() or not 1<int(number)<=999999:
                 raise ValueError('Numero Panda invalido')
+            number=str(int(number)).zfill(2)
             if not serial:
                 raise ValueError('Serial ausente en placa '+number)
-            number=str(int(number)).zfill(2)
             transport=row.get('transporte','')
             if not re.fullmatch(r'[A-Za-z0-9_.-]{3,100}',serial) or not re.fullmatch(r'[A-Za-z0-9_.:\[\]-]{3,100}',transport):
                 raise ValueError('Identidad o transporte invalido')
