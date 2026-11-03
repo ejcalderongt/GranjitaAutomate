@@ -7,7 +7,9 @@ def load_project_environment(path=None):
     path=Path(path or os.getenv('PANDA_ENV_FILE') or Path(__file__).resolve().parents[1]/'.env')
     if not path.is_file():
         return bool(os.getenv('OPENAI_API_KEY'))
-    allowed={'OPENAI_API_KEY','GHOST_CURSOR_REPOSITORY','GHOST_CURSOR_AUTOCLONE','PANDA_PROXY_COUNTRY'}
+    allowed={'OPENAI_API_KEY','GHOST_CURSOR_REPOSITORY','GHOST_CURSOR_AUTOCLONE','PANDA_PROXY_COUNTRY',
+             'PANDA_POLICY_STAGE','PANDA_POLICY_HOLD_MIN','PANDA_POLICY_HOLD_MAX',
+             'PANDA_POLICY_ABORT_ON_FAIL','PANDA_POLICY_ABORT_ON_WARN','PANDA_POLICY_COUNTRY'}
     for line in path.read_text(encoding='utf-8-sig').splitlines():
         name,separator,value=line.strip().partition('=')
         name=name.strip()

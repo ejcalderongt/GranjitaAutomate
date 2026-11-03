@@ -1,0 +1,30 @@
+{
+  "synthetic": true,
+  "devices": ["p01", "p02", "p03"],
+  "serials": {"p01": "serial-p01", "p02": "serial-p02", "p03": "serial-p03"},
+  "target_country": "ES",
+  "c1": {
+    "p01": {"authorized": true, "connected": true},
+    "p02": {"authorized": true, "connected": true},
+    "p03": {"authorized": true, "connected": true}
+  },
+  "c2": {
+    "p01": {"country": "ES", "geo_resolved": true, "direct_leak": false},
+    "p02": {"country": "ES", "geo_resolved": true, "direct_leak": false},
+    "p03": {"country": "ES", "geo_resolved": true, "direct_leak": false}
+  },
+  "c3": {
+    "p01": {"hold_seconds": 8}, "p02": {"hold_seconds": 14}, "p03": {"hold_seconds": 22}
+  },
+  "c4": {
+    "p01": {"lease": "lease-a", "available": true, "rotation_ok": true},
+    "p02": {"lease": "lease-b", "available": true, "rotation_ok": true},
+    "p03": {"lease": "lease-c", "available": true, "rotation_ok": true}
+  },
+  "c5": {
+    "p01": {"captcha_count": 0, "softblock_count": 0, "logout_count": 0},
+    "p02": {"captcha_count": 0, "softblock_count": 0, "logout_count": 0},
+    "p03": {"captcha_count": 0, "softblock_count": 0, "logout_count": 0}
+  },
+  "expected": {"C1": "PASS", "C2": "PASS", "C3": "PASS", "C4": "PASS", "C5": "PASS"}
+}

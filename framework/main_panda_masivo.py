@@ -16,6 +16,9 @@ from uuid import uuid4
 
 from openai import AsyncOpenAI
 from config.proxies import ProxyManager
+from config.farm_policy import (load_farm_policy, EXIT_OK, EXIT_CONFIG_ERROR,
+    EXIT_FARM_ABORT_FAIL, EXIT_FARM_ABORT_WARN, EXIT_FARM_ABORT_PRECHECK, EXIT_MESSAGES)
+from config.farm_preflight import load_synthetic_fixture, run_farm_preflight, decide, write_evidence
 from core.browser import ROOT
 from core.database import Database
 from core.mass_orchestrator import bloquear_granja
@@ -122,7 +125,56 @@ async def ejecutar_preflight_proxy_solo(args) -> int:
     return 0
 
 
+async def ejecutar_preflight_farm_solo(args) -> int:
+    import sqlite3
+    run_id='farm-'+uuid4().hex
+    policy=None
+    verdicts=[]
+    cancelled=False
+    code=EXIT_FARM_ABORT_PRECHECK
+    try:
+        validar_parametros(args)
+        if any(getattr(args,name,False) for name in ('execute_read_only','ready','allow_vision_upload')):
+            raise ValueError('Politica de granja invalida')
+        if args.preflight_proxy:
+            code=await ejecutar_preflight_proxy_solo(args)
+            if code!=EXIT_OK:
+                cancelled=code==130
+                return code
+        policy=load_farm_policy()
+        ctx=load_synthetic_fixture(ROOT/'tests/fixtures/farm_stage3.json')
+        ctx={**ctx,'run_id':run_id}
+        db=sqlite3.connect(args.db,timeout=5)
+        try:
+            verdicts=await run_farm_preflight(ctx['devices'],policy,ctx,db)
+        finally:
+            db.close()
+        decision=decide(verdicts,policy)
+        code=EXIT_OK
+        if decision=='abort':
+            code=EXIT_FARM_ABORT_FAIL if policy.abort_on_fail and any(v.status=='FAIL' for v in verdicts) else EXIT_FARM_ABORT_WARN
+        for item in verdicts:
+            if item.status in ('WARN','FAIL'):
+                log.warning('%s',item.reason)
+        return code
+    except ValueError:
+        code=EXIT_CONFIG_ERROR
+        return code
+    except (KeyboardInterrupt,asyncio.CancelledError):
+        cancelled=True
+        verdicts=[]
+        code=130
+        return code
+    except Exception:
+        code=EXIT_FARM_ABORT_PRECHECK
+        return code
+    finally:
+        write_evidence(ROOT,run_id,policy,verdicts,code,cancelled=cancelled)
+
+
 async def main_async(args):
+    if getattr(args,'preflight_farm',False):
+        return await ejecutar_preflight_farm_solo(args)
     if args.preflight_proxy and not args.execute_read_only:
         return await ejecutar_preflight_proxy_solo(args)
     validar_parametros(args)
@@ -206,16 +258,17 @@ def main():
         help='Ejecuta swipes esperas y Vision sin publicar comentar ni seguir')
     parser.add_argument('--preflight-proxy',action='store_true',
         help='Ejecuta preflight Patchright aislado antes de consultar Panda y exige PANDA_PROXY_*')
+    parser.add_argument('--preflight-farm',action='store_true',default=False,
+        help='Ejecuta C1 a C5 sinteticos y termina sin consultar Panda ni Android')
     parser.add_argument('--ready',action='store_true')
     parser.add_argument('--allow-vision-upload',action='store_true')
     handler=logging.StreamHandler()
     handler.setFormatter(ASCIIFormatter('%(asctime)s %(name)s %(message)s'))
     logging.basicConfig(level=logging.INFO,handlers=[handler])
     try:
-        return asyncio.run(main_async(parser.parse_args()))
+        code=asyncio.run(main_async(parser.parse_args()))
     except (KeyboardInterrupt,asyncio.CancelledError):
-        log.info('Proceso cancelado Recursos liberados')
-        return 130
+        code=130
     except Exception as exc:
         message=str(exc)
         if isinstance(exc,ValueError) and (message in ('Proxy no configurado','Proxy invalido') or
@@ -224,7 +277,16 @@ def main():
             log.error('%s',message)
         else:
             log.error('Proceso detenido Tipo %s',type(exc).__name__)
-        return 1
+        code=EXIT_CONFIG_ERROR
+    if code==130:
+        log.info('Proceso cancelado Recursos liberados')
+        return 130
+    if type(code) is not int or code not in EXIT_MESSAGES:
+        log.error('Codigo de salida no reconocido')
+        code=EXIT_CONFIG_ERROR
+    if code!=EXIT_OK:
+        log.error('%s',EXIT_MESSAGES[code])
+    return code
 
 
 if __name__=='__main__':
