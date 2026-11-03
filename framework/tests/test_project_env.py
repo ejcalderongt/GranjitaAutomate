@@ -31,3 +31,28 @@ class ProjectEnvironmentTests(unittest.TestCase):
             self.assertFalse(load_project_environment(path))
             path.write_text('OPENAI_API_KEY=invalid whitespace value')
             self.assertFalse(load_project_environment(path))
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_panda_proxy_country_loads_from_project_file(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)/'.env'
+            path.write_text('PANDA_PROXY_COUNTRY=ES\n',encoding='ascii')
+            load_project_environment(path)
+            self.assertEqual(os.environ['PANDA_PROXY_COUNTRY'],'ES')
+
+    @patch.dict(os.environ, {'PANDA_PROXY_COUNTRY':'FR'}, clear=True)
+    def test_panda_proxy_country_preserves_nonempty_environment(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)/'.env'
+            path.write_text('PANDA_PROXY_COUNTRY=ES\n',encoding='ascii')
+            load_project_environment(path)
+            self.assertEqual(os.environ['PANDA_PROXY_COUNTRY'],'FR')
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_panda_proxy_country_does_not_allow_unrelated_variable(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)/'.env'
+            path.write_text('PANDA_PROXY_COUNTRY=ES\nUNRELATED=ignore\n',encoding='ascii')
+            load_project_environment(path)
+            self.assertEqual(os.environ['PANDA_PROXY_COUNTRY'],'ES')
+            self.assertNotIn('UNRELATED',os.environ)
