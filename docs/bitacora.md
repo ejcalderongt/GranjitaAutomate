@@ -181,3 +181,12 @@ Se agrega main_panda.py con API WebSocket documentada, vínculo onlySerial,
 capturas frescas, visión opt-in y transacciones por lote. Suite: 329 pruebas
 aprobadas. Preflight real: seis placas de ejemplo vinculadas; sin capturas,
 gestos ni OpenAI. Ver [guía Panda QA](../framework/docs/PANDA_QA.md).
+
+## 2026-11-02 — inventario físico vinculado
+
+Se confirmaron 34 entradas Panda y 34 seriales físicos Android sobre dos servidores
+ADB; todos vinculados por identidad exacta al histórico AGX. Sin conflictos,
+capturas, gestos ni OpenAI. Respaldo previo SQLite y conservación de 10.831
+registros históricos, 38 identidades históricas y cero interacciones comprobados.
+La ficha 01 no aparece en vivo; no se inventó su identidad. Suite: 332 pruebas
+aprobadas. Ver [inventario](../framework/docs/PANDA_INVENTORY.md).

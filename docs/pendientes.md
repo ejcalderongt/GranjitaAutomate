@@ -103,3 +103,9 @@
 - [x] Verificar inventario real y seis vínculos de ejemplo, sin acciones físicas.
 - [ ] Validar captura fresca y aceptación de un swipe con operador presente.
 - [ ] Definir retención y respaldo privado de screenshots y telemetria_panda.db.
+
+## Inventario vinculado — 2026-11-02
+
+- [x] Confirmar 34 identidades físicas y vincular sus números Panda e histórico AGX.
+- [x] Preservar datos y generar respaldo previo e inventario CSV privado.
+- [ ] Recuperar conexión de la ficha visual 01 y verificar identidad antes de vincular.

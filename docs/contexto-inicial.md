@@ -145,3 +145,10 @@ ver `framework/docs/PROXY_CHEAP_RESIDENTIAL.md`.
 La ejecución física de capturas/gestos requiere --execute-read-only --ready;
 Vision requiere además --allow-vision-upload. No se ejecutó ese lote real.
 Ver `framework/docs/PANDA_QA.md`.
+
+### Inventario vivo vinculado — 2026-11-02
+
+Se guardaron 34 vínculos Panda/ADB/AGX en SQLite del framework tras verificar
+seriales físicos, con backup consistente previo. No se renombraron dispositivos
+ni se modificaron cuentas. Inventario privado en runs/; script reproducible
+`framework/scripts/sincronizar_inventario_panda.py --apply`. Suite: 332 tests.

@@ -986,4 +986,3 @@ Panda, con selección explícita por número visual e identidad vinculada al ini
 Consultar [guía de QA Panda](docs/PANDA_QA.md) para el preflight, la admisión
 manual, los ciclos finitos y la autorización opt-in de envío de capturas a OpenAI.
 Las auditorías visuales privadas se separan de las tablas QA de métricas puras.
-

@@ -1,5 +1,8 @@
 # QA físico de Panda — 2026-11-02
 
+Para confirmar y persistir las correspondencias de toda la matriz antes de
+elegir un subconjunto, consultar [inventario Panda/ADB/AGX](PANDA_INVENTORY.md).
+
 Validación de entrega: **329 pruebas aprobadas**. El preflight real vinculó
 02, 04, 05, 06, 09 y 10 sin capturas, gestos ni llamadas a OpenAI. La captura
 real y el gesto masivo quedan pendientes de admisión explícita del operador.
