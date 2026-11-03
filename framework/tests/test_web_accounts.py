@@ -115,3 +115,28 @@ class WebAccountsTests(unittest.TestCase):
             element.click.reset_mock()
             ejecutar_ciclo_web(page,'cuenta_01',selectors,Mock(),execute=True)
             element.click.assert_not_called()
+
+
+def test_implicit_decision_journal_stays_temporary_in_clean_cwd(tmp_path, monkeypatch):
+    from core.decision_telemetry import DecisionTelemetry
+    clean = tmp_path/'clean_workdir'
+    clean.mkdir()
+    monkeypatch.chdir(clean)
+    journal = DecisionTelemetry('fixture_account', 'fixture_run')
+    journal.append('fixture_event', cycle_id='fixture_cycle')
+    assert journal.path.is_relative_to(tmp_path)
+    assert journal.path.name == 'decisiones-fixture_run.jsonl'
+    assert not (clean/'logs').exists()
+    explicit = DecisionTelemetry('fixture_account', 'fixture_run', root=tmp_path/'explicit')
+    assert explicit.path.parent == tmp_path/'explicit'/'fixture_account'
+
+
+def test_suite_guard_rejects_a_new_log_in_clean_workdir(tmp_path):
+    import pytest
+    from conftest import _assert_no_new_log_files, _log_files
+    logs = tmp_path/'clean_workdir'/'logs'
+    before = _log_files(logs)
+    logs.mkdir(parents=True)
+    (logs/'fixture.jsonl').write_text('{}\n', encoding='ascii')
+    with pytest.raises(AssertionError, match='Suite created files in project logs; use tmp_path'):
+        _assert_no_new_log_files(logs, before)
