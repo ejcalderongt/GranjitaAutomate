@@ -27,6 +27,7 @@ from main_panda import ejecutar_qa_panda
 CSV_INVENTARIO_PATH=ROOT/'runs/inventario-panda-1a880267aa964be3bc500387ff7aa6c0/inventario.csv'
 DB_PATH=ROOT/'telemetria_panda.db'
 MAX_CONCURRENCY=5
+TIMEOUT_PREFLIGHT_PROXY_SEGUNDOS=90
 log=logging.getLogger('qa.panda.masivo')
 
 
@@ -94,15 +95,26 @@ def validar_parametros(args):
 
 
 async def ejecutar_preflight_proxy_solo(args) -> int:
+    MENSAJES_PROXY = {
+        'Proxy no configurado': ('Proxy no configurado', 1),
+        'Proxy invalido': ('Proxy invalido', 1),
+    }
     try:
         await asyncio.to_thread(load_project_environment)
-        await ProxyManager.verificar_preflight(run_id='proxy-'+uuid4().hex)
+        await asyncio.wait_for(
+            ProxyManager.verificar_preflight(run_id='proxy-'+uuid4().hex),
+            timeout=TIMEOUT_PREFLIGHT_PROXY_SEGUNDOS,
+        )
     except ValueError as exc:
-        if str(exc)=='Proxy no configurado':
-            log.error('Proxy no configurado')
-        else:
-            log.error('Proxy invalido')
-        return 1
+        mensaje, codigo = MENSAJES_PROXY.get(str(exc), ('Proxy invalido', 1))
+        log.error(mensaje)
+        return codigo
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        log.info('Preflight de proxy cancelado')
+        return 130
+    except asyncio.TimeoutError:
+        log.error('Proxy no verificable')
+        return 4
     except Exception:
         log.error('Proxy no verificable')
         return 4
