@@ -10,6 +10,60 @@ DISCOVERY_TIMEOUT_SECONDS = 12
 C4_MUESTRAS_MINIMAS = 3
 C4_TIMEOUT_SEGUNDOS = 15
 C4_TIMEOUT_GLOBAL_SEGUNDOS = 60
+C1_DIAGNOSTIC_KEYS = (
+    'missing_authorized', 'missing_connected', 'negative_uid_privileged',
+    'negative_emulator_hint', 'negative_automation_apps',
+    'integrity_probe_available', 'integrity_probe_errors', 'skipped',
+)
+C2_DIAGNOSTIC_KEYS = (
+    'missing_sim_country', 'missing_locale', 'missing_timezone',
+    'mismatch_sim_country', 'mismatch_locale', 'mismatch_timezone',
+)
+C4_ERROR_MAP = {
+    'transport_error': 'transport', 'auth_error': 'auth',
+    'http_rejected': 'http_rejected', 'json_invalid': 'json_invalid',
+    'not_public': 'not_public', 'other': 'other',
+}
+C4_ERROR_KINDS = ('transport', 'auth', 'http_rejected', 'json_invalid', 'not_public', 'other')
+
+
+def c4_diagnostics(result, details=None):
+    """Accept only bounded, aggregate-consistent diagnostic records from ctx."""
+    empty = {'attempts': result['total'], 'data_available': False,
+             'errors_by_kind': dict.fromkeys(C4_ERROR_KINDS, 0),
+             'distinct_per_attempt': [], 'latency_ms_by_attempt': []}
+    if not isinstance(details, list) or len(details) != result['total'] or len(details) > 32:
+        return empty
+    kinds = dict.fromkeys(C4_ERROR_KINDS, 0)
+    distinct, latencies, timeouts = [], [], 0
+    for row in details:
+        if (not isinstance(row, dict) or set(row) != {'code', 'new_exit', 'latency_ms'}
+                or not isinstance(row['code'], str)
+                or row['code'] not in (*C4_ERROR_MAP, 'success', 'timeout')
+                or type(row['new_exit']) is not bool
+                or type(row['latency_ms']) is not int or row['latency_ms'] < 0
+                or row['new_exit'] and row['code'] != 'success'):
+            return empty
+        if row['code'] in C4_ERROR_MAP:
+            kinds[C4_ERROR_MAP[row['code']]] += 1
+        timeouts += int(row['code'] == 'timeout')
+        distinct.append(row['new_exit'])
+        latencies.append(row['latency_ms'])
+    if sum(kinds.values()) != result['errors'] or timeouts != result['timeouts'] or sum(distinct) != result['distinct']:
+        return empty
+    return {'attempts': result['total'], 'data_available': True, 'errors_by_kind': kinds,
+            'distinct_per_attempt': distinct, 'latency_ms_by_attempt': latencies}
+
+
+def diagnostic_defaults(constraint, counters):
+    if constraint == 'C1':
+        return dict.fromkeys(C1_DIAGNOSTIC_KEYS, 0)
+    if constraint == 'C2':
+        return {**dict.fromkeys(C2_DIAGNOSTIC_KEYS, 0), 'proxy_verified': False, 'proxy_skipped': False}
+    if constraint == 'C4':
+        result = {key: counters.get(key, 0) for key in ('total', 'distinct', 'errors', 'timeouts')}
+        return {**result, **c4_diagnostics(result)}
+    return {}
 
 
 def real_verdict(constraint, status, action, **counters):
@@ -30,16 +84,36 @@ async def probe(ctx, name, device):
 
 
 async def evaluate_c1_real(devices, policy, ctx):
-    rows = await asyncio.gather(*(probe(ctx, 'integrity_probe', device) for device in devices))
+    async def inspect(device):
+        connector = ctx.get('integrity_probe')
+        if connector is None:
+            return {}, True
+        try:
+            row = await asyncio.wait_for(connector(device), timeout=DEVICE_PROBE_TIMEOUT_SECONDS)
+            return row if isinstance(row, dict) else {}, False
+        except Exception:
+            return {}, False
+    observations = await asyncio.gather(*(inspect(device) for device in devices))
+    rows = [row for row, _ in observations]
+    diagnostics = dict.fromkeys(C1_DIAGNOSTIC_KEYS, 0)
+    diagnostics['skipped'] = sum(skipped for _, skipped in observations)
     missing = int(len(devices) != policy.stage)
     negative = 0
     for row in rows:
         names = ('root_detected', 'emulator_detected', 'automation_detected', 'play_integrity')
         missing += int(any(type(row.get(name)) is not bool for name in names))
         negative += int(any(row.get(name) is True for name in names[:3]) or row.get('play_integrity') is False)
+        diagnostics['missing_authorized'] += int(type(row.get('authorized')) is not bool)
+        diagnostics['missing_connected'] += int(type(row.get('connected')) is not bool)
+        diagnostics['negative_uid_privileged'] += int(row.get('root_detected') is True)
+        diagnostics['negative_emulator_hint'] += int(row.get('emulator_detected') is True)
+        diagnostics['negative_automation_apps'] += int(row.get('automation_detected') is True)
+        available = type(row.get('play_integrity')) is bool
+        diagnostics['integrity_probe_available'] += int(available)
+        diagnostics['integrity_probe_errors'] += int(not available)
     status = 'FAIL' if negative else 'WARN' if missing or not devices else 'PASS'
     return real_verdict('C1', status, 'acreditar integridad Android por canal autorizado',
-                        checked=len(rows), missing=missing, negative=negative)
+                        checked=len(rows), missing=missing, negative=negative, **diagnostics)
 
 
 def timezone_country(value):
@@ -59,6 +133,7 @@ async def evaluate_c2_real(devices, policy, ctx, proxy_manager):
     rows = await asyncio.gather(*(probe(ctx, 'identity_probe', device) for device in devices))
     missing = int(not policy.country or len(devices) != policy.stage)
     mismatches = 0
+    diagnostics = dict.fromkeys(C2_DIAGNOSTIC_KEYS, 0)
     for row in rows:
         sim = row.get('sim_country', '')
         countries = [v.upper() for v in sim.split(',') if v] if isinstance(sim, str) else []
@@ -66,13 +141,17 @@ async def evaluate_c2_real(devices, policy, ctx, proxy_manager):
         match = re.search(r'[_-]([A-Za-z]{2})$', locale) if isinstance(locale, str) else None
         zone = timezone_country(row.get('timezone'))
         values = [countries, [match[1].upper()] if match else [], [zone] if zone else []]
-        for values_for_field in values:
+        for field, values_for_field in zip(('sim_country', 'locale', 'timezone'), values):
             if not values_for_field or any(not re.fullmatch('[A-Z]{2}', value) for value in values_for_field):
                 missing += 1
+                diagnostics['missing_' + field] += 1
             elif policy.country and any(value != policy.country for value in values_for_field):
                 mismatches += 1
+                diagnostics['mismatch_' + field] += 1
     country = getattr(proxy_manager, '_panda_country', '')
     verified = ctx.get('proxy_preflight_verified') is True
+    reused = verified and bool(country) and (not policy.country or country.upper() == policy.country)
+    skipped = not verified and proxy_manager is None
     if not verified and proxy_manager is not None:
         try:
             await asyncio.wait_for(proxy_manager.verificar_preflight(run_id=ctx['run_id']), timeout=90)
@@ -85,13 +164,15 @@ async def evaluate_c2_real(devices, policy, ctx, proxy_manager):
         mismatches += 1
     status = 'FAIL' if mismatches else 'WARN' if missing or not devices else 'PASS'
     return real_verdict('C2', status, 'alinear SIM locale zona y geografia del proxy',
-                        checked=len(rows), missing=missing, mismatches=mismatches)
+                        checked=len(rows), missing=missing, mismatches=mismatches,
+                        proxy_verified=reused, proxy_skipped=skipped, **diagnostics)
 
 
 async def evaluate_c4_real(devices, policy, ctx, proxy_manager):
     method = getattr(proxy_manager, 'contar_salidas_distintas', None)
     if method is None:
-        return real_verdict('C4', 'WARN', 'habilitar consulta agregada del pool', missing=1)
+        return real_verdict('C4', 'WARN', 'habilitar consulta agregada del pool', missing=1,
+                            **diagnostic_defaults('C4', {}))
     samples = min(32, max(C4_MUESTRAS_MINIMAS, policy.stage, policy.proxy_min_distinct_exit_ips))
     try:
         result = await asyncio.wait_for(method(muestras=samples, timeout=C4_TIMEOUT_SEGUNDOS),
@@ -102,12 +183,14 @@ async def evaluate_c4_real(devices, policy, ctx, proxy_manager):
                 or result['errors'] + result['timeouts'] > result['total']):
             raise ValueError()
     except Exception:
-        return real_verdict('C4', 'WARN', 'comprobar disponibilidad del pool', missing=1)
+        return real_verdict('C4', 'WARN', 'comprobar disponibilidad del pool', missing=1,
+                            **diagnostic_defaults('C4', {}))
     insufficient = result['distinct'] < policy.proxy_min_distinct_exit_ips
     ttl_bad = 0 < policy.proxy_sticky_ttl < policy.stage * policy.hold_max
     status = 'FAIL' if insufficient else 'WARN' if result['errors'] or result['timeouts'] or ttl_bad or result['total'] < samples else 'PASS'
     return real_verdict('C4', status, 'revisar salidas rotacion y TTL contratado',
-                        **result, ttl_incompatible=int(ttl_bad))
+                        **result, ttl_incompatible=int(ttl_bad),
+                        **c4_diagnostics(result, ctx.get('c4_attempt_details')))
 
 
 async def evaluate_c5_real(devices, policy, ctx, db):
@@ -198,12 +281,61 @@ class ConstraintVerdict:
     def __post_init__(self):
         if (self.constraint not in ('C1', 'C2', 'C3', 'C4', 'C5')
                 or self.status not in ('PASS', 'WARN', 'FAIL')
+                or not isinstance(self.reason, str)
                 or not re.fullmatch(self.constraint + r' [A-Z_]+ \| alternativa: [A-Za-z_ ]+', self.reason)
                 or len(self.reason) > 200 or not self.reason.isascii()
                 or not isinstance(self.counters, dict)
-                or any(not re.fullmatch(r'[a-z_]+', k) or type(v) is not int or v < 0
-                       for k, v in self.counters.items())):
+                or not valid_counters(self.constraint, self.counters)):
             raise ValueError('Veredicto sintetico invalido')
+
+
+def valid_counters(constraint, counters):
+    legacy = {
+        'C1': {'checked', 'missing', 'failed', 'negative'},
+        'C2': {'checked', 'missing', 'failed', 'mismatches'},
+        'C3': {'checked', 'missing', 'failed'},
+        'C4': {'checked', 'missing', 'failed', 'distinct', 'total', 'errors', 'timeouts', 'ttl_incompatible'},
+        'C5': {'checked', 'missing', 'samples', 'captcha_count', 'softblock_count', 'logout_count'},
+    }
+    integer_keys = legacy[constraint] | set(C1_DIAGNOSTIC_KEYS if constraint == 'C1' else
+        C2_DIAGNOSTIC_KEYS if constraint == 'C2' else ('attempts',) if constraint == 'C4' else ())
+    boolean_keys = {'proxy_verified', 'proxy_skipped'} if constraint == 'C2' else {'data_available'} if constraint == 'C4' else set()
+    for key, value in counters.items():
+        if not isinstance(key, str) or not re.fullmatch('[a-z_]+', key):
+            return False
+        if key in integer_keys:
+            if type(value) is not int or value < 0:
+                return False
+        elif key in boolean_keys:
+            if type(value) is not bool:
+                return False
+        elif constraint == 'C4' and key == 'errors_by_kind':
+            if (not isinstance(value, dict) or set(value) != set(C4_ERROR_KINDS)
+                    or any(type(item) is not int or item < 0 for item in value.values())):
+                return False
+        elif constraint == 'C4' and key in ('distinct_per_attempt', 'latency_ms_by_attempt'):
+            item_type = bool if key == 'distinct_per_attempt' else int
+            if (not isinstance(value, list) or len(value) > 32
+                    or any(type(item) is not item_type or item_type is int and item < 0 for item in value)):
+                return False
+        else:
+            return False
+    if counters.get('proxy_verified') is True and counters.get('proxy_skipped') is True:
+        return False
+    if constraint == 'C4' and 'attempts' in counters and counters['attempts'] != counters.get('total'):
+        return False
+    if counters.get('data_available') is True:
+        required = {'attempts', 'total', 'distinct', 'errors', 'timeouts', 'errors_by_kind',
+                    'distinct_per_attempt', 'latency_ms_by_attempt'}
+        if not required <= set(counters):
+            return False
+        if (len(counters['distinct_per_attempt']) != counters['attempts']
+                or len(counters['latency_ms_by_attempt']) != counters['attempts']
+                or sum(counters['distinct_per_attempt']) != counters['distinct']
+                or sum(counters['errors_by_kind'].values()) != counters['errors']
+                or counters['distinct'] + counters['errors'] + counters['timeouts'] > counters['total']):
+            return False
+    return True
 
 
 def load_synthetic_fixture(path):
@@ -355,10 +487,20 @@ async def run_farm_preflight(devices, policy, ctx, db):
 
 def write_evidence(root, run_id, policy, verdicts, code, cancelled=False, ctx=None):
     synthetic = ctx is None or ctx.get('synthetic') is True
+    serialized = []
+    diagnostic_available = {}
+    for item in ([] if cancelled else verdicts):
+        defaults = diagnostic_defaults(item.constraint, item.counters)
+        enriched = {**defaults, **item.counters}
+        checked = ConstraintVerdict(item.constraint, item.status, item.reason, enriched)
+        serialized.append(asdict(checked))
+        if defaults:
+            diagnostic_available[item.constraint] = set(defaults) <= set(item.counters)
     report = {'timestamp': now(), 'run_id': run_id, 'synthetic': synthetic,
               'policy': asdict(policy) if policy else None,
               'decision': 'cancelled' if cancelled else decide(verdicts, policy) if verdicts else 'precheck_failed',
-              'cancelled': cancelled, 'verdicts': [] if cancelled else [asdict(v) for v in verdicts],
+              'cancelled': cancelled, 'verdicts': serialized,
+              'diagnostic_fields_available': diagnostic_available,
               'exit_code': code, 'warnings': ['Preflight evidence does not authorize stage execution.']}
     if not synthetic:
         names = ('evaluate_c1_real', 'evaluate_c2_real', 'evaluate_c3', 'evaluate_c4_real', 'evaluate_c5_real')

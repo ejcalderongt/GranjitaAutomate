@@ -30,3 +30,20 @@ class C2RealTests(unittest.IsolatedAsyncioTestCase):
         ctx = {'proxy_preflight_verified': True, 'identity_probe': AsyncMock(return_value={})}
         await evaluate_c2_real(['a'], FarmPolicy(country='ES'), ctx, manager)
         manager.verificar_preflight.assert_not_called()
+
+    async def test_field_diagnostics_and_reused_proxy_flags(self):
+        item = await self.evaluate({})
+        for key in ('missing_sim_country','missing_locale','missing_timezone'):
+            self.assertEqual(item.counters[key], 3)
+        self.assertTrue(item.counters['proxy_verified'])
+        self.assertFalse(item.counters['proxy_skipped'])
+        item = await self.evaluate(dict(sim_country='fr',locale='fr_FR',timezone='Europe/Paris'))
+        for key in ('mismatch_sim_country','mismatch_locale','mismatch_timezone'):
+            self.assertEqual(item.counters[key], 3)
+        self.assertEqual(item.status, 'FAIL')
+
+    async def test_proxy_not_available_is_skipped_without_changing_status(self):
+        item = await evaluate_c2_real(['a'], FarmPolicy(country='ES'), {}, None)
+        self.assertFalse(item.counters['proxy_verified'])
+        self.assertTrue(item.counters['proxy_skipped'])
+        self.assertEqual(item.status, 'WARN')
