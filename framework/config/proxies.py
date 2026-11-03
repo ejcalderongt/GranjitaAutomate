@@ -1,4 +1,4 @@
-"""Proxies Android y web/móviles; estos controles no acreditan aislamiento VPN."""
+"""Proxies Android y web/m\xf3viles; estos controles no acreditan aislamiento VPN."""
 import os
 import re
 import subprocess
@@ -9,17 +9,19 @@ from contextvars import ContextVar
 import json
 import ipaddress
 import sqlite3
+import asyncio
+import contextlib
 
 
 class ProxyRotationError(RuntimeError):
-    """Código controlado; nunca incluye URL, credenciales ni respuesta del proveedor."""
+    """C\xf3digo controlado; nunca incluye URL, credenciales ni respuesta del proveedor."""
     def __init__(self, code):
         self.code = code
         super().__init__(code)
 
 
 class ProxyManager:
-    """Una instancia por worker. Control API directo y validación HTTPS por proxy."""
+    """Una instancia por worker. Control API directo y validaci\xf3n HTTPS por proxy."""
     def __init__(self, *, env_path=None, settings=None, telemetry_db=None, run_id=None,
                  account_id='network_qa', control_client=None, proxy_client=None, schema_initialized=False):
         import math
@@ -30,12 +32,14 @@ class ProxyManager:
         if settings is None:
             from dotenv import dotenv_values
             if env_path or os.getenv('PANDA_ENV_FILE'):
-                values=dict(dotenv_values(env_path or os.environ['PANDA_ENV_FILE']))
+                values=dict(dotenv_values(env_path or os.environ['PANDA_ENV_FILE'],interpolate=False))
             else:
-                values={**dotenv_values(root/'.env'),**dotenv_values(root/'tiktok_warmer/.env')}
+                values={**dotenv_values(root/'.env',interpolate=False),**dotenv_values(root/'tiktok_warmer/.env',interpolate=False)}
             values.update(os.environ)
         else:
             values=dict(settings)
+        if any(key.startswith('PANDA_PROXY_') for key in values):
+            values.update(self._normalizar_panda(values))
         self.telemetry_db=Path(telemetry_db or DEFAULT_DB)
         self.run_id,self.account_id=run_id or 'network-'+uuid4().hex,account_id
         self._control_client,self._proxy_client=control_client,proxy_client
@@ -76,6 +80,164 @@ class ProxyManager:
 
     def browser_proxy(self):
         return dict(self._proxy)
+
+    @staticmethod
+    def _normalizar_panda(values):
+        # PROXY_SCHEME/PROTOCOL, HOST, PORT, USER/USERNAME, PASS/PASSWORD, COUNTRY migrate to PANDA_PROXY_*.
+        def field(name):
+            key='PANDA_PROXY_'+name
+            return values[key] if key in values else values.get('PROXY_'+name)
+        fields=[field(name) for name in ('SCHEME','HOST','PORT','USER','PASS')]
+        if not any(value is not None and value!='' for value in fields):
+            raise ValueError('Proxy no configurado')
+        try:
+            scheme,host,port,user,password=fields
+            if not all(isinstance(value,str) and value for value in fields):
+                raise ValueError()
+            if scheme not in ('socks5','socks5h') or not re.fullmatch(r'[A-Za-z0-9.-]{1,253}',host):
+                raise ValueError()
+            if not port.isascii() or not port.isdigit() or not 1<=int(port)<=65535:
+                raise ValueError()
+            if ':' in user or any(ord(c)<32 or ord(c)>126 for c in user+password):
+                raise ValueError()
+            country=field('COUNTRY') or ''
+            if not isinstance(country,str) or country and not re.fullmatch(r'[A-Za-z]{2}',country):
+                raise ValueError()
+            mode=values.get('PANDA_PROXY_SESSION_MODE','rotating')
+            if mode not in ('rotating','sticky'):
+                raise ValueError()
+            if mode=='sticky':
+                ttl=values.get('PANDA_PROXY_SESSION_TTL','')
+                if not isinstance(ttl,str) or not ttl.isdigit() or not 1<=int(ttl)<=86400:
+                    raise ValueError()
+            return {'PROXY_URL':'','PROXY_HOST':host,'PROXY_PORT':port,'PROXY_USER':user,
+                    'PROXY_PASS':password,'PROXY_PROTOCOL':'socks5','PROXY_MODE':'rotating_residential'}
+        except (ValueError,TypeError):
+            raise ValueError('Proxy invalido') from None
+
+    @classmethod
+    def desde_panda(cls,settings=None):
+        """Root configuration only; credentials remain opaque and unchanged."""
+        if settings is None:
+            from dotenv import dotenv_values
+            root=Path(__file__).resolve().parents[1]
+            settings=dict(dotenv_values(os.getenv('PANDA_ENV_FILE') or root/'.env',interpolate=False))
+            settings.update(os.environ)
+        normalized=cls._normalizar_panda(settings)
+        try:
+            manager=cls(settings=normalized)
+        except Exception:
+            raise ValueError('Proxy invalido') from None
+        manager._panda_country=(settings.get('PANDA_PROXY_COUNTRY')
+            if 'PANDA_PROXY_COUNTRY' in settings else settings.get('PROXY_COUNTRY')) or ''
+        return manager
+
+    async def endpoint_para_chromium(self):
+        """Return existing bridge options and resource; caller must close resource."""
+        from tiktok_warmer.core.socks_bridge import proxy_para_chromium
+        pending=asyncio.create_task(asyncio.to_thread(proxy_para_chromium,self.browser_proxy()))
+        try:
+            return await asyncio.shield(pending)
+        except asyncio.CancelledError:
+            _,bridge=await pending
+            if bridge is not None:
+                await asyncio.to_thread(bridge.close)
+            raise
+
+    @classmethod
+    async def verificar_preflight(cls,*,run_id):
+        """Isolated Patchright verification; no Panda, Android or SQLite calls."""
+        import logging
+        import httpx
+        from core.browser import ROOT,iniciar_contexto_async,cerrar_contexto_async
+        from core.geo_resolver import obtener_geolocalizacion_con_bypass
+        logger=logging.getLogger('qa.panda.masivo')
+        try:
+            manager=cls.desde_panda()
+            if not re.fullmatch(r'[A-Za-z0-9_-]{1,100}',run_id):
+                raise ValueError('Proxy invalido')
+        except ValueError:
+            logger.error('Proxy no verificable')
+            raise
+        runtime=context=bridge=browser_bridge=None
+        verified=False;cancelled=False;clean=True
+        sessions=(ROOT/'sessions'/('preflight-'+run_id)).resolve()
+        quiet=[logging.getLogger(name) for name in ('httpx','httpcore','pproxy','warmer.geo')]
+        disabled=[item.disabled for item in quiet]
+        for item in quiet:
+            item.disabled=True
+
+        def public_ip(value):
+            if not isinstance(value,str):
+                raise ValueError()
+            parsed=ipaddress.ip_address(value)
+            if not parsed.is_global:
+                raise ValueError()
+            return str(parsed)
+
+        async def cleanup():
+            result=True
+            if runtime is not None or context is not None or browser_bridge is not None:
+                result=await cerrar_contexto_async(context,runtime,browser_bridge,close_timeout=5)
+            if bridge is not None and bridge is not browser_bridge:
+                try:
+                    await asyncio.to_thread(bridge.close)
+                except Exception:
+                    result=False
+            # Delete only the unique temporary directory created for this run.
+            if result and sessions.exists() and sessions.parent==(ROOT/'sessions').resolve():
+                try:
+                    await asyncio.to_thread(shutil.rmtree,sessions)
+                except OSError:
+                    result=False
+            return result
+
+        try:
+            with open(os.devnull,'w') as sink,contextlib.redirect_stdout(sink),contextlib.redirect_stderr(sink):
+                try:
+                    async with httpx.AsyncClient(timeout=5,trust_env=False,follow_redirects=False) as direct:
+                        response=await direct.get('https://api.ipify.org?format=json',timeout=5)
+                        if response.status_code!=200:
+                            raise ValueError()
+                        host_ip=public_ip(response.json().get('ip'))
+                    options,bridge=await manager.endpoint_para_chromium()
+                    runtime,context,page,browser_bridge=await asyncio.wait_for(iniciar_contexto_async(
+                        'preflight-proxy',options,headless=True,sessions_root=sessions,engine='patchright'),timeout=15)
+                    response=await page.goto('https://api.ipify.org?format=json',wait_until='domcontentloaded',timeout=5000)
+                    if response is None or response.status!=200:
+                        raise ValueError()
+                    observed=public_ip(json.loads(await page.locator('body').inner_text(timeout=5000)).get('ip'))
+                    if observed==host_ip:
+                        raise ValueError()
+                    async with httpx.AsyncClient(proxy=httpx.Proxy(options['server']),timeout=5,
+                            trust_env=False,follow_redirects=False) as proxied:
+                        async with asyncio.timeout(12):
+                            geo=await obtener_geolocalizacion_con_bypass(observed,cliente_http=proxied)
+                    if geo.get('geo_status')!='resolved':
+                        raise ValueError()
+                    if manager._panda_country and geo.get('pais')!=manager._panda_country.upper():
+                        raise ValueError()
+                    verified=True
+                except asyncio.CancelledError:
+                    cancelled=True
+                except Exception:
+                    verified=False
+                finally:
+                    task=asyncio.create_task(cleanup())
+                    try:
+                        clean=await asyncio.shield(task)
+                    except asyncio.CancelledError:
+                        cancelled=True
+                        clean=await task
+        finally:
+            for item,state in zip(quiet,disabled):
+                item.disabled=state
+        if cancelled:
+            raise asyncio.CancelledError() from None
+        if not verified or not clean:
+            logger.error('Proxy no verificable')
+            raise RuntimeError('Proxy no verificable') from None
+        logger.info('Proxy verificado')
 
     async def _prepare(self):
         if not self._schema_ready:
@@ -325,9 +487,9 @@ def verificar_adb():
         if binary:
             return binary
     raise ADBError(
-        'No se encontró ADB. Descarga Platform-Tools para Windows desde '
+        'No se encontr\xf3 ADB. Descarga Platform-Tools para Windows desde '
         'https://developer.android.com/tools/releases/platform-tools y extrae la carpeta '
-        'platform-tools dentro de tools/ del proyecto. También puedes agregarla al PATH '
+        'platform-tools dentro de tools/ del proyecto. Tambi\xe9n puedes agregarla al PATH '
         'o definir ADB_PATH con la ruta absoluta a adb.exe.')
 
 
@@ -337,7 +499,7 @@ def adb(*args, timeout=20):
     prefix=[]
     if server:
         if '-H' in args or '-P' in args:
-            raise ValueError('No se permite cambiar el servidor dentro de una sesión ADB fijada')
+            raise ValueError('No se permite cambiar el servidor dentro de una sesi\xf3n ADB fijada')
         prefix=['-H',server[0],'-P',str(server[1])]
     environment=os.environ.copy()
     if server or '-H' in args or '-P' in args:
@@ -349,17 +511,17 @@ def adb(*args, timeout=20):
             errors='replace',env=environment,
             creationflags=subprocess.CREATE_NO_WINDOW if os.name=='nt' else 0).stdout.strip()
     except subprocess.TimeoutExpired as exc:
-        raise ADBError('Timeout ADB: comprueba cable, hub, alimentación y autorización USB') from exc
+        raise ADBError('Timeout ADB: comprueba cable, hub, alimentaci\xf3n y autorizaci\xf3n USB') from exc
     except subprocess.CalledProcessError as exc:
         detail = (exc.stderr or exc.stdout or '').strip()[:500]
-        raise ADBError(f'Falló ADB/Android: {detail}. Comprueba adb devices -l y autorización USB') from exc
+        raise ADBError(f'Fall\xf3 ADB/Android: {detail}. Comprueba adb devices -l y autorizaci\xf3n USB') from exc
     except OSError as exc:
         raise ADBError(f'No se pudo ejecutar adb.exe: {exc}') from exc
 
 
 def validar_proxy(host, port):
     if not re.fullmatch(r'[a-zA-Z0-9.-]+', host) or not 1 <= int(port) <= 65535:
-        raise ValueError('Proxy requiere hostname/IPv4 y puerto válido, sin credenciales')
+        raise ValueError('Proxy requiere hostname/IPv4 y puerto v\xe1lido, sin credenciales')
     return f'{host}:{int(port)}'
 
 
@@ -367,13 +529,13 @@ def configurar_proxy_dispositivo(device_id, ip_proxy, puerto_proxy):
     value = validar_proxy(ip_proxy, puerto_proxy)
     adb('-s', device_id, 'shell', 'settings', 'put', 'global', 'http_proxy', value)
     if adb('-s', device_id, 'shell', 'settings', 'get', 'global', 'http_proxy') != value:
-        raise ADBError('Android no confirmó el proxy')
+        raise ADBError('Android no confirm\xf3 el proxy')
 
 
 def limpiar_proxy_dispositivo(device_id):
     adb('-s', device_id, 'shell', 'settings', 'put', 'global', 'http_proxy', ':0')
     if adb('-s', device_id, 'shell', 'settings', 'get', 'global', 'http_proxy') != ':0':
-        raise ADBError('Android no confirmó limpieza de proxy')
+        raise ADBError('Android no confirm\xf3 limpieza de proxy')
 
 
 def leer_proxy_pool(path):
@@ -384,7 +546,7 @@ def leer_proxy_pool(path):
         raise ValueError('proxy_pool.json requiere un objeto con lista proxies')
     mode=data.get('mode','production')
     if mode not in ('production','laboratory'):
-        raise ValueError('Modo de red inválido')
+        raise ValueError('Modo de red inv\xe1lido')
     laboratory=mode=='laboratory'
     try:
         lab_host=str(ipaddress.IPv4Address(data['lab_host'])) if laboratory else None
@@ -402,7 +564,7 @@ def leer_proxy_pool(path):
         try:
             port=int(item['port'])
         except (TypeError,ValueError) as exc:
-            raise ValueError('Puerto de proxy inválido') from exc
+            raise ValueError('Puerto de proxy inv\xe1lido') from exc
         endpoint=validar_proxy(host,port)
         exit_ip=str(ipaddress.ip_address(item['exit_ip'])) if item.get('exit_ip') else None
         result.append({'endpoint':endpoint,'host':host,'port':port,'exit_ip':exit_ip,
@@ -415,7 +577,7 @@ def leer_proxy_pool(path):
 
 
 class ProxyAllocator:
-    """Reservas duraderas, sin expiración automática tras un crash o pérdida de USB."""
+    """Reservas duraderas, sin expiraci\xf3n autom\xe1tica tras un crash o p\xe9rdida de USB."""
     def __init__(self,database):
         self.database=database
 
@@ -424,7 +586,7 @@ class ProxyAllocator:
             con.execute('BEGIN IMMEDIATE')
             modes={bool(item.get('lab_shared_exit',False)) for item in entries}
             if len(modes)>1:
-                raise ValueError('No se pueden mezclar laboratorio y producción en el mismo pool')
+                raise ValueError('No se pueden mezclar laboratorio y producci\xf3n en el mismo pool')
             if modes and con.execute('''SELECT 1 FROM proxy_reservas r JOIN proxy_pool p ON r.endpoint=p.endpoint
                 WHERE p.lab_shared_exit!=? LIMIT 1''',(int(next(iter(modes))),)).fetchone():
                 raise ValueError('Cerrar y limpiar las reservas antes de cambiar el modo de red')
@@ -490,12 +652,12 @@ class ProxyAllocator:
             if row['exit_ip'] and row['exit_ip']!=ip:
                 raise ValueError('La IP de salida no coincide con proxy_pool.json')
             if row['lab_shared_exit']:
-                return  # Se comprobó la salida real; la exclusividad local corresponde al endpoint.
+                return  # Se comprob\xf3 la salida real; la exclusividad local corresponde al endpoint.
             try:
                 con.execute('UPDATE proxy_reservas SET identidad=? WHERE id_adb=? AND run_id=?',
                             (ip,device_id,run_id))
             except sqlite3.IntegrityError as exc:
-                raise ValueError('Colisión: la IP de salida ya está reservada por otra placa') from exc
+                raise ValueError('Colisi\xf3n: la IP de salida ya est\xe1 reservada por otra placa') from exc
 
     def finalizar(self,device_id,run_id,*,cleanup_ok):
         with self.database.conexion() as con:

@@ -5,6 +5,7 @@ from contextlib import AsyncExitStack
 import csv
 import logging
 import math
+import os
 from pathlib import Path
 import re
 import signal
@@ -14,6 +15,7 @@ import unicodedata
 from uuid import uuid4
 
 from openai import AsyncOpenAI
+from config.proxies import ProxyManager
 from core.browser import ROOT
 from core.database import Database
 from core.mass_orchestrator import bloquear_granja
@@ -43,12 +45,14 @@ def cargar_placas_activas_desde_csv(path=CSV_INVENTARIO_PATH):
             row={str(key).strip().casefold():(value or '').strip() for key,value in raw.items() if key is not None}
             number=row.get('numero_panda','')
             serial=row.get('serial_fisico') or row.get('serial','')
-            if number.isdigit() and int(number)==1 or not serial:
+            if not number and not serial:
                 continue
             if row.get('estado') and row['estado']!='vinculado':
                 continue
             if not number.isdigit() or not 1<int(number)<=999999:
                 raise ValueError('Numero Panda invalido')
+            if not serial:
+                raise ValueError('Serial ausente en placa '+number)
             number=str(int(number)).zfill(2)
             transport=row.get('transporte','')
             if not re.fullmatch(r'[A-Za-z0-9_.-]{3,100}',serial) or not re.fullmatch(r'[A-Za-z0-9_.:\[\]-]{3,100}',transport):
@@ -96,6 +100,10 @@ async def main_async(args):
     if len(placas)!=args.expected_count:
         raise ValueError('Cantidad CSV distinta de la esperada')
     log.info('Inventario cargado Placas %s',len(placas))
+    run_id='panda-masivo-'+uuid4().hex
+    if args.preflight_proxy:
+        await asyncio.to_thread(load_project_environment)
+        await ProxyManager.verificar_preflight(run_id=run_id)
     # Revalidacion fisica de lectura antes de admitir el lote.
     _,live,_=await obtener_inventario(Database())
     verified={row['numero_panda']:row['serial_fisico'] for row in live if row['estado']=='vinculado'}
@@ -103,30 +111,36 @@ async def main_async(args):
     log.info('Vinculos fisicos actuales %s Excluidas %s',len(eligible),len(placas)-len(eligible))
     if not eligible:
         raise ValueError('Ninguna placa coincide con inventario vivo')
-    run_id='panda-masivo-'+uuid4().hex
     client=PandaClient(args.panda_url,screenshots=ROOT/'screenshots'/run_id,
         expected_identities={p['panda_id']:p['serial'] for p in eligible})
     devices=[p['panda_id'] for p in eligible]
     failures=await client.preparar(devices)
     devices=[d for d in devices if d not in failures]
     log.info('Preflight Placas admitidas %s',len(devices))
+    if failures:
+        log.warning('Preflight excluidas %s',sorted(failures))
+    if len(devices)!=args.expected_count:
+        raise ValueError(
+            'Placas admitidas '+str(len(devices))+
+            ' distintas de las esperadas '+str(args.expected_count)+
+            ' Fallidas '+str(len(failures))
+        )
     if not args.execute_read_only:
         return 0 if len(devices)==len(placas) else 2
     if not args.ready:
         raise ValueError('Confirma admision manual con ready antes de ejecutar')
     if not devices:
         raise ValueError('No hay placas disponibles')
-    stop=threading.Event();loop=asyncio.get_running_loop();task=asyncio.current_task()
+    stop=threading.Event()
     def cancel(*unused):
+        log.info('SIGINT recibido Cancelacion cooperativa en curso')
         stop.set()
-        if not task.cancelling():loop.call_soon_threadsafe(task.cancel)
     old=signal.signal(signal.SIGINT,cancel)
     try:
         with bloquear_granja(ROOT/'sessions/farm.lock'):
             async with AsyncExitStack() as stack:
                 options={'modelo':args.vision_model,'before_request':gate.wait}
                 if args.allow_vision_upload:
-                    import os
                     await asyncio.to_thread(load_project_environment)
                     if not os.getenv('OPENAI_API_KEY'):
                         raise ValueError('Clave OpenAI ausente')
@@ -157,7 +171,10 @@ def main():
     parser.add_argument('--concurrency',type=int,default=5)
     parser.add_argument('--rpm',type=float,default=30)
     parser.add_argument('--vision-model',choices=['gpt-4o-mini','gpt-4o'],default='gpt-4o-mini')
-    parser.add_argument('--execute-read-only',action='store_true')
+    parser.add_argument('--execute-read-only',action='store_true',
+        help='Ejecuta swipes esperas y Vision sin publicar comentar ni seguir')
+    parser.add_argument('--preflight-proxy',action='store_true',
+        help='Ejecuta preflight Patchright aislado antes de consultar Panda y exige PANDA_PROXY_*')
     parser.add_argument('--ready',action='store_true')
     parser.add_argument('--allow-vision-upload',action='store_true')
     handler=logging.StreamHandler()
@@ -169,7 +186,13 @@ def main():
         log.info('Proceso cancelado Recursos liberados')
         return 130
     except Exception as exc:
-        log.error('Proceso detenido Tipo %s',type(exc).__name__)
+        message=str(exc)
+        if isinstance(exc,ValueError) and (message in ('Proxy no configurado','Proxy invalido') or
+                re.fullmatch(r'Serial ausente en placa [0-9]{1,6}',message) or
+                re.fullmatch(r'Placas admitidas [0-9]+ distintas de las esperadas [0-9]+ Fallidas [0-9]+',message)):
+            log.error('%s',message)
+        else:
+            log.error('Proceso detenido Tipo %s',type(exc).__name__)
         return 1
 
 
