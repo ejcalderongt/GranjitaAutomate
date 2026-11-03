@@ -16,13 +16,14 @@ class PandaError(RuntimeError):
 
 
 class PandaClient:
-    def __init__(self, url='ws://127.0.0.1:22222/', *, screenshots='./screenshots', request=None):
+    def __init__(self, url='ws://127.0.0.1:22222/', *, screenshots='./screenshots', request=None,expected_identities=None):
         parsed=urlsplit(url)
         if parsed.scheme!='ws' or parsed.hostname not in ('127.0.0.1','localhost','::1') or parsed.username or parsed.password:
             raise ValueError('Panda requiere WebSocket local sin credenciales en URL')
         self.url=url
         self.screenshots=Path(screenshots).resolve()
         self.bindings={}
+        self.expected_identities=dict(expected_identities or {})
         self._injected=request
         self._limit=asyncio.Semaphore(4)
 
@@ -103,6 +104,8 @@ class PandaClient:
         for device_id in device_ids:
             try:
                 row=self._resolve(rows,device_id)
+                if self.expected_identities and self.expected_identities.get(device_id)!=row['onlySerial']:
+                    raise PandaError('inventario_identidad_cambio')
                 self.bindings[device_id]=row['onlySerial']
             except (PandaError,ValueError) as exc:
                 failures[device_id]=type(exc).__name__

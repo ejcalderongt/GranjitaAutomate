@@ -190,3 +190,11 @@ capturas, gestos ni OpenAI. Respaldo previo SQLite y conservación de 10.831
 registros históricos, 38 identidades históricas y cero interacciones comprobados.
 La ficha 01 no aparece en vivo; no se inventó su identidad. Suite: 332 pruebas
 aprobadas. Ver [inventario](../framework/docs/PANDA_INVENTORY.md).
+
+## 2026-11-02 — QA masivo desde inventario privado
+
+Se incorpora main_panda_masivo.py con lectura del CSV real, exclusion de 01 y
+seriales vacios, revalidacion fisica, Vision con concurrencia maxima de cinco
+y limite configurable de inicios por minuto. SQLite privada conserva serial y
+alias con vista logs_panda_farm. Preflight real: 34 placas admitidas sin acciones
+fisicas ni Vision. Suite: 338 pruebas aprobadas. Ver framework/docs/PANDA_MASIVO.md.

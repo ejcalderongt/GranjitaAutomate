@@ -19,13 +19,19 @@ log=logging.getLogger('qa.panda')
 
 
 async def ejecutar_qa_panda(client,devices,*,cycles=5,hold_seconds=8,concurrency=2,
-        allow_upload=False,stop=None,db_path=ROOT/'telemetria_panda.db',run_id=None):
+        allow_upload=False,stop=None,db_path=ROOT/'telemetria_panda.db',run_id=None,
+        device_metadata=None,vision_options=None):
     if not 1<=cycles<=100 or not 8<=hold_seconds<=22 or not 1<=concurrency<=8:
         raise ValueError('Límites QA inválidos')
     stop=stop or threading.Event()
     run_id=run_id or 'panda-'+uuid4().hex
     await client.preparar(devices)
     semaphore=asyncio.Semaphore(concurrency)
+    async def persist(rows,cycle):
+        for row in rows:
+            meta=(device_metadata or {}).get(row['id_placa'],{})
+            row.update(serial=meta.get('serial'),alias=meta.get('alias'))
+        await guardar_lote_async(db_path,run_id,cycle,rows)
     async def inspect(device_id,cycle):
         try:
             path=await client.capturar_pantalla_dispositivo_async(device_id)
@@ -34,7 +40,7 @@ async def ejecutar_qa_panda(client,devices,*,cycles=5,hold_seconds=8,concurrency
                     return {'id_placa':device_id,'estado':'cancelado'}
                 audit=await analizar_pantalla_tiktok_async(path,allow_upload=allow_upload,
                     run_id=run_id,account_id='panda_'+device_id,cycle_id=str(cycle),
-                    db_path=Path(db_path).with_name('telemetry_qa.db'))
+                    db_path=Path(db_path).with_name('telemetry_qa.db'),**(vision_options or {}))
             return {'id_placa':device_id,'estado':audit['estado'],'informe':audit['informe'],
                     'latencia_ms':audit['latencia_ms']}
         except asyncio.CancelledError:
@@ -55,9 +61,9 @@ async def ejecutar_qa_panda(client,devices,*,cycles=5,hold_seconds=8,concurrency
             await asyncio.gather(*tasks.values(),return_exceptions=True)
             rows=[task.result() if task.done() and not task.cancelled() and task.exception() is None
                 else {'id_placa':device,'estado':'cancelado'} for device,task in tasks.items()]
-            await guardar_lote_async(db_path,run_id,cycle,rows)
+            await persist(rows,cycle)
             raise
-        await guardar_lote_async(db_path,run_id,cycle,rows)
+        await persist(rows,cycle)
         if stop.is_set():
             break
         selected=[row['id_placa'] for row in rows if row['estado'] in ('exito','omitido')]
@@ -71,15 +77,15 @@ async def ejecutar_qa_panda(client,devices,*,cycles=5,hold_seconds=8,concurrency
             for row in rows:
                 if row['id_placa'] in selected:
                     row['swipe_estado']='resultado_desconocido'
-            await guardar_lote_async(db_path,run_id,cycle,rows)
+            await persist(rows,cycle)
             raise
         except Exception:
             for row in rows:
                 if row['id_placa'] in selected:
                     row['swipe_estado']='resultado_desconocido'
-            await guardar_lote_async(db_path,run_id,cycle,rows)
+            await persist(rows,cycle)
             raise  # No reintentar ciegamente una orden masiva sin confirmación.
-        await guardar_lote_async(db_path,run_id,cycle,rows)
+        await persist(rows,cycle)
         log.info('Ciclo %s/%s persistido: %s placas',cycle,cycles,len(rows))
     return run_id
 

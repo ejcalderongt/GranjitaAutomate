@@ -152,3 +152,11 @@ Se guardaron 34 vínculos Panda/ADB/AGX en SQLite del framework tras verificar
 seriales físicos, con backup consistente previo. No se renombraron dispositivos
 ni se modificaron cuentas. Inventario privado en runs/; script reproducible
 `framework/scripts/sincronizar_inventario_panda.py --apply`. Suite: 332 tests.
+
+### QA masivo desde CSV — 2026-11-02
+
+El comando framework/main_panda_masivo.py usa el inventario privado, no una
+lista fija. Maximo cinco llamadas Vision concurrentes y gate RPM por lote;
+esto no garantiza TPM. Preflight real 34 de 34, 338 tests aprobados. El lote
+fisico sigue requiriendo execute-read-only y ready; el envio de capturas a
+OpenAI requiere ademas allow-vision-upload. Sin endpoints Panda simulados.

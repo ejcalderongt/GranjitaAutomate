@@ -109,3 +109,9 @@
 - [x] Confirmar 34 identidades físicas y vincular sus números Panda e histórico AGX.
 - [x] Preservar datos y generar respaldo previo e inventario CSV privado.
 - [ ] Recuperar conexión de la ficha visual 01 y verificar identidad antes de vincular.
+
+## QA masivo CSV — 2026-11-02
+
+- [x] Cargar y revalidar las 34 placas desde CSV con concurrencia y gate RPM.
+- [x] Ampliar SQLite privada con serial y alias, preservando filas anteriores.
+- [ ] Validar un lote fisico autorizado con las placas listas y revisar cada resultado.
