@@ -1,5 +1,32 @@
 # Proxy-Cheap residencial rotativo SOCKS5
 
+## Corrección de región verificada — 2026-11-02
+
+El generador tenía región del hostname Europa pero país Aleatorio. La región
+del hostname no acreditaba el país de la IP de salida; el preflight observó NA.
+Se seleccionaron SOCKS5 y país España en el generador del proveedor. La cadena
+de autenticación generada incluye el parámetro de país `_country-ES` en la
+contraseña de conexión. Copiar siempre los datos exactos del generador al `.env`
+privado, incluidos los alias PROXY_PASS/PROXY_PASSWORD si ambos están presentes.
+No alterar la contraseña de la cuenta ni regenerar las credenciales base.
+
+Validación real posterior, sin abrir TikTok ni consumir OpenAI: HTTPS 200,
+país ES, continente EU, region_verified=true, status=passed y cierre confirmado.
+El filtro EU permanece activo. Se conservó IP Aleatoria: una comprobación de IP
+no garantiza una salida idéntica ni disponibilidad de geolocalización futura.
+No fue necesario modificar el código. La configuración privada no se versiona.
+
+La prueba puede repetirse con:
+
+```powershell
+.\.venv\Scripts\python.exe tiktok_warmer/test_connection.py --headless
+```
+
+El resultado privado se guarda en `runs/proxy-preflight-*/resultado.json`.
+Para retomar la POC, abrir AGX Auditoría y pulsar Iniciar POC: el worker vuelve
+a leer el `.env` al comenzar. La conexión del proveedor puede variar; no omitir
+la validación de red si una prueba posterior vuelve a fallar.
+
 La modalidad del panel es Rotating Residential / Random IP, no un módem móvil
 con API de rotación. Las credenciales privadas están en tiktok_warmer/.env;
 no se incorporan al código, al ejemplo de configuración ni a SQLite.

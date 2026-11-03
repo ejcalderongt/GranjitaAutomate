@@ -167,3 +167,10 @@ Se creó docs/contexto-inicial.md con versión/arquitectura, fuentes de datos, h
 Se incorpora en `framework/` el código desarrollado en la carpeta local Framwork,
 sin modificar la aplicación histórica ni datos privados. Suite de referencia:
 319 pruebas aprobadas. Ver [detalle y límites](framework-qa-2026-11-02.md).
+
+## 2026-11-02 — región europea del proxy verificada
+
+Se corrigió país Aleatorio por España en el generador SOCKS5 y se aplicó
+la conexión generada al entorno privado. Preflight real: HTTPS 200, ES/EU,
+status passed y cierre confirmado; sin TikTok ni OpenAI. El filtro EU sigue
+activo. Detalle: [configuración residencial](../framework/docs/PROXY_CHEAP_RESIDENTIAL.md).

@@ -130,3 +130,10 @@ Se incorpora el desarrollo nuevo en `framework/`, conservando la app histórica.
 319 pruebas QA aprobadas; UI por tarjetas revisada con datos de ejemplo.
 Estado, exclusiones de datos y arranque: [respaldo del framework](framework-qa-2026-11-02.md).
 Las cifras históricas anteriores no se revalidaron en esta entrega.
+
+### Red QA — comprobación real del 2026-11-02
+
+La conexión residencial SOCKS5 del framework pasó HTTPS y GeoIP ES/EU tras
+seleccionar España en el generador, manteniendo el filtro europeo. No se
+validó feed ni IA en esta prueba. Credenciales privadas fuera de Git;
+ver `framework/docs/PROXY_CHEAP_RESIDENTIAL.md`.
