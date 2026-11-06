@@ -20,3 +20,8 @@ No versionar .env, proxies reales, cookies, sesiones, bases SQLite, capturas,
 logs, binarios descargados ni configuraciones locales. Respaldar datos privados
 por separado. No afirmar VPN operativa, interacciones logradas o sincronizacion
 remota sin evidencia actual. Las ejecuciones reales requieren autorizacion.
+
+## Marco de aceptacion y autonomia
+
+Aplicar docs/ACCEPTANCE_AND_AUTONOMY.md y docs/PLAN_ETAPAS.md como marco vigente.
+Consultar docs/LAB_UI.md para el contrato del entregable con UI.
