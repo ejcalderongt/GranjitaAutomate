@@ -38,3 +38,4 @@ All other protected database files always retain their whole-file hashes.
 Evidence contains row-key hashes, declared/observed writes and before/after file hashes.
 Pending: prepare required native schemas explicitly before the first physical baseline.
 Pending: real CSV preflight and controlled physical execution require a later prompt.
+Plan de etapas vigente: docs/PLAN_ETAPAS.md.
