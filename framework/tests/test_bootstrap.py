@@ -138,7 +138,14 @@ class BootstrapTests(unittest.TestCase):
 
 
 class RecoverableAPITests(unittest.TestCase):
+    @patch('__main__.__file__', str(Path(__file__).resolve()), create=True)
     def test_terminating_spawned_worker_does_not_block_shared_stop_flag(self):
+        import os
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        database_env = patch.dict(os.environ, {'TIKTOK_DB_PATH': str(Path(folder.name)/'spawn.db')})
+        database_env.start()
+        self.addCleanup(database_env.stop)
         import multiprocessing as mp
         from core.runtime_health import ParadaRecuperable
         context=mp.get_context('spawn')

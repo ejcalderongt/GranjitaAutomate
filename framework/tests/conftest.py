@@ -2,6 +2,7 @@
 from pathlib import Path
 
 import pytest
+from tests._base_guard import install; install()
 
 
 PROJECT_LOGS = Path(__file__).resolve().parents[1] / 'logs'
@@ -29,3 +30,10 @@ def _isolate_default_decision_telemetry(tmp_path, monkeypatch):
     # The constructor reads its defining module's ROOT at call time. This also
     # covers classes imported by other modules without changing explicit roots.
     monkeypatch.setattr(decision_telemetry, 'ROOT', tmp_path)
+
+
+@pytest.fixture(scope='session', autouse=True)
+def _protect_real_databases_during_diagnostic():
+    from tests._base_guard import protect_real_bases
+    with protect_real_bases():
+        yield

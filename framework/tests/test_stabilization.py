@@ -41,7 +41,11 @@ class ProxyReservationTests(unittest.TestCase):
         self.assertEqual(len(assigned),3)
         self.assertEqual(len(set(assigned)),3)
 
+    @patch('__main__.__file__', str(Path(__file__).resolve()), create=True)
     def test_reservation_exclusion_between_processes(self):
+        database_env = patch.dict(os.environ, {'TIKTOK_DB_PATH': str(self.db.path)})
+        database_env.start()
+        self.addCleanup(database_env.stop)
         self.allocator.sincronizar(entries(1))
         ctx=mp.get_context('spawn')
         queue=ctx.Queue()

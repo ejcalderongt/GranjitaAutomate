@@ -79,7 +79,11 @@ class DatabaseTests(unittest.TestCase):
         self.assertEqual(len(set(ids)),40)
         self.assertEqual(self.db.interacciones()[1],40)
 
+    @patch('__main__.__file__', str(Path(__file__).resolve()), create=True)
     def test_process_concurrency(self):
+        database_env = patch.dict(os.environ, {'TIKTOK_DB_PATH': str(self.db.path)})
+        database_env.start()
+        self.addCleanup(database_env.stop)
         ctx=mp.get_context('spawn')
         processes=[ctx.Process(target=guardar_lote,args=(str(self.db.path),i)) for i in range(4)]
         for process in processes:

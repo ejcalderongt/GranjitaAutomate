@@ -201,23 +201,46 @@ async def evaluate_c5_real(devices, policy, ctx, db):
             AND r.decision IN ('proceed','proceed_with_warnings','abort')
             AND EXISTS (SELECT 1 FROM farm_preflight_verdicts v WHERE v.run_id=r.run_id AND v."constraint"='C5')''',
             (policy.stage, policy.stage)).fetchall()
-        if any(any(type(value) is not int or value < 0 for value in row) for row in rows):
+        if any(any(value is not None and (type(value) is not int or value < 0) for value in row) for row in rows):
             raise ValueError()
-        totals = [sum(row[index] for row in rows) for index in range(3)]
+        complete = [row for row in rows if all(value is not None for value in row)]
+        # Missing observations cannot earn PASS or hide an observed incident.
+        totals = [sum(row[index] for row in rows if row[index] is not None) for index in range(3)]
         exceeded = any(total > maximum for total, maximum in zip(totals,
                       (policy.max_captchas, policy.max_softblocks, policy.max_logouts)))
-        status = 'FAIL' if exceeded else 'WARN' if len(rows) < policy.min_metric_samples else 'PASS'
+        status = 'FAIL' if exceeded else 'WARN' if len(complete) < policy.min_metric_samples else 'PASS'
         return real_verdict('C5', status, 'recoger metricas reales suficientes de la etapa',
-            samples=len(rows), captcha_count=totals[0], softblock_count=totals[1], logout_count=totals[2])
+            samples=len(complete), captcha_count=totals[0], softblock_count=totals[1], logout_count=totals[2])
     except Exception:
         return real_verdict('C5', 'WARN', 'verificar historial de metricas de la etapa', missing=1)
 
 
-async def build_real_context(policy, proxy_manager, run_id, proxy_verified):
+async def build_real_context(policy, proxy_manager, run_id, proxy_verified, selected_plates=None):
     """Read existing ADB servers only. No reconnect, database, launch or gesture."""
     from core.adb_pool import descubrir_pool
     from config.proxies import adb
     selected = {}
+    excluded = set()
+    requested = None
+    if selected_plates is not None:
+        if not isinstance(selected_plates, list) or len(selected_plates) != policy.stage:
+            raise ValueError('Seleccion de placas invalida')
+        requested = {}
+        ids, refs, map_plates = set(), set(), set()
+        for item in selected_plates:
+            if (not isinstance(item, dict) or not isinstance(item.get('serial'), str)
+                    or not re.fullmatch('[0-9a-f]{16}', item.get('device_ref', ''))
+                    or not re.fullmatch('p[0-9]{2}', item.get('map_plate', ''))
+                    or not isinstance(item.get('server'), str) or not item['server']
+                    or not isinstance(item.get('panda_id'), str)):
+                raise ValueError('Seleccion de placas invalida')
+            if (item['serial'] in requested or item['panda_id'] in ids
+                    or item['device_ref'] in refs or item['map_plate'] in map_plates):
+                raise ValueError('Seleccion de placas duplicada')
+            requested[item['serial']] = item
+            ids.add(item['panda_id']); refs.add(item['device_ref']); map_plates.add(item['map_plate'])
+        if map_plates != {'p' + str(index).zfill(2) for index in range(1, policy.stage + 1)}:
+            raise ValueError('Seleccion de placas incompleta')
 
     def read(route, *args):
         return adb('-H', route.server.host, '-P', str(route.server.port), '-s', route.serial,
@@ -236,38 +259,70 @@ async def build_real_context(policy, proxy_manager, run_id, proxy_verified):
             try:
                 props = await asyncio.wait_for(asyncio.to_thread(properties, route), timeout=DEVICE_PROBE_TIMEOUT_SECONDS)
                 physical = props.get('ro.serialno') or props.get('ro.boot.serialno')
+                if requested is not None:
+                    item = requested.get(physical)
+                    if item is None:
+                        continue
+                    if route.server.key != item['server']:
+                        continue
+                    if physical in physicals:
+                        raise ValueError('Identidad fisica de seleccion invalida')
+                    physicals.add(physical)
+                    selected[item['panda_id']] = (route, props)
+                    continue
                 if not physical or physical in physicals:
                     continue
                 physicals.add(physical)
                 selected['p'+str(len(selected)+1).zfill(2)] = (route, props)
                 if len(selected) == policy.stage:
                     break
+            except ValueError:
+                if requested is not None:
+                    raise
             except Exception:
                 continue
     except Exception:
+        if requested is not None:
+            raise ValueError('Identidad fisica de seleccion invalida') from None
         pass
+    if requested is not None and set(selected) != {row['panda_id'] for row in requested.values()}:
+        raise ValueError('Seleccion de placas incompleta')
+    if requested is not None:
+        selected = {item['panda_id']: selected[item['panda_id']] for item in selected_plates}
 
     async def integrity(device):
         route, props = selected[device]
         uid, packages = await asyncio.gather(asyncio.to_thread(read, route, 'id', '-u'),
                                            asyncio.to_thread(read, route, 'pm', 'list', 'packages'))
         qemu = props.get('ro.kernel.qemu')
-        return {'root_detected': uid.strip() == '0' if uid.strip().isdigit() else None,
+        result = {'root_detected': uid.strip() == '0' if uid.strip().isdigit() else None,
                 'emulator_detected': qemu == '1' if qemu in ('0', '1') else None,
                 'automation_detected': any(name in packages.splitlines() for name in
                     ('package:io.appium.uiautomator2.server', 'package:io.appium.uiautomator2.server.test'))
                     if packages.startswith('package:') else None,
                 'play_integrity': None}
+        if requested is not None and any(result.get(key) is True for key in
+                                         ('root_detected', 'emulator_detected', 'automation_detected')):
+            excluded.add(device)
+        return result
 
     async def identity(device):
         _, props = selected[device]
-        return {'sim_country': props.get('gsm.sim.operator.iso-country', ''),
+        result = {'sim_country': props.get('gsm.sim.operator.iso-country', ''),
                 'locale': props.get('persist.sys.locale') or props.get('ro.product.locale', ''),
                 'timezone': props.get('persist.sys.timezone', '')}
+        if requested is not None:
+            locale = re.search(r'[_-]([A-Za-z]{2})$', result['locale'])
+            country = timezone_country(result['timezone'])
+            if (not locale or not country or policy.country and
+                    (locale[1].upper() != policy.country or country != policy.country)):
+                excluded.add(device)
+        return result
 
     return {'synthetic': False, 'real_connectors_ready': True, 'devices': list(selected), 'run_id': run_id,
             'integrity_probe': integrity, 'identity_probe': identity,
             'proxy_manager': proxy_manager, 'proxy_preflight_verified': proxy_verified,
+            'excluded_devices': excluded,
             'c3': {key: {'hold_seconds': policy.hold_min} for key in selected}}
 
 
@@ -437,6 +492,19 @@ def migrate(db):
 
 def now():
     return datetime.now(timezone.utc).isoformat()
+
+
+def record_native_metrics(db, run_id, stage, completed=True):
+    """Persist one uninspected native-run sample; missing incidents remain NULL."""
+    if not completed:
+        return False
+    if not re.fullmatch(r'[A-Za-z0-9_-]{1,80}', run_id) or type(stage) is not int:
+        raise ValueError('Metricas de corrida invalidas')
+    with db:
+        db.execute('''INSERT INTO farm_stage_metrics
+            (run_id,stage,captcha_count,softblock_count,logout_count,recorded_at)
+            VALUES (?,?,NULL,NULL,NULL,?)''', (run_id, stage, now()))
+    return True
 
 
 async def run_farm_preflight(devices, policy, ctx, db):

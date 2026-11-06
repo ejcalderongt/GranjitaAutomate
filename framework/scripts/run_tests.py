@@ -19,6 +19,8 @@ def guard_logs(folder,before):
 def run_isolated_unittest(options,root=None):
     """Process-local unittest fixture; production journals keep their ROOT."""
     import unittest
+    from tests._base_guard import install
+    install(label='unittest')
     from core import decision_telemetry
     root=Path(root or Path(__file__).resolve().parents[1])
     (root/'runs').mkdir(parents=True,exist_ok=True)
@@ -45,6 +47,8 @@ def main():
         options=sys.argv[1:] or ['-q']
         if str(root) not in sys.path:
             sys.path.insert(0,str(root))
+        from tests._base_guard import configure_bootstrap
+        configure_bootstrap(environment)
         from core.source_state import huella_codigo
         before=huella_codigo(root)
         logs_before=log_files(root/'logs')
