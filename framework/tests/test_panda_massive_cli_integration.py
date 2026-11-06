@@ -28,10 +28,12 @@ def combined_rig(root):
         'device_serial_plain':serial,'device_ref':hashlib.sha256(serial.encode('ascii')).hexdigest()[:16]}
         for index,serial in enumerate(serials)]}
     inventory=root/'inventory.csv'
+    with (Path(__file__).parent/'fixtures/csv/lab_stage3.csv').open(encoding='ascii',newline='') as stream:
+        transports=[row['transporte'] for row in csv.DictReader(stream)]
     with inventory.open('w',encoding='utf-8-sig',newline='') as stream:
         writer=csv.writer(stream)
         writer.writerow(['numero_panda','device_ref','transporte','estado'])
-        writer.writerows([[str(index+2),row['device_ref'],'mapped','vinculado']
+        writer.writerows([[str(index+2),row['device_ref'],transports[index],'vinculado']
                           for index,row in enumerate(mapping['plates'])])
     args=SimpleNamespace(preflight_farm=True,preflight_proxy=True,execute_read_only=True,
         inventory=inventory,inventory_explicit=True,expected_count=3,cycles=1,concurrency=1,
@@ -183,26 +185,24 @@ class PandaMassiveCLIIntegrationTests(unittest.IsolatedAsyncioTestCase):
             rig.build_real_context.assert_not_awaited()
         with combined_rig(self.root/'routes') as rig:
             selected=m.canonical_selection(rig.args)
-            routes=[];properties={}
-            for port,rows in ((5038,selected[:1]),(5037,list(reversed(selected)))):
-                for row in rows:
-                    route=DeviceRoute(uuid4().hex,ADBServer('localhost',port),'device')
-                    routes.append(route)
-                    properties[route.serial]='\n'.join('[%s]: [%s]' % pair for pair in (
-                        ('ro.serialno',row['serial']),('persist.sys.locale','es-ES'),
-                        ('persist.sys.timezone','Europe/Madrid')))
-            snapshot=PoolSnapshot({route.serial:route for route in routes},{},[route.server for route in routes])
+            properties={row['transporte']:'\n'.join('[%s]: [%s]' % pair for pair in (
+                ('ro.serialno',row['serial']),('persist.sys.locale','es-ES'),
+                ('persist.sys.timezone','Europe/Madrid'))) for row in selected}
             def read(*parts,**kwargs):
+                self.assertEqual(parts[:4],('-H','localhost','-P','5037'))
                 return properties[parts[parts.index('-s')+1]]
-            with patch('core.adb_pool.descubrir_pool',return_value=snapshot), \
-                    patch('config.proxies.adb',side_effect=read):
+            with patch('core.adb_pool.descubrir_pool') as discover, \
+                    patch('config.proxies.adb',side_effect=read) as adb:
                 ctx=await farm_module.build_real_context(FarmPolicy(country='ES'),None,'fixture',False,
                                                          selected_plates=selected)
                 self.assertEqual(ctx['devices'],['02','03','04'])
-                snapshot.devices.pop(routes[-1].serial)
-                with self.assertRaisesRegex(ValueError,'^Seleccion de placas incompleta$'):
-                    await farm_module.build_real_context(FarmPolicy(country='ES'),None,'fixture',False,
-                                                         selected_plates=selected)
+                self.assertEqual([call.args[5] for call in adb.call_args_list],
+                                 [row['transporte'] for row in selected])
+                properties.pop(selected[-1]['transporte'])
+                rig.build_real_context.side_effect=farm_module.build_real_context
+                self.assertEqual(await m.main_async(rig.args),m.EXIT_CONFIG_ERROR)
+                rig.ejecutar_qa_panda.assert_not_awaited()
+                discover.assert_not_called()
 
     async def test_cli_cancellation_130_preserves_resources(self):
         for index,exception in enumerate((None,asyncio.CancelledError())):

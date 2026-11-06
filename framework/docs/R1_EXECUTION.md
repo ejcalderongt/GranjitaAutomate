@@ -59,3 +59,14 @@ Evidencia local: `runs/e2_csv_selection_20261106T174934205351Z.json`.
 `load_latest_map` ignora nombres sin timestamp valido. Los dos informes de pruebas
 se conservaron byte a byte con prefijo `report_device_map_` fuera de Git.
 El mapa inicial DPAPI se comprobo contra las referencias del CSV.
+
+### Correccion de la ruta de preflight aislado
+
+El preflight aislado con inventario explicito y `--expected-count 3` valida el CSV
+y el mapa DPAPI antes del preflight de proxy. Usa solo las rutas del CSV en los
+servidores del mapa y verifica cada identidad fisica. Una ruta ausente o una
+identidad distinta provoca un error de configuracion sin sustitucion de placas.
+Sin inventario explicito, conserva la seleccion previa.
+
+Pruebas: `tests/test_panda_massive_preflight_farm_cli.py` y
+`test_cli_no_automatic_plate_substitution` en `tests/test_panda_massive_cli_integration.py`.

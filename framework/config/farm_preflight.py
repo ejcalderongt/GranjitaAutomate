@@ -217,7 +217,7 @@ async def evaluate_c5_real(devices, policy, ctx, db):
 
 async def build_real_context(policy, proxy_manager, run_id, proxy_verified, selected_plates=None):
     """Read existing ADB servers only. No reconnect, database, launch or gesture."""
-    from core.adb_pool import descubrir_pool
+    from core.adb_pool import ADBServer, DeviceRoute, descubrir_pool
     from config.proxies import adb
     selected = {}
     excluded = set()
@@ -227,17 +227,22 @@ async def build_real_context(policy, proxy_manager, run_id, proxy_verified, sele
             raise ValueError('Seleccion de placas invalida')
         requested = {}
         ids, refs, map_plates = set(), set(), set()
+        routes = set()
         for item in selected_plates:
             if (not isinstance(item, dict) or not isinstance(item.get('serial'), str)
                     or not re.fullmatch('[0-9a-f]{16}', item.get('device_ref', ''))
                     or not re.fullmatch('p[0-9]{2}', item.get('map_plate', ''))
                     or not isinstance(item.get('server'), str) or not item['server']
+                    or not isinstance(item.get('transporte'), str)
+                    or not re.fullmatch(r'[A-Za-z0-9_.:\[\]-]{3,100}', item['transporte'])
                     or not isinstance(item.get('panda_id'), str)):
                 raise ValueError('Seleccion de placas invalida')
             if (item['serial'] in requested or item['panda_id'] in ids
-                    or item['device_ref'] in refs or item['map_plate'] in map_plates):
+                    or item['device_ref'] in refs or item['map_plate'] in map_plates
+                    or (item['server'], item['transporte']) in routes):
                 raise ValueError('Seleccion de placas duplicada')
             requested[item['serial']] = item
+            routes.add((item['server'], item['transporte']))
             ids.add(item['panda_id']); refs.add(item['device_ref']); map_plates.add(item['map_plate'])
         if map_plates != {'p' + str(index).zfill(2) for index in range(1, policy.stage + 1)}:
             raise ValueError('Seleccion de placas incompleta')
@@ -250,45 +255,40 @@ async def build_real_context(policy, proxy_manager, run_id, proxy_verified, sele
         text = read(route, 'getprop')
         return dict(re.findall(r'^\[([^\]]+)\]: \[([^\]]*)\]$', text, re.MULTILINE))
 
-    try:
-        snapshot = await asyncio.wait_for(asyncio.to_thread(descubrir_pool, timeout=3), timeout=DISCOVERY_TIMEOUT_SECONDS)
-        physicals = set()
-        for route in snapshot.devices.values():
-            if route.status != 'device':
-                continue
+    if requested is not None:
+        for item in selected_plates:
+            host, _, port = item['server'].rpartition(':')
+            server = ADBServer(host.strip('[]'), int(port))
+            if server.key != item['server']:
+                raise ValueError('Servidor de seleccion invalido')
+            route = DeviceRoute(item['transporte'], server, 'device')
             try:
                 props = await asyncio.wait_for(asyncio.to_thread(properties, route), timeout=DEVICE_PROBE_TIMEOUT_SECONDS)
-                physical = props.get('ro.serialno') or props.get('ro.boot.serialno')
-                if requested is not None:
-                    item = requested.get(physical)
-                    if item is None:
-                        continue
-                    if route.server.key != item['server']:
-                        continue
-                    if physical in physicals:
-                        raise ValueError('Identidad fisica de seleccion invalida')
-                    physicals.add(physical)
-                    selected[item['panda_id']] = (route, props)
-                    continue
-                if not physical or physical in physicals:
-                    continue
-                physicals.add(physical)
-                selected['p'+str(len(selected)+1).zfill(2)] = (route, props)
-                if len(selected) == policy.stage:
-                    break
-            except ValueError:
-                if requested is not None:
-                    raise
             except Exception:
-                continue
-    except Exception:
-        if requested is not None:
-            raise ValueError('Identidad fisica de seleccion invalida') from None
-        pass
-    if requested is not None and set(selected) != {row['panda_id'] for row in requested.values()}:
-        raise ValueError('Seleccion de placas incompleta')
-    if requested is not None:
-        selected = {item['panda_id']: selected[item['panda_id']] for item in selected_plates}
+                raise ValueError('Seleccion de placas incompleta') from None
+            identities = {props.get(key) for key in ('ro.serialno', 'ro.boot.serialno')} - {None, ''}
+            if identities != {item['serial']}:
+                raise ValueError('Identidad fisica de seleccion invalida')
+            selected[item['panda_id']] = (route, props)
+    else:
+        try:
+            snapshot = await asyncio.wait_for(asyncio.to_thread(descubrir_pool, timeout=3), timeout=DISCOVERY_TIMEOUT_SECONDS)
+            physicals = set()
+            for route in snapshot.devices.values():
+                if route.status != 'device':
+                    continue
+                try:
+                    props = await asyncio.wait_for(asyncio.to_thread(properties, route), timeout=DEVICE_PROBE_TIMEOUT_SECONDS)
+                except Exception:
+                    continue
+                physical = props.get('ro.serialno') or props.get('ro.boot.serialno')
+                if physical and physical not in physicals:
+                    physicals.add(physical)
+                    selected['p'+str(len(selected)+1).zfill(2)] = (route, props)
+                    if len(selected) == policy.stage:
+                        break
+        except Exception:
+            pass
 
     async def integrity(device):
         route, props = selected[device]

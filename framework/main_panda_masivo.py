@@ -246,17 +246,34 @@ async def ejecutar_preflight_farm_solo(args) -> int:
         validar_parametros(args)
         if any(getattr(args,name,False) for name in ('execute_read_only','ready','allow_vision_upload')):
             raise ValueError('Politica de granja invalida')
+        plates=None
+        if getattr(args,'inventory_explicit',False):
+            try:
+                plates=await asyncio.to_thread(canonical_selection,args)
+                policy=load_farm_policy()
+                if len(plates)!=policy.stage:
+                    raise ValueError('Seleccion de placas incompleta')
+            except (OSError,ValueError):
+                log.error('Inventario incompatible con el mapa DPAPI o la etapa configurada')
+                code=EXIT_CONFIG_ERROR
+                return code
         if args.preflight_proxy:
             code=await ejecutar_preflight_proxy_solo(args)
             if code!=EXIT_OK:
                 cancelled=code==130
                 return code
-        policy=load_farm_policy()
-        if args.preflight_proxy:
-            manager=ProxyManager.desde_panda()
-            if not policy.country:
+        if policy is None:
+            policy=load_farm_policy()
+        if args.preflight_proxy or plates is not None:
+            manager=ProxyManager.desde_panda() if args.preflight_proxy else None
+            if manager is not None and not policy.country:
                 policy=replace(policy,country=getattr(manager,'_panda_country','').upper())
-            ctx=await build_real_context(policy,manager,run_id,True)
+            try:
+                ctx=await build_real_context(policy,manager,run_id,args.preflight_proxy,selected_plates=plates)
+            except ValueError:
+                if plates is not None:
+                    log.error('Las rutas del inventario no coinciden con las identidades del mapa DPAPI')
+                raise
         else:
             ctx=load_synthetic_fixture(ROOT/'tests/fixtures/farm_stage3.json')
         ctx={**ctx,'run_id':run_id}
