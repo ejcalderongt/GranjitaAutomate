@@ -299,7 +299,15 @@ def save_map(plates, adb_servers, salt, root):
 
 def load_latest_map(root):
     root = Path(root).resolve()
-    paths = sorted((root / 'runs').glob('device_map_*.json'), reverse=True)
+    paths = {}
+    for path in sorted((root / 'runs').glob('device_map_*.json'), reverse=True):
+        if not re.fullmatch(r'device_map_\d{8}T\d{6}\d{6}Z\.json', path.name):
+            log.warning('device_map_name_ignored')
+            continue
+        try:
+            paths[path] = datetime.strptime(path.stem[len('device_map_'):], '%Y%m%dT%H%M%S%fZ').replace(tzinfo=timezone.utc)
+        except ValueError:
+            log.warning('device_map_name_ignored')
     if not paths:
         return None
     stream = None
@@ -310,7 +318,7 @@ def load_latest_map(root):
                 return _timestamp(json.loads(path.read_text(encoding='ascii'))['timestamp'])
             except Exception:
                 # Preserve corrupt candidates; their fixed-width filename is the fallback key.
-                return datetime.strptime(path.stem[len('device_map_'):], '%Y%m%dT%H%M%S%fZ').replace(tzinfo=timezone.utc)
+                return paths[path]
         path = max(paths, key=order)
         key = (str(root), path.stem)
         stream = _ACTIVE_HANDLES.get(key)

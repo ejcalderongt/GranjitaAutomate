@@ -39,3 +39,23 @@ Evidence contains row-key hashes, declared/observed writes and before/after file
 Pending: prepare required native schemas explicitly before the first physical baseline.
 Pending: real CSV preflight and controlled physical execution require a later prompt.
 Plan de etapas vigente: docs/PLAN_ETAPAS.md.
+
+### E-2 CSV autorizado
+
+`tests/fixtures/csv/lab_stage3.csv` es la fuente de verdad de las tres placas para E-2.
+
+| Placa | Panda | Transporte | Alias | device_ref |
+|---|---|---|---|---|
+| p01 | 02 | 192.168.1.150:5555 | Analu Hernandez | b236403581fd1f7d |
+| p02 | 04 | 192.168.1.167:5555 | Experimento GT | 82b5c03f65bc12d8 |
+| p03 | 05 | 192.168.1.152:5555 | SM-G973F | bb360a6246550522 |
+
+Seleccion confirmada de las primeras tres fichas elegibles en orden Panda.
+Se cruzo Panda vivo con el lote acreditado del 2 de noviembre y las rutas activas en 5037.
+Se excluyeron la ficha 01, las dos identidades del incidente y las rutas ausentes,
+ambiguas o distintas de las acreditadas. Hallazgo de seleccion: `5038_listening=true`.
+Evidencia local: `runs/e2_csv_selection_20261106T174934205351Z.json`.
+
+`load_latest_map` ignora nombres sin timestamp valido. Los dos informes de pruebas
+se conservaron byte a byte con prefijo `report_device_map_` fuera de Git.
+El mapa inicial DPAPI se comprobo contra las referencias del CSV.

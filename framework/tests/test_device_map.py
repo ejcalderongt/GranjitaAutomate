@@ -49,6 +49,21 @@ class DeviceMapTests(unittest.TestCase):
         GENERATED_PAIRS.append(dict(pair))
         return pair
 
+    def test_load_latest_map_ignores_non_timestamped_files(self):
+        self.save()
+        (self.root / 'runs/device_map_fake.json').write_text('{}', encoding='ascii')
+        with self.assertLogs('device_map', level='WARNING') as records:
+            recovered = device_map.load_latest_map(self.root)
+        self.assertEqual([item['device_ref'] for item in recovered['plates']],
+                         [device_map._derive_ref(serial, self.salt) for serial in self.serials])
+        self.assertEqual(records.records[0].getMessage(), 'device_map_name_ignored')
+
+    def test_load_latest_map_returns_none_without_valid_pairs(self):
+        (self.root / 'runs').mkdir()
+        (self.root / 'runs/device_map_fake.json').write_text('{}', encoding='ascii')
+        with self.assertLogs('device_map', level='WARNING'):
+            self.assertIsNone(device_map.load_latest_map(self.root))
+
     def test_t_dev_1_real_dpapi_roundtrip_when_available(self):
         try:
             device_map._dpapi(b'probe', False)

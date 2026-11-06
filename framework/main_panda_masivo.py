@@ -63,14 +63,15 @@ def cargar_placas_activas_desde_csv(path=CSV_INVENTARIO_PATH, mapped=None):
                 raise ValueError('Numero Panda invalido')
             number=str(int(number)).zfill(2)
             entry=None
-            if mapped is not None:
+            if 'device_ref' in fields or mapped is not None:
                 if not re.fullmatch('[0-9a-f]{16}',reference) or reference in references:
                     raise ValueError('Referencia de dispositivo invalida')
+                references.add(reference)
+            if mapped is not None:
                 entry=mapped.get(reference)
                 if entry is None or serial and serial!=entry['device_serial_plain']:
                     raise ValueError('Referencia de dispositivo invalida')
                 serial=entry['device_serial_plain']
-                references.add(reference)
             if not serial:
                 raise ValueError('Serial ausente en placa '+number)
             transport=row.get('transporte','')
@@ -80,8 +81,10 @@ def cargar_placas_activas_desde_csv(path=CSV_INVENTARIO_PATH, mapped=None):
                 raise ValueError('Inventario ambiguo por numero o serial duplicado')
             alias=row.get('alias') or row.get('alias_agx') or row.get('nombre_panda') or ''
             plate={'panda_id':number,'serial':serial,'alias':alias[:200],'transporte':transport}
+            if reference:
+                plate['device_ref']=reference
             if entry is not None:
-                plate.update(device_ref=reference,map_plate=entry['plate'],server=entry['server'])
+                plate.update(map_plate=entry['plate'],server=entry['server'])
             placas.append(plate)
             numbers.add(number);serials.add(serial)
     if not placas:
