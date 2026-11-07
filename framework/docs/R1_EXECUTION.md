@@ -70,3 +70,27 @@ Sin inventario explicito, conserva la seleccion previa.
 
 Pruebas: `tests/test_panda_massive_preflight_farm_cli.py` y
 `test_cli_no_automatic_plate_substitution` en `tests/test_panda_massive_cli_integration.py`.
+
+### Sustitucion de p01 en E-2
+
+Fecha: 2026-11-07, America/Guatemala. Commit base: b8d52ec.
+Esta seleccion actualiza la tabla historica de E-2 CSV autorizado.
+
+La p01 original permanecio en es-GT tras cerrar Ajustes y esperar 30 segundos.
+Reporto sales_code CHL, countryiso_code US y product locale en-US. Se detectaron
+un administrador activo y paquetes de gestion. La clasificacion mdm_bloqueado
+aplica las reglas del prompt; la causalidad entre esos indicadores y el locale
+no quedo acreditada. Evidencia: runs/e2_p01_diagnostico_20261107T141315671713Z.json.
+
+| Placa | Panda | Transporte | Alias | device_ref | Locale |
+|---|---|---|---|---|---|
+| p01 | 13 | 192.168.1.174:5555 | EL POSEIDON | 6f70ba1186f2dcd4 | es-ES |
+
+La ficha 07 no cumplio los filtros. La 13 fue la siguiente candidata elegible,
+con identidad fisica verificada en 5037. El operador confirmo el idioma y la
+lectura posterior devolvio es-ES. Las filas p02 y p03 se conservaron byte a byte.
+
+Nuevo mapa publico: runs/device_map_20261107T142303177829Z.json.
+El par privado DPAPI permanece fuera de Git en secrets/. El CSV canonico y el
+mapa coinciden para p01, p02 y p03, y la seleccion canonica del CLI fue validada.
+La zona horaria de la nueva p01 y la alineacion de p02 y p03 quedan pendientes.
