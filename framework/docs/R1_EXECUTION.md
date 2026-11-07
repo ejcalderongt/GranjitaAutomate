@@ -137,3 +137,39 @@ no garantiza PASS ni elimina otros bloqueos. No se ha ejecutado preflight real.
 
 Validacion: 485 pruebas pytest y 25 subtests, 483 pruebas unittest, todas PASS.
 Credenciales reales aisladas; guardia de bases sin accesos y hashes G/Q intactos.
+
+### Reclasificacion de mdm_bloqueado y sustitucion de p02 y p03
+
+Fecha: 2026-11-07, America/Guatemala. Commit base: be4cac6.
+AU-R1 reemplaza el descarte por mera presencia de paquetes de gestion.
+Las 17 candidatas reportaron no owners mediante dpm list-owners y no mostraron
+restricciones explicitas de locale en dumpsys device_policy. Se reclasificaron
+mdm_presente_sin_bloqueo; no se acredita ausencia universal de gestion MDM.
+
+El operador selecciono el idioma; el agente solo abrio Ajustes y verifico
+identidad fisica, persist.sys.locale y persist.sys.timezone en 5037.
+Panda 10, 12 y 14 siguieron en es-GT y America/Guatemala y quedaron ui_no_aplica
+segun los prompts de continuacion, sin inferir bloqueo MDM. Panda 15 y 22
+reportaron es-ES y Europe/Madrid en la verificacion final de ambas.
+Se detuvo el escaneo al obtener dos candidatas aptas.
+
+| Placa | Panda | Transporte | Alias ASCII | device_ref | Locale | Zona |
+|---|---|---|---|---|---|---|
+| p01 | 13 | 192.168.1.174:5555 | EL POSEIDON | 6f70ba1186f2dcd4 | es-ES | Europe/Madrid |
+| p02 | 15 | 192.168.1.143:5555 | ALEXANDER FRANCO | 7b3ae937f7cd79f3 | es-ES | Europe/Madrid |
+| p03 | 22 | 192.168.1.153:5555 | El Poseidon | f1044d84929f0277 | es-ES | Europe/Madrid |
+
+La fila p01 se conserva. Panda 04 y 05 salen de la seleccion E-2; no se alteran
+sus ajustes en este paso. El CSV canonico contiene ahora Panda 13, 15 y 22.
+Se regenero el mapa por el cambio de referencias de p02/p03:
+runs/device_map_20261107T163041377222Z.json y su par privado DPAPI en secrets/.
+load_latest_map y la seleccion canonica del CLI con expected_count=3: PASS.
+Evidencia: runs/e2_candidatas_reclasificadas_20261107T160548305752Z.json.
+
+Decision: E-2 listo para verificar alineacion y continuar con el preflight
+en un paso posterior autorizado. No se retiraron paquetes ni se ejecuto
+preflight real. No se adopta GT ni se modifica .env, politica o proxies.
+
+Verificacion final: las tres identidades, es-ES y Europe/Madrid confirmadas.
+Pruebas aisladas: 485 pytest y 25 subtests, 483 unittest, todas PASS.
+Hashes G/Q antes/despues identicos; guardia de bases sin accesos en las suites.
