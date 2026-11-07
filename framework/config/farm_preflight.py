@@ -525,7 +525,9 @@ async def run_farm_preflight(devices, policy, ctx, db):
             async def c2(devices, policy, ctx):
                 return await evaluate_c2_real(devices, policy, ctx, ctx.get('proxy_manager'))
             async def c3(devices, policy, ctx):
-                return await evaluate_c3(devices, policy, {**ctx, 'synthetic': True})
+                names = ['p' + str(index).zfill(2) for index in range(1, len(devices) + 1)]
+                planned = {name: ctx.get('c3', {}).get(device) for name, device in zip(names, devices)}
+                return await evaluate_c3(names, policy, {**ctx, 'synthetic': True, 'c3': planned})
             async def c4(devices, policy, ctx):
                 return await evaluate_c4_real(devices, policy, ctx, ctx.get('proxy_manager'))
             async def c5(devices, policy, ctx):

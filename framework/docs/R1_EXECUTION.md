@@ -173,3 +173,49 @@ preflight real. No se adopta GT ni se modifica .env, politica o proxies.
 Verificacion final: las tres identidades, es-ES y Europe/Madrid confirmadas.
 Pruebas aisladas: 485 pytest y 25 subtests, 483 unittest, todas PASS.
 Hashes G/Q antes/despues identicos; guardia de bases sin accesos en las suites.
+
+### Diagnostico del preflight real E-2: codigo 1
+
+Fecha: 2026-11-07, America/Guatemala. Commit base: f31ef54.
+El intento unico farm-0f809e35e5804fadaa28e12e70450b21 verifico el proxy y
+termino con Configuracion invalida, codigo 1. No se repite en este diagnostico.
+Los nueve retiros autorizados terminaron con exito en el intento anterior;
+no se retiran paquetes adicionales. Sin ADB, pantallas o cambios de entorno.
+
+Causa: bug del adaptador C3 dentro de run_farm_preflight. build_real_context
+con CSV explicito usa numeros Panda 13, 15 y 22. El adaptador reutilizaba
+evaluate_c3/records, que exige identificadores pNN. records lanza ValueError
+Fixture sintetico invalido, capturado por ejecutar_preflight_farm_solo como
+EXIT_CONFIG_ERROR. main emite EXIT_MESSAGES[1] desde config/farm_policy.py.
+El mensaje generico menciona PANDA_POLICY_* aunque la politica carga bien.
+canonical_selection, CSV/DPAPI y load_farm_policy actuales validan sin error.
+
+La ruta real fue main_async -> ejecutar_preflight_farm_solo; no incluyo
+execute_read_only ni la corrida combinada. El registro SQLite existente
+prueba que C1 y C2 se evaluaron antes del error. El JSON final quedo sin
+verdicts porque run_farm_preflight no retorno su lista al caller. Esto corrige
+la interpretacion anterior de que C1-C5 no habian sido evaluados.
+
+| Constraint historica | Estado | Detalle |
+|---|---|---|
+| C1 | FAIL | negative_automation_apps=3; Play Integrity sin acreditar |
+| C2 | WARN | missing_sim_country=3; mismatches=0; proxy_verified=true |
+| C3 | ERROR | Identificadores incompatibles con records |
+| C4/C5 | NO EVALUADAS | No se alcanzaron |
+
+Fix minimo: el adaptador local C3 renombra sus claves planificadas a p01..p03
+y conserva cada hold_seconds. No cambia identificadores fisicos de otros
+adaptadores, politica, limites, codigos de salida ni contrato de records.
+Dos regresiones hermeticas cubren numeros Panda reales, holds validos y
+preservacion de valores ausentes o fuera de rango, con SQLite en memoria y
+conectores simulados. Las pruebas dirigidas autorizadas: 22 PASS.
+
+Evidencia: runs/e2_preflight_diagnostico_20261107T164318470371Z.json.
+Decision: listo_para_reintentar_preflight desde el punto de vista del bug C3.
+El reintento requiere autorizacion separada; E-2 no esta cerrado. El C1 FAIL
+historico por automatizacion sigue pendiente: conservar io.appium.* fue
+autorizado y este fix no altera su deteccion ni rebaja FAIL a WARN.
+
+Validacion del fix: 487 pytest y 25 subtests, 485 unittest, todas PASS.
+Credenciales aisladas, guardia sin accesos a bases protegidas y hashes G/Q
+sin cambio. No se ejecuto preflight completo ni ADB durante el diagnostico.
