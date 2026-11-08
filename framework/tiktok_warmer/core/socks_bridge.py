@@ -20,6 +20,7 @@ class SocksBridge:
             asyncio.set_event_loop(self.loop)
             listener = None
             transports = set()
+            closing = False
             create_server = self.loop.create_server
 
             async def tracked_server(factory, *args, **kwargs):
@@ -32,6 +33,8 @@ class SocksBridge:
                         transports.add(transport)
                         owned.append(transport)
                         connected(transport)
+                        if closing:
+                            transport.abort()
                     def connection_lost(exc):
                         for transport in owned:
                             transports.discard(transport)
@@ -56,6 +59,7 @@ class SocksBridge:
                 self.error = True
                 self.ready.set()
             finally:
+                closing = True
                 if listener:
                     listener.close()
                 # Server.wait_closed can wait for clients still stuck in a handshake.

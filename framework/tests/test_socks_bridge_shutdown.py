@@ -6,6 +6,18 @@ from tiktok_warmer.core.socks_bridge import SocksBridge
 
 
 class BridgeShutdownTests(unittest.TestCase):
+    def test_close_accept_callback_race_repeated(self):
+        for _ in range(20):
+            bridge = SocksBridge('socks5://127.0.0.1:1', 'test', 'test')
+            endpoint = urlsplit(bridge.start())
+            client = socket.create_connection((endpoint.hostname, endpoint.port), timeout=2)
+            try:
+                bridge.close()
+                self.assertFalse(bridge.thread.is_alive())
+                self.assertTrue(bridge.loop.is_closed())
+            finally:
+                client.close()
+
     def test_close_with_idle_client_waiting_for_handshake(self):
         bridge = SocksBridge('socks5://127.0.0.1:1', 'test', 'test')
         endpoint = urlsplit(bridge.start())
