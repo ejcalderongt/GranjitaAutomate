@@ -9,6 +9,7 @@ from html.parser import HTMLParser
 from functools import lru_cache
 from defusedxml import ElementTree
 from openai import OpenAI, AsyncOpenAI
+from core.vision_contracts import VisionRequest, VisionResponse, VisionError, VisionAgent
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 logger = logging.getLogger('warmer.ai')
