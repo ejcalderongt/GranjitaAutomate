@@ -480,6 +480,47 @@ resolver conectividad del endpoint antes de otro intento; no se modifica .env.
 Validacion local completa: 499 pytest y 28 subtests, 497 unittest, todas PASS,
 credenciales aisladas y guardia sin accesos a bases protegidas.
 
+### Escalado por etapas (preparacion local)
+
+Fecha: 2026-11-08. Cola autonoma autorizada desde 443a06e. Sin ADB, preflight
+real, llamadas a OpenAI, imagenes de dispositivos o cambios de .env.
+El ticket del proveedor consta preparado; no se acredita envio desde el agente.
+
+--stage {3,10,34} y --stage-limits <json> en main_panda_masivo planifican
+transiciones offline. No se combinan con ready, execute-read-only, Vision o
+preflight; esas combinaciones devuelven error de configuracion sin dispositivos.
+El resultado se guarda en runs/stage_plan_<id>.json, con executes_next_stage=false.
+La base indicada por --db se abre en mode=ro; no se crean esquemas o filas.
+
+Ejemplo: `.venv\Scripts\python.exe main_panda_masivo.py --stage 3 --db <historial>`.
+--stage-limits acepta exactamente las claves 3, 10 y 34, cada una con min_samples
+entero entre 1 y 10000. Sin archivo se exige al menos una muestra completa.
+El historial se limita a la ultima corrida fisica finalizada de esa etapa.
+Una muestra incompleta, NULL, schema ausente o corrida sintetica no acredita
+promocion. Cualquier captcha, softblock o logout observado aborta incluso si
+otra columna es NULL. Se requiere corrida aceptada y C4 PASS historico.
+Con muestras completas sin incidentes: 3 propone 10, 10 propone 34 y 34 completa.
+La propuesta nunca ejecuta la siguiente etapa ni acredita sus limites de proxy.
+Los defaults de salidas requeridas siguen siendo 1/3/5; no se cambia politica.
+
+tests/test_stage_scaling.py cubre etapas 3/10/34, incidentes, NULL, muestras,
+historia sintetica, C4, JSON de limites y aislamiento del flujo nativo.
+Esto prepara E-6; las corridas fisicas E-2/E-3 y la aceptacion real de escalado
+siguen pendientes del proxy y de sus prompts autorizados.
+
+La fase A prepara contratos tipados y servicio Vision con clientes simulados;
+ver docs/VISION_PREPARATION.md. La fase B entrega el panel local y evidencia
+filtrada; ver docs/LAB_UI.md. No se declara completo el laboratorio fisico.
+La correccion previa autorizada del puente elimina la carrera de aceptacion
+durante cierre; fue validada con 20 conexiones locales y suites aisladas.
+
+Validacion final de la cola: 542 pytest y 28 subtests, 540 unittest, todas PASS.
+La UI anade 13 pruebas de autorizacion/evidencia/cancelacion; Vision 15 pruebas;
+escalado 14 pruebas. Las capturas son renders reales de fixtures locales, no de
+dispositivos. Guardia sin accesos a bases protegidas y hashes G/Q intactos.
+Aviso no bloqueante: la version instalada de Starlette recomienda migrar su
+TestClient a httpx2; se conserva httpx existente porque los tests pasan.
+
 ### Bloqueo de conectividad externa con Proxy-Cheap (E-2)
 
 Fecha UTC: 2026-11-08T05:39:27+00:00. Commit base: 2d7b42d.

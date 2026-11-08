@@ -306,6 +306,21 @@ async def ejecutar_preflight_farm_solo(args) -> int:
 
 
 async def main_async(args):
+    if getattr(args, 'stage', None) is not None:
+        if any(getattr(args, name, False) for name in
+               ('preflight_proxy', 'preflight_farm', 'execute_read_only', 'ready', 'allow_vision_upload')):
+            return EXIT_CONFIG_ERROR
+        from core.stage_scaling import stage_plan
+        try:
+            report = stage_plan(args.db, args.stage, getattr(args, 'stage_limits', None))
+            path = ROOT / 'runs' / ('stage_plan_' + uuid4().hex + '.json')
+            path.parent.mkdir(exist_ok=True)
+            path.write_text(json.dumps(report, ensure_ascii=True, indent=2), encoding='ascii')
+            return EXIT_OK if report['decision'] in ('promote', 'complete') else EXIT_FARM_ABORT_FAIL
+        except (ValueError, OSError):
+            return EXIT_CONFIG_ERROR
+    if getattr(args, 'stage_limits', None) is not None:
+        return EXIT_CONFIG_ERROR
     if getattr(args,'preflight_farm',False):
         if args.execute_read_only:
             return await ejecutar_preflight_y_lote(args)
@@ -445,6 +460,8 @@ class ExplicitInventory(argparse.Action):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--stage', type=int, choices=[3, 10, 34], help='Planifica transicion sin ejecutar dispositivos')
+    parser.add_argument('--stage-limits', type=Path, help='JSON local de min_samples por etapa')
     parser.set_defaults(inventory_explicit=False)
     parser.add_argument('--inventory',type=Path,default=CSV_INVENTARIO_PATH,action=ExplicitInventory)
     parser.add_argument('--db',type=Path,default=DB_PATH)
