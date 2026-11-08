@@ -150,7 +150,7 @@ class ProxyManager:
             scheme,host,port,user,password=fields
             if not all(isinstance(value,str) and value for value in fields):
                 raise ValueError()
-            if scheme not in ('socks5','socks5h') or not re.fullmatch(r'[A-Za-z0-9.-]{1,253}',host):
+            if scheme not in ('socks5','socks5h','http','https') or not re.fullmatch(r'[A-Za-z0-9.-]{1,253}',host):
                 raise ValueError()
             if not port.isascii() or not port.isdigit() or not 1<=int(port)<=65535:
                 raise ValueError()
@@ -167,7 +167,7 @@ class ProxyManager:
                 if not isinstance(ttl,str) or not ttl.isdigit() or not 1<=int(ttl)<=86400:
                     raise ValueError()
             return {'PROXY_URL':'','PROXY_HOST':host,'PROXY_PORT':port,'PROXY_USER':user,
-                    'PROXY_PASS':password,'PROXY_PROTOCOL':'socks5','PROXY_MODE':'rotating_residential'}
+                    'PROXY_PASS':password,'PROXY_PROTOCOL':'socks5' if scheme=='socks5h' else scheme,'PROXY_MODE':'rotating_residential'}
         except (ValueError,TypeError):
             raise ValueError('Proxy invalido') from None
 
