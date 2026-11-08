@@ -383,3 +383,35 @@ corregir la limpieza no acredita disponibilidad del proveedor.
 Validacion: 495 pytest y 28 subtests, 493 unittest, todas PASS. Tras separar
 el booleano del puente en el log, 11 pruebas dirigidas adicionales PASS.
 Hashes G/Q antes/despues identicos, credenciales aisladas y guardia sin accesos.
+
+### Diagnostico de red del pool
+
+Fecha local: 2026-11-07, America/Guatemala. Base: 3ad608b.
+Configuracion cargada y validada, pais esperado presente. Sin cambios de .env,
+codigo funcional, politicas, ADB, pantallas, consultas HTTP ni preflight real.
+Se consulto DNS y TCP del endpoint configurado en tres muestras, separadas
+por tres segundos, con limite de quince segundos para cada prueba.
+
+| Muestra | DNS | DNS ms | Direcciones resueltas (conteo) | TCP | TCP ms |
+|---|---|---|---|---|---|
+| 1 | PASS | 94 | 1 | TimeoutError | 15000 |
+| 2 | PASS | 0 | 1 | TimeoutError | 15000 |
+| 3 | PASS | 0 | 1 | TimeoutError | 15000 |
+
+samples_ok=0, samples_fail=3. Handshake SOCKS5, autenticacion y CONNECT no
+evaluados por ausencia de conexion TCP; no se afirma rechazo de credenciales.
+Clasificacion segun AU-2: red_local, por fallo TCP consistente desde este host.
+Limite causal: estas pruebas no distinguen firewall del equipo, ruta, filtrado
+remoto o indisponibilidad del endpoint. No prueban culpa exclusiva de red local
+ni del proveedor. No hay evidencia para cambiar credenciales o politica.
+
+Evidencia: runs/e2_proxy_red_20261108T010014221626Z.json. Script local no
+versionado: runs/_diagnostics/pool_network.py. Sin direcciones o secretos en
+la evidencia publica. Hashes G/Q antes/despues identicos.
+Decision: bloqueado_por: red_local segun la regla acordada. Pendiente humano:
+revisar reglas de salida del firewall, VPN y ruta del equipo hacia el endpoint;
+si no aparece bloqueo local, contrastar accesibilidad y filtros con el proveedor.
+No se desactiva firewall/VPN ni se modifica configuracion por cuenta del agente.
+
+Validacion: 495 pytest y 28 subtests, 493 unittest, todas PASS. Credenciales
+aisladas y guardia sin accesos; hashes protegidos intactos antes y despues.
