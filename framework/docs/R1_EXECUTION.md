@@ -452,3 +452,30 @@ preflight real, ADB, pantallas o cambios de configuracion. Hashes G/Q intactos.
 
 Suites aisladas: 495 pytest y 28 subtests, 493 unittest, todas PASS. Guardia
 sin accesos a bases protegidas y hashes G/Q antes/despues iguales.
+
+### Soporte de esquemas http y https en ProxyManager
+
+Base: 43d82f4. El cambio autorizado de .env a http ya estaba aplicado y no se
+modifico de nuevo. Se preparo un cambio local del normalizador que acepta
+http y https y conserva socks5/socks5h como socks5, sin tocar el puente.
+proxy_para_chromium ya pasa HTTP/HTTPS directamente; no requiere traduccion
+del upstream a SOCKS5. No se altera el contrato legacy del proveedor.
+
+Cuatro tests nuevos cubren HTTP, HTTPS, compatibilidad SOCKS5/SOCKS5h y rechazo
+de esquema desconocido. Suite dirigida de esquemas y proxy: 12 PASS.
+La verificacion efectiva usa browser_proxy, ya que ProxyManager no ofrece get;
+el esquema observado es http. No se imprimen valores sensibles.
+
+La unica consulta curl autorizada a ipify devolvio HTTP 000 y exit_code 28,
+timeout de veinte segundos. Credenciales pasadas por stdin, sin exponerlas en
+argumentos ni registros. No se ejecuto el preflight de proxy, porque AU-4 exige
+HTTP 200. Clasificacion: red_aun_fallando. Hashes G/Q antes/despues intactos.
+Evidencia: runs/e2_proxy_http_20261108T043253711328Z.json.
+
+Segun Fase 4, con HTTP 000 no se commitea codigo, salvo documentacion.
+El normalizador y tests nuevos permanecen como cambios locales pendientes de
+publicacion autorizada. No se declara proxy operativo ni E-2 cerrado. Pendiente
+resolver conectividad del endpoint antes de otro intento; no se modifica .env.
+
+Validacion local completa: 499 pytest y 28 subtests, 497 unittest, todas PASS,
+credenciales aisladas y guardia sin accesos a bases protegidas.
