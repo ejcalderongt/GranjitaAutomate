@@ -205,6 +205,7 @@ class ProxyManager:
         """Isolated Patchright verification; no Panda, Android or SQLite calls."""
         import logging
         import httpx
+        import time
         from core.browser import ROOT,iniciar_contexto_async,cerrar_contexto_async
         from core.geo_resolver import obtener_geolocalizacion_con_bypass
         logger=logging.getLogger('qa.panda.masivo')
@@ -213,10 +214,13 @@ class ProxyManager:
             if not re.fullmatch(r'[A-Za-z0-9_-]{1,100}',run_id):
                 raise ValueError('Proxy invalido')
         except ValueError:
+            logger.error('proxy_preflight_config valid=false duration_ms=0')
             logger.error('Proxy no verificable')
             raise
         runtime=context=bridge=browser_bridge=None
         verified=False;cancelled=False;clean=True
+        bridge_closed=True
+        cause='unknown';stage='direct_ipify';started=time.monotonic()
         sessions=(ROOT/'sessions'/('preflight-'+run_id)).resolve()
         quiet=[logging.getLogger(name) for name in ('httpx','httpcore','pproxy','warmer.geo')]
         disabled=[item.disabled for item in quiet]
@@ -232,14 +236,23 @@ class ProxyManager:
             return str(parsed)
 
         async def cleanup():
+            nonlocal bridge_closed
             result=True
-            if runtime is not None or context is not None or browser_bridge is not None:
-                result=await cerrar_contexto_async(context,runtime,browser_bridge,close_timeout=5)
-            if bridge is not None and bridge is not browser_bridge:
-                try:
-                    await asyncio.to_thread(bridge.close)
-                except Exception:
-                    result=False
+            try:
+                if runtime is not None or context is not None or browser_bridge is not None:
+                    result=await cerrar_contexto_async(context,runtime,browser_bridge,close_timeout=5)
+            except Exception:
+                result=False
+            finally:
+                if bridge is not None:
+                    try:
+                        # Also confirm closure when browser cleanup owns this bridge.
+                        await asyncio.to_thread(bridge.close)
+                    except Exception:
+                        bridge_closed=False
+                        result=False
+            logger.info('proxy_preflight_cleanup bridge_closed=%s duration_ms=%d',
+                        str(bridge_closed).lower(),round((time.monotonic()-started)*1000))
             # Delete only the unique temporary directory created for this run.
             if result and sessions.exists() and sessions.parent==(ROOT/'sessions').resolve():
                 try:
@@ -256,27 +269,40 @@ class ProxyManager:
                         if response.status_code!=200:
                             raise ValueError()
                         host_ip=public_ip(response.json().get('ip'))
+                    stage='bridge'
                     options,bridge=await manager.endpoint_para_chromium()
+                    stage='browser_start'
                     runtime,context,page,browser_bridge=await asyncio.wait_for(iniciar_contexto_async(
                         'preflight-proxy',options,headless=True,sessions_root=sessions,engine='patchright'),timeout=15)
+                    stage='ipify'
                     response=await page.goto('https://api.ipify.org?format=json',wait_until='domcontentloaded',timeout=5000)
                     if response is None or response.status!=200:
+                        cause='provider'
                         raise ValueError()
                     observed=public_ip(json.loads(await page.locator('body').inner_text(timeout=5000)).get('ip'))
                     if observed==host_ip:
+                        cause='leak'
                         raise ValueError()
+                    stage='geoip'
                     async with httpx.AsyncClient(proxy=httpx.Proxy(options['server']),timeout=5,
                             trust_env=False,follow_redirects=False) as proxied:
                         async with asyncio.timeout(12):
                             geo=await obtener_geolocalizacion_con_bypass(observed,cliente_http=proxied)
                     if geo.get('geo_status')!='resolved':
+                        cause='timeout_geoip' if any(a.get('error_type') in ('ReadTimeout','TimeoutError') for a in geo.get('attempts',[])) else 'geoip'
                         raise ValueError()
                     if manager._panda_country and geo.get('pais')!=manager._panda_country.upper():
+                        cause='geoip'
                         raise ValueError()
                     verified=True
                 except asyncio.CancelledError:
                     cancelled=True
-                except Exception:
+                except Exception as exc:
+                    if cause=='unknown':
+                        if isinstance(exc,(httpx.TimeoutException,TimeoutError)) or type(exc).__name__=='TimeoutError':
+                            cause='timeout_geoip' if stage=='geoip' else 'timeout_ipify' if stage in ('ipify','direct_ipify') else 'bridge'
+                        else:
+                            cause='bridge' if stage in ('bridge','browser_start') else 'provider'
                     verified=False
                 finally:
                     task=asyncio.create_task(cleanup())
@@ -291,6 +317,10 @@ class ProxyManager:
         if cancelled:
             raise asyncio.CancelledError() from None
         if not verified or not clean:
+            if verified and not clean:
+                cause='bridge'
+            logger.error('proxy_preflight_%s verified=%s bridge_closed=%s duration_ms=%d',
+                         cause,str(verified).lower(),str(bridge_closed).lower(),round((time.monotonic()-started)*1000))
             logger.error('Proxy no verificable')
             raise RuntimeError('Proxy no verificable') from None
         logger.info('Proxy verificado')

@@ -337,3 +337,49 @@ contratado y su conectividad desde este host con el proveedor. No hay evidencia
 para proponer un valor nuevo de configuracion ni para ampliar timeouts como fix.
 Pendiente autorizacion para un nuevo diagnostico de transporte o reintento
 tras resolver el timeout. E-2 sigue bloqueado; no se declara proxy operativo.
+
+#### Instrumentacion y reintento controlado del diagnostico
+
+Fecha local: 2026-11-07. Base: d9ba41a. Sin preflight real ni ADB.
+verificar_preflight ahora distingue causas mediante prefijos proxy_preflight_*,
+con booleanos y duraciones; mantiene Proxy no verificable como error externo.
+La limpieza intenta bridge.close en finally aunque falle cerrar_contexto_async.
+Los dos tests nuevos verifican timeout ipify y cierre invocado tras fallo del
+navegador, sin red. Suite dirigida de proxy: 8 PASS.
+
+El unico reintento autorizado por el puente agoto 15009 ms (ReadTimeout).
+La salida directa respondio en 368 ms. El puente escuchaba localmente pero no
+confirmo cierre limpio; el proceso aislado termino. La conexion TCP al endpoint
+agoto 5000 ms, sin completar handshake SOCKS5 ni autenticacion. No demuestra
+culpa exclusiva del proveedor ni descarta ruta/firewall local. No se pudo
+evaluar fuga ni GeoIP. Clasificacion final: unknown; fallo observado timeout_ipify.
+
+Evidencia: runs/e2_proxy_diagnostico_20261108T004137775329Z.json y
+runs/e2_socks_transport_20261107.json, sin direcciones ni credenciales.
+No se falsea bridge_closed=true. Pendiente autorizacion para revisar el ciclo
+de cierre en socks_bridge.py, fuera del alcance original. Sin mas reintentos.
+
+#### Correccion autorizada del cierre del puente
+
+El humano amplio el alcance a socks_bridge.py y tests locales, sin nuevas
+consultas externas. Se identifico una espera circular: Server.wait_closed
+podria esperar clientes activos antes de cancelar sus handlers. El puente ahora
+registra sus transportes aceptados, deja de aceptar, aborta esos transportes,
+cancela handlers y despues espera el cierre del servidor y del loop. No toca
+conexiones de otros procesos ni servidores ADB. close sigue siendo idempotente.
+
+Las pruebas locales cubren un cliente detenido antes del handshake, cierre
+antes de start, el tunel local existente y la limpieza tras fallar el navegador.
+El log distingue el resultado de cierre del puente del resultado del navegador.
+El mensaje externo conserva Proxy no verificable. No se registran excepciones
+crudas, direcciones, URLs o credenciales en los eventos nuevos.
+
+Evidencia nueva: runs/e2_proxy_diagnostico_20261108T004655939161Z.json,
+bridge_closed=true, hilo terminado, loop cerrado, listener cerrado, sin red
+externa. No se altera la evidencia previa bridge_closed=false: correspondia
+al codigo anterior. La causa del timeout externo sigue unknown y E-2 bloqueado;
+corregir la limpieza no acredita disponibilidad del proveedor.
+
+Validacion: 495 pytest y 28 subtests, 493 unittest, todas PASS. Tras separar
+el booleano del puente en el log, 11 pruebas dirigidas adicionales PASS.
+Hashes G/Q antes/despues identicos, credenciales aisladas y guardia sin accesos.

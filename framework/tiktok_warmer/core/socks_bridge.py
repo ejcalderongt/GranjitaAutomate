@@ -19,6 +19,30 @@ class SocksBridge:
             self.loop = asyncio.new_event_loop()
             asyncio.set_event_loop(self.loop)
             listener = None
+            transports = set()
+            create_server = self.loop.create_server
+
+            async def tracked_server(factory, *args, **kwargs):
+                def tracked_factory():
+                    protocol = factory()
+                    connected = protocol.connection_made
+                    disconnected = protocol.connection_lost
+                    owned = []
+                    def connection_made(transport):
+                        transports.add(transport)
+                        owned.append(transport)
+                        connected(transport)
+                    def connection_lost(exc):
+                        for transport in owned:
+                            transports.discard(transport)
+                        owned.clear()
+                        disconnected(exc)
+                    protocol.connection_made = connection_made
+                    protocol.connection_lost = connection_lost
+                    return protocol
+                return await create_server(tracked_factory, *args, **kwargs)
+
+            self.loop.create_server = tracked_server
             try:
                 import pproxy
                 remote = pproxy.Connection(self.server)
@@ -34,12 +58,17 @@ class SocksBridge:
             finally:
                 if listener:
                     listener.close()
-                    self.loop.run_until_complete(listener.wait_closed())
+                # Server.wait_closed can wait for clients still stuck in a handshake.
+                # Close owned accepted transports before waiting for their handlers.
+                for transport in list(transports):
+                    transport.abort()
                 tasks = asyncio.all_tasks(self.loop)
                 for task in tasks:
                     task.cancel()
                 if tasks:
                     self.loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
+                if listener:
+                    self.loop.run_until_complete(listener.wait_closed())
                 self.loop.run_until_complete(self.loop.shutdown_asyncgens())
                 self.loop.close()
         self.thread = threading.Thread(target=run, name='socks5-browser-bridge', daemon=True)
