@@ -479,3 +479,44 @@ resolver conectividad del endpoint antes de otro intento; no se modifica .env.
 
 Validacion local completa: 499 pytest y 28 subtests, 497 unittest, todas PASS,
 credenciales aisladas y guardia sin accesos a bases protegidas.
+
+### Bloqueo de conectividad externa con Proxy-Cheap (E-2)
+
+Fecha UTC: 2026-11-08T05:39:27+00:00. Commit base: 2d7b42d.
+Configuracion actual verificada en memoria: host thehub.proxy-cheap.com,
+puerto 8080, protocolo HTTP. Usuario y password no se registran.
+Evidencia previa: DNS correcto, tres timeouts TCP, handshake SOCKS5 y
+autenticacion no evaluados al no establecer TCP, curl HTTP 000 con salida 28
+y timeout de veinte segundos. Sin nuevas pruebas de red en esta entrega.
+
+El operador reporta confirmacion del panel: HTTP, host y puerto coincidentes,
+credenciales correctas, generador de comandos consistente con la prueba,
+tiempo online 0% y limite alcanzado 0 veces. No se inspecciono el panel desde
+el agente: es evidencia declarada por el operador. El 0% no demuestra ausencia
+historica de conexiones; hubo verificaciones exitosas anteriores en el proyecto.
+
+Clasificacion: red_aun_fallando. No se acredita bloqueo_proveedor de forma
+concluyente; falta distinguir ruta, filtrado remoto o indisponibilidad.
+Accion: ticket al proveedor y contraste desde otra red. El ticket exacto pedido
+se preparo sin enviarlo: runs/e2_proxy_support_ticket_20261108T053927044934Z.txt.
+Resumen: runs/e2_proxy_blocker_20261108T053927044934Z.json.
+
+El ticket conserva el texto solicitado. Salvedades: no hay captura que pruebe
+envio de CONNECT durante el timeout, y las versiones de SO/curl del texto no
+se verificaron independientemente. No se presenta esa redaccion como hallazgo
+tecnico adicional ni se incluyen credenciales o IP publica.
+
+Red alternativa: un hotspot movil existente permite repetir DNS/TCP/auth/CONNECT
+sin comprar recursos. Un VPS existente tambien sirve si el operador ya tiene
+acceso autorizado, pero no replica la salida de este host. No se confirmo
+disponibilidad de ninguno ni se aprovisiono o uso infraestructura externa.
+Si otra red funciona y esta no, comparar ruta y filtrado por origen; si ambas
+fallan, aportar ambos resultados a soporte sin asumir causa exclusiva.
+
+E-2 permanece bloqueado; pendiente enviar el ticket manualmente y elegir una
+red alternativa disponible. Sin preflight, ADB, pantallas o cambios de .env.
+
+Validacion: 499 pytest y 28 subtests PASS; 497 unittest PASS en repeticion.
+La primera suite unittest fallo en test_rate_gate_spaces_request_starts por
+su umbral temporal; se conservo el log y no se modifico codigo ni tests.
+Credenciales aisladas, guardia sin accesos y hashes G/Q antes/despues identicos.
