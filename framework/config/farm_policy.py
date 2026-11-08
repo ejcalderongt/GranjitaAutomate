@@ -35,7 +35,7 @@ class FarmPolicy:
     abort_on_fail: bool = True
     abort_on_warn: bool = False
     country: str = ''
-    proxy_min_distinct_exit_ips: int = 3
+    proxy_min_distinct_exit_ips: int = None
     proxy_sticky_ttl: int = 0
     max_captchas: int = 0
     max_softblocks: int = 0
@@ -43,6 +43,8 @@ class FarmPolicy:
     min_metric_samples: int = 1
 
     def __post_init__(self):
+        if self.proxy_min_distinct_exit_ips is None:
+            object.__setattr__(self, 'proxy_min_distinct_exit_ips', {3: 1, 10: 3, 34: 5}.get(self.stage, 1))
         if (type(self.stage) is not int or self.stage not in (3, 10, 34)
                 or type(self.abort_on_fail) is not bool or type(self.abort_on_warn) is not bool
                 or any(type(v) not in (int, float) or not math.isfinite(v)
@@ -75,7 +77,8 @@ def load_farm_policy(path=None):
             abort_on_fail=boolean('PANDA_POLICY_ABORT_ON_FAIL', 'true'),
             abort_on_warn=boolean('PANDA_POLICY_ABORT_ON_WARN', 'false'),
             country=os.getenv('PANDA_POLICY_COUNTRY', '').upper(),
-            proxy_min_distinct_exit_ips=int(os.getenv('PANDA_POLICY_PROXY_MIN_DISTINCT_EXIT_IPS', '3')),
+            proxy_min_distinct_exit_ips=(int(os.environ['PANDA_POLICY_PROXY_MIN_DISTINCT_EXIT_IPS'])
+                if 'PANDA_POLICY_PROXY_MIN_DISTINCT_EXIT_IPS' in os.environ else None),
             proxy_sticky_ttl=int(os.getenv('PANDA_POLICY_PROXY_STICKY_TTL', '0')),
             max_captchas=int(os.getenv('PANDA_POLICY_MAX_CAPTCHAS', '0')),
             max_softblocks=int(os.getenv('PANDA_POLICY_MAX_SOFTBLOCKS', '0')),
@@ -88,5 +91,6 @@ def load_farm_policy(path=None):
 
 def stage_limits(policy):
     return {'stage': policy.stage, 'device_limit': policy.stage,
+            'proxy_min_distinct_exit_ips': policy.proxy_min_distinct_exit_ips,
             'hold_min': policy.hold_min, 'hold_max': policy.hold_max,
             'abort_on_fail': policy.abort_on_fail, 'abort_on_warn': policy.abort_on_warn}

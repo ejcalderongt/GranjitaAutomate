@@ -219,3 +219,85 @@ autorizado y este fix no altera su deteccion ni rebaja FAIL a WARN.
 Validacion del fix: 487 pytest y 25 subtests, 485 unittest, todas PASS.
 Credenciales aisladas, guardia sin accesos a bases protegidas y hashes G/Q
 sin cambio. No se ejecuto preflight completo ni ADB durante el diagnostico.
+
+### E-2 ejecucion real
+
+Fecha: 2026-11-07, America/Guatemala. Commit base: ed66e28.
+Se verificaron CSV/DPAPI, identidad fisica y rutas en 5037 para Panda 13, 15 y
+22. Las tres reportaron es-ES y Europe/Madrid. Los tres paquetes previamente
+autorizados para retirada estan ausentes en las tres placas. No se retiraron
+paquetes adicionales. El FAIL historico de C1 tambien fue posterior a esos
+retiros, segun runs/e2_execution_20261107T163855788930Z.json.
+
+Se ejecuto una sola vez el comando AU-1, incluido execute-read-only, un ciclo,
+concurrency=1 y hold-seconds=12. El preflight aborto antes del flujo nativo:
+codigo 2, decision abort, synthetic=false. No se abrieron pantallas.
+
+| Constraint | Estado | Resultado |
+|---|---|---|
+| C1 | FAIL | negative_automation_apps=3; negative_uid_privileged=0; negative_emulator_hint=0; Play Integrity no acreditado |
+| C2 | WARN | missing_sim_country=3; mismatches=0; proxy_verified=true |
+| C3 | PASS | checked=3; failed=0; missing=0 |
+| C4 | FAIL | distinct=1; total=3; errors=0; timeouts=0; minimo requerido=3 |
+| C5 | WARN | samples=0; no acredita ausencia de incidentes |
+
+Evidencia: runs/farm_preflight_panda-masivo-27ebb82673404582963be92c12646581.json.
+Ejecucion: runs/e2_execution_20261107T170051895331Z.json.
+Hashes G/Q antes y despues identicos. No se modificaron configuracion o politica.
+
+#### Correccion del bug C3 en la corrida
+
+La correccion ed66e28 permite completar C3 con los numeros Panda del CSV.
+La comprobacion de holds planificados es PASS; no acredita interaccion nativa.
+Los cinco veredictos estan presentes, sin el codigo 1 anterior.
+
+#### Diagnostico residual C1
+
+La lectura posterior de pm list packages encontro en cada placa los paquetes
+io.appium.uiautomator2.server y io.appium.uiautomator2.server.test. Son los
+detectados por build_real_context.integrity en config/farm_preflight.py, no
+por device_map. Su conservacion estaba autorizada. No se retiraron ni se
+modifico el criterio C1. Evidencia: runs/e2_c1_residual_20261107T170051895331Z.json.
+
+Decision: bloqueado_por: C1_FAIL_persistente y C4_FAIL.
+E-2 no se cierra; no se hace commit de cierre ni push. Pendiente decision
+humana sobre Appium y diagnostico autorizado de la diversidad del proxy.
+Sin reintento automatico, sin nuevas suites por no haber cambios de codigo.
+
+### C1 excluye Appium y C4 ajusta minimo de etapa 3
+
+Fecha: 2026-11-07, America/Guatemala. Commit base: ed66e28.
+DH-1: io.appium.* es infraestructura autorizada del laboratorio. El detector
+real no la cuenta como negativa ni excluye por ella las placas del CSV.
+appium_present y appium_ignored cuentan dispositivos con Appium, no paquetes;
+no afectan al estado. Root, emulador, Play Integrity y otros negativos conservan
+su tratamiento. Se detectan com.genfarmer.*, com.topjohnwu.magisk,
+com.genymobile.scrcpy y scrcpy. No se encontro el codigo device-agent en este
+checkout para cotejar otra lista; estos patrones siguen los ejemplos del prompt.
+Se conserva la compatibilidad con probes antiguos que solo entregan booleanos.
+
+DH-2: el default C4 pasa a 1 salida distinta en etapa 3, 3 en etapa 10 y 5 en
+etapa 34. Una configuracion explicita sigue prevaleciendo. stage_limits publica
+el minimo efectivo. No se cambia .env ni el proveedor ni config/proxies.py.
+DH-3: esta aceptacion de etapa 3 acredita disponibilidad con al menos una salida,
+no diversidad ni capacidad para etapas mayores. Los otros umbrales no se relajan.
+
+El humano autorizo ampliar las funciones a build_real_context.integrity, el
+contrato de contadores C1 y load_farm_policy para aplicar el cambio de extremo
+a extremo, sin excepciones locales que falseen los verdicts.
+
+Diagnostico del pool sin conexiones nuevas, segun Fase 4 del prompt: evidencia
+historica real distinct=1, total=3, errors=0, timeouts=0. No se realizaron cinco
+muestras nuevas ni se presenta un replay como medicion actual. Esa observacion
+no demuestra el limite contractual del proveedor ni su diversidad futura.
+Evidencia: runs/e2_c4_pool_diagnostico_20261107T170451862455Z.json.
+Criterio C1: runs/e2_c1_appium_policy_20261107T170451862455Z.json.
+
+No se ejecuto preflight real ni ADB ni se retiraron paquetes. Pendiente reintento
+autorizado para comprobar C1 y C4 en vivo; no se declara E-2 cerrado.
+
+El humano autorizo fijar minimo=3 en el helper de los tests C4 existentes,
+preservando sus expectativas de diversidad; los nuevos tests cubren el nuevo
+default por etapa y la prioridad de una configuracion explicita.
+Validacion final: 491 pytest y 28 subtests, 489 unittest, todas PASS, con
+credenciales aisladas. Hashes G/Q identicos antes/despues; guardia sin accesos.

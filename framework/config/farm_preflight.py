@@ -14,6 +14,7 @@ C1_DIAGNOSTIC_KEYS = (
     'missing_authorized', 'missing_connected', 'negative_uid_privileged',
     'negative_emulator_hint', 'negative_automation_apps',
     'integrity_probe_available', 'integrity_probe_errors', 'skipped',
+    'appium_present', 'appium_ignored',
 )
 C2_DIAGNOSTIC_KEYS = (
     'missing_sim_country', 'missing_locale', 'missing_timezone',
@@ -100,6 +101,14 @@ async def evaluate_c1_real(devices, policy, ctx):
     missing = int(len(devices) != policy.stage)
     negative = 0
     for row in rows:
+        packages = row.get('automation_packages')
+        if isinstance(packages, list) and all(isinstance(name, str) for name in packages):
+            appium = any(name.startswith('io.appium.') for name in packages)
+            row = {**row, 'automation_detected': any(not name.startswith('io.appium.') for name in packages)}
+        else:
+            appium = row.get('appium_present') is True
+        diagnostics['appium_present'] += int(appium)
+        diagnostics['appium_ignored'] += int(appium)
         names = ('root_detected', 'emulator_detected', 'automation_detected', 'play_integrity')
         missing += int(any(type(row.get(name)) is not bool for name in names))
         negative += int(any(row.get(name) is True for name in names[:3]) or row.get('play_integrity') is False)
@@ -295,11 +304,16 @@ async def build_real_context(policy, proxy_manager, run_id, proxy_verified, sele
         uid, packages = await asyncio.gather(asyncio.to_thread(read, route, 'id', '-u'),
                                            asyncio.to_thread(read, route, 'pm', 'list', 'packages'))
         qemu = props.get('ro.kernel.qemu')
+        installed = [name.removeprefix('package:') for name in packages.splitlines()
+                     if name.startswith('package:')]
+        detected = [name for name in installed if name.startswith(('io.appium.', 'com.genfarmer.'))
+                    or name in ('com.topjohnwu.magisk', 'com.genymobile.scrcpy', 'scrcpy')]
         result = {'root_detected': uid.strip() == '0' if uid.strip().isdigit() else None,
                 'emulator_detected': qemu == '1' if qemu in ('0', '1') else None,
-                'automation_detected': any(name in packages.splitlines() for name in
-                    ('package:io.appium.uiautomator2.server', 'package:io.appium.uiautomator2.server.test'))
+                'automation_detected': any(not name.startswith('io.appium.') for name in detected)
                     if packages.startswith('package:') else None,
+                'automation_packages': detected if packages.startswith('package:') else None,
+                'appium_present': any(name.startswith('io.appium.') for name in installed),
                 'play_integrity': None}
         if requested is not None and any(result.get(key) is True for key in
                                          ('root_detected', 'emulator_detected', 'automation_detected')):

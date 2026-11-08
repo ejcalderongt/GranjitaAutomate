@@ -11,7 +11,7 @@ from config.farm_policy import FarmPolicy
 class C4RealTests(unittest.IsolatedAsyncioTestCase):
     async def evaluate(self, result, policy=None):
         manager = SimpleNamespace(contar_salidas_distintas=AsyncMock(return_value=result))
-        item = await f.evaluate_c4_real([], policy or FarmPolicy(), {}, manager)
+        item = await f.evaluate_c4_real([], policy or FarmPolicy(proxy_min_distinct_exit_ips=3), {}, manager)
         manager.contar_salidas_distintas.assert_awaited_once_with(muestras=3, timeout=15)
         return item
 
