@@ -415,3 +415,40 @@ No se desactiva firewall/VPN ni se modifica configuracion por cuenta del agente.
 
 Validacion: 495 pytest y 28 subtests, 493 unittest, todas PASS. Credenciales
 aisladas y guardia sin accesos; hashes protegidos intactos antes y despues.
+
+### Fuente canonica del proxy
+
+Fecha local: 2026-11-07, America/Guatemala. Base: 50b55c5.
+La fuente efectiva actual es el .env raiz. Contiene PANDA_PROXY_HOST,
+PANDA_PROXY_PORT, PANDA_PROXY_USER, PANDA_PROXY_PASS, PANDA_PROXY_SCHEME y
+PANDA_PROXY_COUNTRY. Sus valores son sensibles y no se copian a documentacion.
+La premisa de que solo existen tres claves PANDA_* no coincide con la lectura
+actual del archivo; no se infiere quien o cuando lo actualizo.
+
+ProxyManager.desde_panda, en config/proxies.py, lee dotenv_values con
+interpolate=False y luego superpone os.environ. Se verifico en memoria que
+host, puerto, usuario, password y esquema del manager corresponden a la fuente.
+No hay PANDA_ENV_FILE alternativo ni overrides de las seis claves en el proceso
+de comprobacion. load_project_environment no exporta las claves de conexion,
+pero eso no impide su lectura directa por desde_panda. No requiere modificar
+el loader ni migrar o reescribir .env: migration_needed=false.
+
+config/local_proxy.local.json contiene datos del servicio local pero no los
+cinco campos de autenticacion completos. config/proxy_pool.json contiene
+entradas de pool pero tampoco los cinco campos. config/proxies.json no existe.
+Se detuvo la busqueda al acreditar la fuente efectiva; no se consultaron
+credenciales de SQLite, sesiones, registros antiguos o sistema Windows.
+
+Con esa fuente verificada se repitieron tres muestras: DNS correcto en todas;
+TCP TimeoutError en 15000, 15015 y 15000 ms. Handshake, autenticacion y CONNECT
+no evaluados porque no se obtuvo conexion TCP. No se prueba fallo de password.
+Clasificacion por la regla acordada: red_local (0 muestras exitosas, 3 fallidas),
+sin atribuir culpa exclusiva al firewall del host ni descartar filtrado remoto.
+
+Evidencia sin valores sensibles: runs/e2_proxy_fuente_20261108T011825153321Z.json.
+Decision: bloqueado_por: red_local. La fuente ya es canonica; pendiente revisar
+ruta y accesibilidad del endpoint con la red o el proveedor. Sin migracion,
+preflight real, ADB, pantallas o cambios de configuracion. Hashes G/Q intactos.
+
+Suites aisladas: 495 pytest y 28 subtests, 493 unittest, todas PASS. Guardia
+sin accesos a bases protegidas y hashes G/Q antes/despues iguales.
