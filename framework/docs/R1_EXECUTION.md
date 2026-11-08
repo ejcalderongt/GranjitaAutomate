@@ -301,3 +301,39 @@ preservando sus expectativas de diversidad; los nuevos tests cubren el nuevo
 default por etapa y la prioridad de una configuracion explicita.
 Validacion final: 491 pytest y 28 subtests, 489 unittest, todas PASS, con
 credenciales aisladas. Hashes G/Q identicos antes/despues; guardia sin accesos.
+
+### Diagnostico de Proxy no verificable
+
+Fecha: 2026-11-07, America/Guatemala. Commit base: 509a5ab.
+El intento panda-masivo-28a008d265e54b29bd6b5ae172a66bbd termino con codigo 4
+antes de evaluar C1-C5. No se repitio el preflight completo ni se uso ADB.
+PANDA_PROXY_COUNTRY esta presente y coincide con ES; el cargador y la
+configuracion del manager validan sin exponer parametros privados.
+
+ProxyManager.verificar_preflight obtiene la salida directa, crea el puente,
+consulta ipify mediante Patchright y luego consulta GeoIP mediante el puente.
+Captura errores y emite RuntimeError Proxy no verificable cuando la validacion
+o la limpieza fallan. ejecutar_preflight_proxy_solo convierte la excepcion en 4.
+El log historico no conserva la subcausa original: no puede afirmarse que sea
+identica a la observacion aislada actual.
+
+Diagnostico aislado autorizado, sin navegador: consulta directa correcta en
+416 ms; puente iniciado y escuchando; consulta ipify por el puente con
+ReadTimeout a 10003 ms. Clasificacion observada: timeout_ipify. Sin IP de salida
+no se pudo comparar fuga ni consultar GeoIP; quedan no evaluadas, no FAIL.
+La escucha del puente no acredita autenticacion o transporte hacia el upstream.
+Tampoco se confirmo el cierre limpio del puente antes de terminar el script;
+su proceso ya termino. Esto puede contribuir al fallo generico de limpieza,
+pero no prueba que fuera la causa del preflight historico.
+
+Evidencia sin IPs ni credenciales:
+runs/e2_proxy_diagnostico_20261108T003821316663Z.json.
+Pruebas autorizadas: test_proxy_manager_salidas y
+test_panda_massive_cli_integration, 14 PASS, con credenciales aisladas.
+Hashes G/Q antes/despues identicos. Sin cambios de codigo, .env o politicas.
+
+Accion propuesta: verificar disponibilidad y autenticacion del endpoint
+contratado y su conectividad desde este host con el proveedor. No hay evidencia
+para proponer un valor nuevo de configuracion ni para ampliar timeouts como fix.
+Pendiente autorizacion para un nuevo diagnostico de transporte o reintento
+tras resolver el timeout. E-2 sigue bloqueado; no se declara proxy operativo.
