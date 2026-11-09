@@ -222,6 +222,8 @@ class ProxyManager:
         verified=False;cancelled=False;clean=True
         bridge_closed=True
         cause='unknown';stage='direct_ipify';started=time.monotonic()
+        ip_url='https://ipv4.icanhazip.com'
+        ip_timeout=25.0
         failure_type='none'
         proxy_auth_rejected=False
         sessions=(ROOT/'sessions'/('preflight-'+run_id)).resolve()
@@ -233,7 +235,7 @@ class ProxyManager:
         def public_ip(value):
             if not isinstance(value,str):
                 raise ValueError()
-            parsed=ipaddress.ip_address(value)
+            parsed=ipaddress.ip_address(value.strip())
             if not parsed.is_global:
                 raise ValueError()
             return str(parsed)
@@ -267,22 +269,26 @@ class ProxyManager:
         try:
             with open(os.devnull,'w') as sink,contextlib.redirect_stdout(sink),contextlib.redirect_stderr(sink):
                 try:
-                    async with httpx.AsyncClient(timeout=5,trust_env=False,follow_redirects=False) as direct:
-                        response=await direct.get('https://api.ipify.org?format=json',timeout=5)
+                    async with httpx.AsyncClient(timeout=ip_timeout,trust_env=False,follow_redirects=False) as direct:
+                        response=await direct.get(ip_url,timeout=ip_timeout)
                         if response.status_code!=200:
                             raise ValueError()
-                        host_ip=public_ip(response.json().get('ip'))
+                        try:
+                            host_ip=public_ip(response.text)
+                        except ValueError:
+                            # Preserve support for clients that return a JSON IP envelope.
+                            host_ip=public_ip(response.json().get('ip'))
                     stage='bridge'
                     options,bridge=await manager.endpoint_para_chromium()
                     stage='browser_start'
                     runtime,context,page,browser_bridge=await asyncio.wait_for(iniciar_contexto_async(
                         'preflight-proxy',options,headless=True,sessions_root=sessions,engine='patchright'),timeout=15)
                     stage='ipify'
-                    response=await page.goto('https://api.ipify.org?format=json',wait_until='domcontentloaded',timeout=5000)
+                    response=await page.goto(ip_url,wait_until='domcontentloaded',timeout=ip_timeout*1000)
                     if response is None or response.status!=200:
                         cause='provider'
                         raise ValueError()
-                    observed=public_ip(json.loads(await page.locator('body').inner_text(timeout=5000)).get('ip'))
+                    observed=public_ip(await page.locator('body').inner_text(timeout=5000))
                     if observed==host_ip:
                         cause='leak'
                         raise ValueError()

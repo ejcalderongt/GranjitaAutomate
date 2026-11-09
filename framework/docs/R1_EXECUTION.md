@@ -565,7 +565,20 @@ La matriz anterior verifico ipify, y no aporto evidencia sobre icanhazip.
 Evidencia inicial: runs/e2_preflight_trace_20261109T151938927398Z.json.
 Evidencia final: runs/e2_preflight_final_20261109T152012723686Z.json.
 La captura conserva las lineas de diagnostico de formato conocido y omite
-las demas. La causa actual registrada es timeout_ipify. E-2 queda pendiente.
+las demas. La causa registrada en esa corrida fue timeout_ipify.
+
+### Migracion de la verificacion de IP a icanhazip (2026-11-09)
+
+El preflight aislado consulta el mismo endpoint IPv4 de icanhazip tanto
+desde el host como desde el navegador con proxy. El plazo de cada consulta
+es de 25 segundos. El verificador acepta texto plano y elimina el salto de
+linea antes de validar la direccion. Para la consulta directa tambien
+admite el formato JSON de los clientes existentes. La comparacion de fuga y
+la validacion GeoIP siguen vigentes.
+
+Una corrida real devolvio codigo 0 y Proxy verificado. La evidencia esta
+en runs/e2_preflight_final_20261109T152516546562Z.json. La prueba acredita
+el endpoint nuevo para esta corrida y deja listo el siguiente paso E-2.
 
 ### Bloqueo de conectividad externa con Proxy-Cheap (E-2)
 
