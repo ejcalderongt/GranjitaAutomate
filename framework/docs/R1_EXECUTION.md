@@ -580,6 +580,63 @@ Una corrida real devolvio codigo 0 y Proxy verificado. La evidencia esta
 en runs/e2_preflight_final_20261109T152516546562Z.json. La prueba acredita
 el endpoint nuevo para esta corrida y deja listo el siguiente paso E-2.
 
+### E-2. Preflight de granja detenido (2026-11-09 UTC)
+
+Base e368e19. El unico intento autorizado uso el CSV canonico de tres
+placas. El proxy devolvio Proxy verificado. El precheck real de granja
+termino con codigo 1, fuera de los codigos permitidos, y decision
+precheck_failed. El mensaje de la CLI indica que las rutas del inventario
+no coinciden con las identidades del mapa DPAPI. El mensaje agrupa varios
+fallos de seleccion y lectura. La traza no identifica la placa afectada.
+
+| Constraint | Estado | Contadores |
+|---|---|---|
+| C1 | No evaluado | Sin datos |
+| C2 | No evaluado | Sin datos |
+| C3 | No evaluado | Sin datos |
+| C4 | No evaluado | Sin datos |
+| C5 | No evaluado | Sin datos |
+
+La evidencia registra synthetic=false y verdicts=[]. El cierre requiere
+primero validar las rutas y las identidades de las tres placas, y despues
+obtener veredictos en una nueva corrida autorizada.
+
+Evidencia: runs/farm_preflight_farm-0dabbe640b8b4446acd667d745e0d7f5.json.
+Traza: runs/e2_farm_trace_20261109T153154788643Z.json.
+
+### Sincronizacion de rutas E-2 (2026-11-09 UTC)
+
+Base e368e19. En el diagnostico de 5037, las rutas previas de p01 y p02
+respondieron con identidades diferentes de las seleccionadas en DPAPI. La
+ruta previa de p03 estaba ausente. Se encontraron las identidades esperadas
+de p01 y p03 en rutas nuevas. Panda identifico p02 en otra ruta y, tras una
+conexion autorizada, ADB confirmo su identidad fisica en 5037.
+
+Se actualizaron solo los tres campos transporte del CSV canonico. Las
+referencias y las identidades del mapa se conservaron. El cruce por serial
+fisico permitio mantener la seleccion aunque los numeros visibles en Panda
+para p01 y p02 habian cambiado.
+
+El unico preflight posterior al cambio completo evaluo las tres placas.
+El proxy paso y el informe registro synthetic=false, codigo 2, decision abort.
+
+| Condicion | Estado | Contadores principales |
+|---|---|---|
+| C1 | FAIL | checked=3, negative_automation_apps=3, appium_ignored=3, integrity_probe_errors=3 |
+| C2 | WARN | missing_sim_country=3, mismatch_locale=0, mismatch_timezone=0, mismatches=0 |
+| C3 | PASS | checked=3, failed=0, missing=0 |
+| C4 | WARN | attempts=3, distinct=2, errors=1, timeouts=0, data_available=false |
+| C5 | WARN | samples=0 |
+
+Cierre E-2 pendiente. C1 registra detecciones ajenas a Appium y el informe
+no identifica sus paquetes concretos. C4 presenta un error sin desglose.
+El criterio excepcional de SIM no aplica a este resultado.
+
+Diagnostico: runs/e2_route_sync_20261109T153808213259Z.json y
+runs/e2_route_sync_20261109T153848929294Z.json.
+Evidencia: runs/farm_preflight_farm-8c8906b947064cb98b5fea95470110ab.json.
+Traza: runs/e2_farm_route_trace_20261109T153911894998Z.json.
+
 ### Bloqueo de conectividad externa con Proxy-Cheap (E-2)
 
 Fecha UTC: 2026-11-08T05:39:27+00:00. Commit base: 2d7b42d.
