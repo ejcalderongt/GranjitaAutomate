@@ -206,6 +206,7 @@ class ProxyManager:
         import logging
         import httpx
         import time
+        from types import SimpleNamespace
         from core.browser import ROOT,iniciar_contexto_async,cerrar_contexto_async
         from core.geo_resolver import obtener_geolocalizacion_con_bypass
         logger=logging.getLogger('qa.panda.masivo')
@@ -221,6 +222,8 @@ class ProxyManager:
         verified=False;cancelled=False;clean=True
         bridge_closed=True
         cause='unknown';stage='direct_ipify';started=time.monotonic()
+        failure_type='none'
+        proxy_auth_rejected=False
         sessions=(ROOT/'sessions'/('preflight-'+run_id)).resolve()
         quiet=[logging.getLogger(name) for name in ('httpx','httpcore','pproxy','warmer.geo')]
         disabled=[item.disabled for item in quiet]
@@ -284,20 +287,37 @@ class ProxyManager:
                         cause='leak'
                         raise ValueError()
                     stage='geoip'
-                    async with httpx.AsyncClient(proxy=httpx.Proxy(options['server']),timeout=5,
+                    auth = (options['username'], options['password']) if options.get('username') else None
+                    async with httpx.AsyncClient(proxy=httpx.Proxy(options['server'], auth=auth),timeout=5,
                             trust_env=False,follow_redirects=False) as proxied:
+                        async def get_geo(*args, **kwargs):
+                            nonlocal proxy_auth_rejected
+                            try:
+                                response = await proxied.get(*args, **kwargs)
+                            except httpx.ProxyError as exc:
+                                # HTTP CONNECT rejection arrives as an exception.
+                                proxy_auth_rejected |= bool(re.match(r'^407(?:\s|$)', str(exc)))
+                                raise
+                            proxy_auth_rejected |= response.status_code == 407
+                            return response
                         async with asyncio.timeout(12):
-                            geo=await obtener_geolocalizacion_con_bypass(observed,cliente_http=proxied)
+                            geo=await obtener_geolocalizacion_con_bypass(observed,cliente_http=SimpleNamespace(get=get_geo))
                     if geo.get('geo_status')!='resolved':
-                        cause='timeout_geoip' if any(a.get('error_type') in ('ReadTimeout','TimeoutError') for a in geo.get('attempts',[])) else 'geoip'
+                        if proxy_auth_rejected:
+                            cause='auth_407'
+                        elif any(a.get('error_type') in ('ReadTimeout','TimeoutError') for a in geo.get('attempts',[])):
+                            cause='timeout_geoip'
+                        else:
+                            cause='geoip_unavailable'
                         raise ValueError()
                     if manager._panda_country and geo.get('pais')!=manager._panda_country.upper():
-                        cause='geoip'
+                        cause='geoip_country_mismatch'
                         raise ValueError()
                     verified=True
                 except asyncio.CancelledError:
                     cancelled=True
                 except Exception as exc:
+                    failure_type=type(exc).__name__
                     if cause=='unknown':
                         if isinstance(exc,(httpx.TimeoutException,TimeoutError)) or type(exc).__name__=='TimeoutError':
                             cause='timeout_geoip' if stage=='geoip' else 'timeout_ipify' if stage in ('ipify','direct_ipify') else 'bridge'
@@ -319,6 +339,9 @@ class ProxyManager:
         if not verified or not clean:
             if verified and not clean:
                 cause='bridge'
+                stage='cleanup'
+            logger.error('proxy_preflight_trace stage=%s cause=%s error_type=%s',
+                         stage,cause,failure_type)
             logger.error('proxy_preflight_%s verified=%s bridge_closed=%s duration_ms=%d',
                          cause,str(verified).lower(),str(bridge_closed).lower(),round((time.monotonic()-started)*1000))
             logger.error('Proxy no verificable')

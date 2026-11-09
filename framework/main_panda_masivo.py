@@ -223,10 +223,11 @@ async def ejecutar_preflight_proxy_solo(args) -> int:
     except (KeyboardInterrupt, asyncio.CancelledError):
         log.info('Preflight de proxy cancelado')
         return 130
-    except asyncio.TimeoutError:
-        log.error('Proxy no verificable')
-        return 4
-    except Exception:
+    except Exception as exc:
+        # Arbitrary exception messages can include proxy URLs or authentication.
+        message = str(exc)
+        safe_message = message if message in (*MENSAJES_PROXY, 'Proxy no verificable') else '[detalle reservado]'
+        log.error('Proxy preflight fallo: %s: %s', type(exc).__name__, safe_message)
         log.error('Proxy no verificable')
         return 4
     log.info('Proxy verificado')

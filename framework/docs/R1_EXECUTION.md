@@ -543,6 +543,30 @@ El ticket distingue los timeouts anteriores del resultado actual y pide
 confirmar disponibilidad, filtrado y puertos asignados. Queda listo para
 envio por el operador. E-2 permanece pendiente del preflight de proxy.
 
+### Traza y correccion del preflight de proxy (2026-11-09)
+
+Base: 0c21493. La traza inicial devolvio 4 con stage=geoip y cause=auth_407.
+El navegador ya habia alcanzado el destino de IP. El cliente HTTP de GeoIP
+creaba su conexion al proxy sin la autenticacion disponible en las opciones
+del navegador. El cliente ahora usa esa autenticacion cuando esta presente.
+Un caso local con clientes simulados confirmo el traspaso de autenticacion.
+
+El wrapper conserva el tipo y los mensajes controlados de las excepciones.
+El resto de los mensajes se reserva. El verificador registra la etapa y
+detecta 407 tanto en la respuesta HTTP como en la excepcion del tunel CONNECT.
+Se conserva el contrato de error Proxy no verificable.
+
+La unica verificacion posterior al cambio devolvio 4 con stage=ipify,
+cause=timeout_ipify y error_type=TimeoutError, antes de llegar a GeoIP.
+Por tanto, el traspaso de autenticacion tiene validacion local y falta
+validarlo de extremo a extremo. Se agotaron los dos intentos autorizados.
+La matriz anterior verifico ipify, y no aporto evidencia sobre icanhazip.
+
+Evidencia inicial: runs/e2_preflight_trace_20261109T151938927398Z.json.
+Evidencia final: runs/e2_preflight_final_20261109T152012723686Z.json.
+La captura conserva las lineas de diagnostico de formato conocido y omite
+las demas. La causa actual registrada es timeout_ipify. E-2 queda pendiente.
+
 ### Bloqueo de conectividad externa con Proxy-Cheap (E-2)
 
 Fecha UTC: 2026-11-08T05:39:27+00:00. Commit base: 2d7b42d.
