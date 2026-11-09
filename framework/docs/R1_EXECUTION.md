@@ -521,6 +521,28 @@ dispositivos. Guardia sin accesos a bases protegidas y hashes G/Q intactos.
 Aviso no bloqueante: la version instalada de Starlette recomienda migrar su
 TestClient a httpx2; se conserva httpx existente porque los tests pasan.
 
+### Panel, playbook E-3 y matriz de red (2026-11-09)
+
+El panel local arranco en http://127.0.0.1:8000 y GET /api/status devolvio 200.
+El playbook de E-3 especifica los comandos, requisitos, observacion humana,
+evidencia y criterios de parada para una corrida autorizada.
+
+La matriz probo seis puertos y dos protocolos. DNS dio una direccion IPv4 y
+cero IPv6. Dos combinaciones alcanzaron el destino HTTPS de prueba con
+autenticacion. En los cinco puertos alternativos vencio el plazo TCP. Los
+resultados de IPv6 quedan como no evaluados por falta de registro.
+
+La combinacion HTTP exitosa coincidia con los valores configurados. El
+preflight aislado se ejecuto una vez y devolvio codigo 4. Se conservo el
+codigo, pero no el detalle interno de la excepcion. La conectividad al
+destino de prueba quedo verificada. La verificacion completa sigue pendiente.
+
+Evidencia: runs/e2_proxy_deep_diag_20261109T151352257817Z.json.
+Ticket preparado: runs/e2_proxy_support_ticket_final_20261109T151352257817Z.txt.
+El ticket distingue los timeouts anteriores del resultado actual y pide
+confirmar disponibilidad, filtrado y puertos asignados. Queda listo para
+envio por el operador. E-2 permanece pendiente del preflight de proxy.
+
 ### Bloqueo de conectividad externa con Proxy-Cheap (E-2)
 
 Fecha UTC: 2026-11-08T05:39:27+00:00. Commit base: 2d7b42d.
