@@ -206,6 +206,7 @@ class ProxyManager:
         import logging
         import httpx
         import time
+        from patchright.async_api import Error as BrowserError
         from types import SimpleNamespace
         from core.browser import ROOT,iniciar_contexto_async,cerrar_contexto_async
         from core.geo_resolver import obtener_geolocalizacion_con_bypass
@@ -222,8 +223,12 @@ class ProxyManager:
         verified=False;cancelled=False;clean=True
         bridge_closed=True
         cause='unknown';stage='direct_ipify';started=time.monotonic()
-        ip_url='https://ipv4.icanhazip.com'
-        ip_timeout=25.0
+        ip_endpoints = (
+            ('https://ipv4.icanhazip.com', False),
+            ('https://api.ipify.org?format=json', True),
+            ('https://ifconfig.me/ip', False),
+        )
+        ip_timeout = 15.0
         failure_type='none'
         proxy_auth_rejected=False
         sessions=(ROOT/'sessions'/('preflight-'+run_id)).resolve()
@@ -270,7 +275,7 @@ class ProxyManager:
             with open(os.devnull,'w') as sink,contextlib.redirect_stdout(sink),contextlib.redirect_stderr(sink):
                 try:
                     async with httpx.AsyncClient(timeout=ip_timeout,trust_env=False,follow_redirects=False) as direct:
-                        response=await direct.get(ip_url,timeout=ip_timeout)
+                        response=await direct.get(ip_endpoints[0][0],timeout=ip_timeout)
                         if response.status_code!=200:
                             raise ValueError()
                         try:
@@ -284,11 +289,30 @@ class ProxyManager:
                     runtime,context,page,browser_bridge=await asyncio.wait_for(iniciar_contexto_async(
                         'preflight-proxy',options,headless=True,sessions_root=sessions,engine='patchright'),timeout=15)
                     stage='ipify'
-                    response=await page.goto(ip_url,wait_until='domcontentloaded',timeout=ip_timeout*1000)
-                    if response is None or response.status!=200:
-                        cause='provider'
-                        raise ValueError()
-                    observed=public_ip(await page.locator('body').inner_text(timeout=5000))
+                    for attempt, (url, is_json) in enumerate(ip_endpoints, start=1):
+                        try:
+                            async with asyncio.timeout(ip_timeout):
+                                response = await page.goto(
+                                    url, wait_until='domcontentloaded', timeout=ip_timeout * 1000)
+                                if response is None or response.status != 200:
+                                    raise ValueError()
+                                body = await page.locator('body').inner_text(timeout=ip_timeout * 1000)
+                                if is_json:
+                                    payload = json.loads(body)
+                                    body = payload.get('ip') if isinstance(payload, dict) else None
+                                observed = public_ip(body)
+                                if ipaddress.ip_address(observed).version != ipaddress.ip_address(host_ip).version:
+                                    raise ValueError()
+                        except (BrowserError, httpx.RequestError, TimeoutError, ValueError) as exc:
+                            timed_out = isinstance(exc, (httpx.TimeoutException, TimeoutError)) or type(exc).__name__ == 'TimeoutError'
+                            logger.info('proxy_preflight_ip_attempt attempt=%d result=%s',
+                                        attempt, 'timeout' if timed_out else 'failed')
+                            if attempt == len(ip_endpoints):
+                                cause = 'timeout_ipify' if timed_out else 'provider'
+                                raise
+                        else:
+                            logger.info('proxy_preflight_ip_attempt attempt=%d result=ok', attempt)
+                            break
                     if observed==host_ip:
                         cause='leak'
                         raise ValueError()

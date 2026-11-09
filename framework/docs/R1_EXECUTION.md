@@ -662,6 +662,34 @@ Retirada: runs/e2_c1_cleanup_20261109T154634680746Z.json.
 Preflight: runs/farm_preflight_farm-98b79cc253b54adc92145b9628f27388.json.
 Traza: runs/e2_farm_cleanup_trace_20261109T154657214396Z.json.
 
+### Resiliencia del preflight y cierre E-2 (2026-11-09 UTC)
+
+Base 2df9ae3. La consulta de IP publica por el navegador prueba icanhazip,
+ipify e ifconfig.me en orden, con un maximo de tres intentos. Cada intento
+tiene un plazo total de 15 segundos para navegar y leer el cuerpo. La
+respuesta se valida como IP publica de la misma familia que la consulta
+directa. Se conserva la comprobacion de fuga y la validacion GeoIP.
+
+La prueba unitaria simula timeout del primer endpoint y respuesta JSON del
+segundo. Las pruebas de fallo total verifican el limite de tres intentos.
+El preflight real de las tres placas se ejecuto una vez. El primer endpoint
+respondio. El informe registra synthetic=false, codigo 0 y decision
+proceed_with_warnings.
+
+| Condicion | Estado | Contadores principales |
+|---|---|---|
+| C1 | WARN | checked=3, negative_automation_apps=0, negative=0, integrity_probe_errors=3 |
+| C2 | WARN | missing_sim_country=3, mismatch_locale=0, mismatch_timezone=0, mismatches=0 |
+| C3 | PASS | checked=3, failed=0, missing=0 |
+| C4 | PASS | attempts=3, distinct=3, errors=0, timeouts=0 |
+| C5 | WARN | samples=0 |
+
+E-2 cerrado, listo_para_E3. El fallback se acredito en pruebas unitarias.
+La corrida real acredito la primera opcion y el preflight completo.
+
+Evidencia: runs/farm_preflight_farm-f5f635c5aeaa4ed690e1c640b207c299.json.
+Traza: runs/e2_preflight_final_20261109T155508509050Z.json.
+
 ### Bloqueo de conectividad externa con Proxy-Cheap (E-2)
 
 Fecha UTC: 2026-11-08T05:39:27+00:00. Commit base: 2d7b42d.
