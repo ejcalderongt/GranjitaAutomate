@@ -637,6 +637,31 @@ runs/e2_route_sync_20261109T153848929294Z.json.
 Evidencia: runs/farm_preflight_farm-8c8906b947064cb98b5fea95470110ab.json.
 Traza: runs/e2_farm_route_trace_20261109T153911894998Z.json.
 
+### Limpieza C1 y preflight detenido en el proxy (2026-11-09 UTC)
+
+Base c05ef66. El inventario de paquetes identifico un unico nombre que
+dispara C1, com.topjohnwu.magisk, instalado en p01, p02 y p03. El contador
+negative_automation_apps=3 corresponde a tres placas, con el mismo paquete
+en cada una. El paquete ya figuraba en la limpieza anterior. Su presencia
+actual no permite distinguir reinstalacion de limpieza incompleta.
+
+Se verifico la identidad fisica antes de cada retirada. En las tres placas
+el paquete era de terceros, sin coincidencia en la lista de propietarios
+ni como componente administrador en la politica del dispositivo. Se hizo
+una desinstalacion por placa y pm list packages confirmo su ausencia.
+El detector C1 quedo sin coincidencias en la lectura posterior.
+
+El unico preflight real posterior termino con codigo 4 y decision
+precheck_failed. La traza registro stage=ipify, cause=timeout_ipify y
+error_type=TimeoutError en la consulta por navegador del proxy. El informe
+registra synthetic=false y verdicts=[]. C1-C5 quedan sin reevaluar. E-2
+sigue abierto hasta obtener un resultado de granja aceptable.
+
+Inventario: runs/e2_c1_packages_20261109T154634680746Z.json.
+Retirada: runs/e2_c1_cleanup_20261109T154634680746Z.json.
+Preflight: runs/farm_preflight_farm-98b79cc253b54adc92145b9628f27388.json.
+Traza: runs/e2_farm_cleanup_trace_20261109T154657214396Z.json.
+
 ### Bloqueo de conectividad externa con Proxy-Cheap (E-2)
 
 Fecha UTC: 2026-11-08T05:39:27+00:00. Commit base: 2d7b42d.
