@@ -690,6 +690,52 @@ La corrida real acredito la primera opcion y el preflight completo.
 Evidencia: runs/farm_preflight_farm-f5f635c5aeaa4ed690e1c640b207c299.json.
 Traza: runs/e2_preflight_final_20261109T155508509050Z.json.
 
+### E-3: Primera corrida fisica real
+
+Fecha UTC: 2026-11-09. Base: e26997c. Estado: bloqueado en admision.
+ADB 5037 confirmo la identidad fisica de las tres placas del CSV mediante
+el mapa DPAPI. Panda asigna numeros distintos a p01 y p02. El flujo nativo
+exige coincidencia por numero Panda e identidad fisica.
+
+| plate_id | Panda CSV | Panda vivo | completed | duration | incidents |
+|---|---|---|---|---|---|
+| p01 | 13 | 07 | No evaluado | No medida | No evaluados |
+| p02 | 15 | 06 | No evaluado | No medida | No evaluados |
+| p03 | 22 | 22 | No evaluado | No medida | No evaluados |
+
+El prechequeo de SQLite detecto que telemetria_panda.db carece de
+auditorias_panda y que telemetry_qa.db, requerida para eventos_ia_qa,
+no existe en la raiz del framework. Ambas tablas son obligatorias para
+la auditoria nativa.
+
+Intentos de corrida: 0. Retencion solicitada: 12 segundos, sin medicion.
+Sin Vision, sin acciones de la corrida en placas. El playbook E-3 requiere
+observacion del operador para acreditar incidentes sin Vision.
+
+Evidencia: runs/e3_execution_20261109T160055497743Z.json.
+
+#### Sincronizacion de numeros visuales Panda
+
+Fecha local: 2026-11-09, America/Guatemala. Las tres rutas estaban activas
+en el servidor ADB 5037. El mapa DPAPI, la identidad fisica leida de Android
+y el inventario vivo de Panda coincidieron para las tres placas.
+
+| Placa | Panda anterior | Panda verificado | device_ref |
+|---|---|---|---|
+| p01 | 13 | 07 | Confirmado |
+| p02 | 15 | 06 | Confirmado |
+| p03 | 22 | 22 | Confirmado |
+
+El CSV se valido con tres filas vinculadas. El preflight sintetico termino
+con codigo 0 sobre SQLite temporal. La verificacion de rutas fue en vivo
+y separada del preflight sintetico.
+
+La preparacion de auditorias_panda y eventos_ia_qa se valido sobre copias.
+El plan admite tres inserciones por tabla. La inicializacion de los esquemas
+operativos sigue pendiente para la etapa autorizada de E-3.
+
+Evidencia: runs/e3_admission_plan_20261110T033642760729Z.json.
+
 ### Bloqueo de conectividad externa con Proxy-Cheap (E-2)
 
 Fecha UTC: 2026-11-08T05:39:27+00:00. Commit base: 2d7b42d.
