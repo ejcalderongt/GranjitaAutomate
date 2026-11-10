@@ -748,6 +748,26 @@ proceed_with_warnings. La persistencia se hizo en una copia SQLite dentro
 de runs/ y los hashes operativos permanecieron iguales.
 Evidencia: runs/e3_resync_20261110T034342397408Z/admission.json y preflight.json.
 
+### E-3: Primera corrida fisica
+
+Fecha local: 2026-11-09, America/Guatemala. Una ejecucion, un ciclo,
+retencion solicitada de 12 segundos y concurrencia 1. La captura y el
+procesamiento de cada placa comparten el semaforo. La prueba con stubs
+observo una sola captura activa y verifico la cancelacion antes del gesto.
+
+El proceso termino en 27.982 segundos con codigo 0 y completed=true.
+Panda acepto la orden de desplazamiento para 07, 06 y 22. SQLite registro
+tres filas en auditorias_panda y tres en eventos_ia_qa. Ambas auditorias
+por clave y run_id pasaron. La llamada al modelo se omitio en las tres
+placas. La muestra de farm_stage_metrics conserva los tres contadores NULL.
+
+La consola no registro senales de incidentes. Falta la observacion humana
+por placa para acreditar ausencia de captchas, softblocks y deslogueos.
+
+Pytest y unittest terminaron con codigo 0 (541 pruebas en unittest).
+Las suites conservaron los hashes de las bases operativas y los logs.
+Evidencia: runs/e3_native_20261110T035637036746Z/verified.json y suites.json.
+
 ### Bloqueo de conectividad externa con Proxy-Cheap (E-2)
 
 Fecha UTC: 2026-11-08T05:39:27+00:00. Commit base: 2d7b42d.

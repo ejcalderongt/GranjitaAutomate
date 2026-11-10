@@ -34,8 +34,10 @@ async def ejecutar_qa_panda(client,devices,*,cycles=5,hold_seconds=8,concurrency
         await guardar_lote_async(db_path,run_id,cycle,rows)
     async def inspect(device_id,cycle):
         try:
-            path=await client.capturar_pantalla_dispositivo_async(device_id)
             async with semaphore:
+                if stop.is_set():
+                    return {'id_placa':device_id,'estado':'cancelado'}
+                path=await client.capturar_pantalla_dispositivo_async(device_id)
                 if stop.is_set():
                     return {'id_placa':device_id,'estado':'cancelado'}
                 audit=await analizar_pantalla_tiktok_async(path,allow_upload=allow_upload,
