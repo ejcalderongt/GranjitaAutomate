@@ -11,7 +11,8 @@ class C1RealTests(unittest.IsolatedAsyncioTestCase):
     async def test_pass_warn_and_objective_fail(self):
         good = dict(root_detected=False, emulator_detected=False, automation_detected=False, play_integrity=True)
         devices = ['a', 'b', 'c']
-        for row, status in ((good, 'PASS'), ({}, 'WARN'), ({**good, 'root_detected': True}, 'FAIL'),
+        for row, status in ((good, 'PASS'), ({}, 'WARN'), ({**good, 'root_detected': True}, 'WARN'),
+                            ({**good, 'magiskd_detected': True}, 'WARN'),
                             ({**good, 'emulator_detected': True}, 'FAIL'),
                             ({**good, 'automation_detected': True}, 'FAIL'),
                             ({**good, 'play_integrity': False}, 'FAIL')):

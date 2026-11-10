@@ -27,11 +27,19 @@ class AppiumStage3PolicyTests(unittest.TestCase):
         self.assertEqual(verdict.counters['appium_ignored'], 3)
 
     def test_other_automation_still_fails(self):
-        for package in ('com.genfarmer.uiautomator', 'com.topjohnwu.magisk', 'com.genymobile.scrcpy'):
+        for package in ('com.genfarmer.uiautomator', 'com.genymobile.scrcpy'):
             with self.subTest(package=package):
                 verdict = self.check_packages(['io.appium.uiautomator2.server', package])
                 self.assertEqual(verdict.status, 'FAIL')
                 self.assertEqual(verdict.counters['negative_automation_apps'], 3)
+
+    def test_magisk_warns_without_hiding_other_packages(self):
+        magisk = 'com.topjohnwu.magisk'
+        warning = self.check_packages([magisk])
+        self.assertEqual(warning.status, 'WARN')
+        self.assertEqual(warning.counters['warning_magisk_package'], 3)
+        self.assertEqual(warning.counters['negative_automation_apps'], 0)
+        self.assertEqual(self.check_packages([magisk, 'com.genfarmer.uiautomator']).status, 'FAIL')
 
     @patch.dict(os.environ, {}, clear=True)
     def test_stage3_c4_min_1(self):

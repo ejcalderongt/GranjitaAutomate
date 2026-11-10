@@ -15,7 +15,9 @@ C1_DIAGNOSTIC_KEYS = (
     'negative_emulator_hint', 'negative_automation_apps',
     'integrity_probe_available', 'integrity_probe_errors', 'skipped',
     'appium_present', 'appium_ignored',
+    'warning_magisk_package', 'warning_magiskd',
 )
+MAGISK_PACKAGE = 'com.topjohnwu.magisk'
 C2_DIAGNOSTIC_KEYS = (
     'missing_sim_country', 'missing_locale', 'missing_timezone',
     'mismatch_sim_country', 'mismatch_locale', 'mismatch_timezone',
@@ -67,8 +69,8 @@ def diagnostic_defaults(constraint, counters):
     return {}
 
 
-def real_verdict(constraint, status, action, **counters):
-    detail = {'PASS': 'DATOS_ACREDITADOS', 'WARN': 'DATOS_INCOMPLETOS', 'FAIL': 'DATOS_NO_CUMPLEN'}[status]
+def real_verdict(constraint, status, action, *, detail=None, **counters):
+    detail = detail or {'PASS': 'DATOS_ACREDITADOS', 'WARN': 'DATOS_INCOMPLETOS', 'FAIL': 'DATOS_NO_CUMPLEN'}[status]
     return ConstraintVerdict(constraint, status,
         constraint + ' ' + detail + ' | alternativa: ' + action, counters)
 
@@ -82,6 +84,10 @@ async def probe(ctx, name, device):
         return result if isinstance(result, dict) else {}
     except Exception:
         return {}
+
+
+def blocking_automation(packages):
+    return any(name != MAGISK_PACKAGE and not name.startswith('io.appium.') for name in packages)
 
 
 async def evaluate_c1_real(devices, policy, ctx):
@@ -100,18 +106,26 @@ async def evaluate_c1_real(devices, policy, ctx):
     diagnostics['skipped'] = sum(skipped for _, skipped in observations)
     missing = int(len(devices) != policy.stage)
     negative = 0
+    root_warnings = 0
     for row in rows:
         packages = row.get('automation_packages')
+        magisk = False
         if isinstance(packages, list) and all(isinstance(name, str) for name in packages):
             appium = any(name.startswith('io.appium.') for name in packages)
-            row = {**row, 'automation_detected': any(not name.startswith('io.appium.') for name in packages)}
+            magisk = MAGISK_PACKAGE in packages
+            row = {**row, 'automation_detected': blocking_automation(packages)}
         else:
             appium = row.get('appium_present') is True
         diagnostics['appium_present'] += int(appium)
         diagnostics['appium_ignored'] += int(appium)
         names = ('root_detected', 'emulator_detected', 'automation_detected', 'play_integrity')
         missing += int(any(type(row.get(name)) is not bool for name in names))
-        negative += int(any(row.get(name) is True for name in names[:3]) or row.get('play_integrity') is False)
+        negative += int(row.get('emulator_detected') is True or row.get('automation_detected') is True
+                        or row.get('play_integrity') is False)
+        daemon = row.get('magiskd_detected') is True
+        root_warnings += int(row.get('root_detected') is True or daemon or magisk)
+        diagnostics['warning_magisk_package'] += int(magisk)
+        diagnostics['warning_magiskd'] += int(daemon)
         diagnostics['missing_authorized'] += int(type(row.get('authorized')) is not bool)
         diagnostics['missing_connected'] += int(type(row.get('connected')) is not bool)
         diagnostics['negative_uid_privileged'] += int(row.get('root_detected') is True)
@@ -120,8 +134,9 @@ async def evaluate_c1_real(devices, policy, ctx):
         available = type(row.get('play_integrity')) is bool
         diagnostics['integrity_probe_available'] += int(available)
         diagnostics['integrity_probe_errors'] += int(not available)
-    status = 'FAIL' if negative else 'WARN' if missing or not devices else 'PASS'
+    status = 'FAIL' if negative else 'WARN' if root_warnings or missing or not devices else 'PASS'
     return real_verdict('C1', status, 'acreditar integridad Android por canal autorizado',
+                        detail='ROOT_O_MAGISK' if status == 'WARN' and root_warnings else None,
                         checked=len(rows), missing=missing, negative=negative, **diagnostics)
 
 
@@ -301,22 +316,27 @@ async def build_real_context(policy, proxy_manager, run_id, proxy_verified, sele
 
     async def integrity(device):
         route, props = selected[device]
-        uid, packages = await asyncio.gather(asyncio.to_thread(read, route, 'id', '-u'),
-                                           asyncio.to_thread(read, route, 'pm', 'list', 'packages'))
+        uid, packages, processes = await asyncio.gather(
+            asyncio.to_thread(read, route, 'id', '-u'),
+            asyncio.to_thread(read, route, 'pm', 'list', 'packages'),
+            asyncio.to_thread(read, route, 'ps', '-A', '-o', 'NAME'), return_exceptions=True)
+        uid = uid.strip() if isinstance(uid, str) else ''
+        packages = packages if isinstance(packages, str) else ''
         qemu = props.get('ro.kernel.qemu')
         installed = [name.removeprefix('package:') for name in packages.splitlines()
                      if name.startswith('package:')]
         detected = [name for name in installed if name.startswith(('io.appium.', 'com.genfarmer.'))
-                    or name in ('com.topjohnwu.magisk', 'com.genymobile.scrcpy', 'scrcpy')]
-        result = {'root_detected': uid.strip() == '0' if uid.strip().isdigit() else None,
+                    or name in (MAGISK_PACKAGE, 'com.genymobile.scrcpy', 'scrcpy')]
+        result = {'root_detected': uid == '0' if uid.isdigit() else None,
+                'magiskd_detected': isinstance(processes, str) and 'magiskd' in processes.split(),
                 'emulator_detected': qemu == '1' if qemu in ('0', '1') else None,
-                'automation_detected': any(not name.startswith('io.appium.') for name in detected)
+                'automation_detected': blocking_automation(detected)
                     if packages.startswith('package:') else None,
                 'automation_packages': detected if packages.startswith('package:') else None,
                 'appium_present': any(name.startswith('io.appium.') for name in installed),
                 'play_integrity': None}
         if requested is not None and any(result.get(key) is True for key in
-                                         ('root_detected', 'emulator_detected', 'automation_detected')):
+                                         ('emulator_detected', 'automation_detected')):
             excluded.add(device)
         return result
 

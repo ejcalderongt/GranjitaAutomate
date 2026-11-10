@@ -905,3 +905,8 @@ El panel muestra la ultima comprobacion por placa y un coste estimado de
 Vision a partir del uso informado. Conserva la evidencia bajo Avanzado.
 Un incidente visual detiene la cola y queda registrado en las metricas
 de etapa para bloquear la promocion.
+
+C1 registra Magisk, su daemon y el shell con UID privilegiado como WARN
+en los preflights reales. Estas senales se conservan en la evidencia.
+Emulacion, automatizacion bloqueante o una comprobacion de integridad
+negativa siguen produciendo FAIL. La politica de aborto por WARN se respeta.

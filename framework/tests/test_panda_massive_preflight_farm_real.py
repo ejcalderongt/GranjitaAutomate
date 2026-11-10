@@ -60,10 +60,20 @@ class FarmRealCLITests(unittest.TestCase):
         self.assertTrue(all(value['status']=='PASS' for value in report['adapters'].values()))
 
     def test_objective_fail(self):
-        self.ctx['integrity_probe'] = AsyncMock(return_value={'root_detected': True})
+        self.ctx['integrity_probe'] = AsyncMock(return_value={'emulator_detected': True})
         code, report = self.invoke()
         self.assertEqual(code, 2)
         self.assertEqual(report['decision'], 'abort')
+
+    def test_root_signal_does_not_abort(self):
+        self.ctx['integrity_probe'] = AsyncMock(return_value={
+            'root_detected': True, 'magiskd_detected': True, 'automation_packages': ['com.topjohnwu.magisk']})
+        code, report = self.invoke()
+        self.assertEqual(code, 0)
+        self.assertEqual(report['decision'], 'proceed_with_warnings')
+        c1 = next(item for item in report['verdicts'] if item['constraint']=='C1')
+        self.assertEqual(c1['status'], 'WARN')
+        self.assertEqual(c1['counters']['warning_magiskd'], 3)
 
     def test_only_missing_integrity_warns(self):
         self.ctx['integrity_probe'] = AsyncMock(return_value=dict(root_detected=False,emulator_detected=False,automation_detected=False,play_integrity=None))
