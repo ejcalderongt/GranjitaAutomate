@@ -74,6 +74,18 @@ class PandaClient:
             raise PandaError('inventario_invalido')
         return data
 
+    async def update_device_alias(self, serial, sort, name):
+        if (not isinstance(serial, str)
+                or not re.fullmatch(r'[A-Za-z0-9_.:\[\]-]{3,100}', serial)
+                or serial.lower() == 'all'):
+            raise ValueError('Transporte Panda invalido')
+        if type(sort) is not int or not 1 <= sort <= 999999:
+            raise ValueError('Numero visual Panda invalido')
+        if not isinstance(name, str) or not name.strip() or len(name) > 120 or not name.isprintable():
+            raise ValueError('Alias Panda invalido')
+        await self._request({'action': 'updateDevices', 'devices': serial,
+                             'data': {'sort': sort, 'name': name}})
+
     @staticmethod
     def _resolve(rows,device_id):
         if not re.fullmatch(r'\d{1,6}',device_id) or int(device_id)<1:

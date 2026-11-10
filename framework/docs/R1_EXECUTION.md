@@ -874,3 +874,14 @@ personalizados existentes se conservan. `GET /api/status` consulta la tabla
 El flujo combinado toma el numero visual vigente de la fila vinculada por
 serial fisico y transporte. Un vinculo ausente, ambiguo o con otra ruta
 impide admitir el lote. El CSV conserva su valor anterior como referencia.
+
+### Numeros fijos en Panda
+
+Desde la raiz operativa, ejecutar
+`python -m scripts.aplicar_aliases_panda --apply` al iniciar el laboratorio,
+despues de que Panda muestre las tres placas. El comando aplica los alias
+SQLite y los numeros 07, 06 y 22 via `updateDevices`. Cruza `device_ref`
+con DPAPI y `onlySerial`, y envia cada cambio al transporte vigente.
+Un numero ocupado o una identidad ambigua impiden la operacion.
+El comando relee Panda para confirmar cada cambio y omite los ya aplicados.
+Ejecutar sin `--apply` para comprobar la asignacion tras una reconexion.
