@@ -761,8 +761,12 @@ tres filas en auditorias_panda y tres en eventos_ia_qa. Ambas auditorias
 por clave y run_id pasaron. La llamada al modelo se omitio en las tres
 placas. La muestra de farm_stage_metrics conserva los tres contadores NULL.
 
-La consola no registro senales de incidentes. Falta la observacion humana
-por placa para acreditar ausencia de captchas, softblocks y deslogueos.
+El operador confirmo que observo las tres pantallas durante la corrida.
+En 07, 06 y 22 vio reproduccion continua de videos, sin captchas,
+softblocks ni deslogueos observados. Los contadores automaticos permanecen
+en NULL porque la corrida fue sin Vision.
+
+Decision: E-3 cerrado, listo_para_E4.
 
 Pytest y unittest terminaron con codigo 0 (541 pruebas en unittest).
 Las suites conservaron los hashes de las bases operativas y los logs.
