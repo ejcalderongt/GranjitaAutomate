@@ -1,10 +1,13 @@
 import asyncio
+from contextlib import closing
 import json
 from pathlib import Path
 import tempfile
+import sqlite3
 import time
 import unittest
 from fastapi.testclient import TestClient
+from core.device_aliases import ALIAS_DB, INVENTORY, seed_aliases
 from ui.lab_api import create_app
 
 
@@ -30,6 +33,21 @@ class LabBackendTests(unittest.TestCase):
         data = self.client.get('/api/status').json()
         self.assertEqual(data['status'], 'idle')
         self.assertFalse(data['real_execution_authorized'])
+
+    def test_status_joins_fixed_aliases_without_visual_numbers(self):
+        source = self.root / INVENTORY
+        source.parent.mkdir(parents=True)
+        row = 'numero_panda,device_ref,alias,estado\n23,0123456789abcdef,Original,vinculado\n'
+        source.write_text(row, encoding='ascii')
+        seed_aliases(self.root)
+        with closing(sqlite3.connect(self.root / ALIAS_DB)) as db, db:
+            db.execute('UPDATE device_aliases SET alias_personalizado=?', ('Custom',))
+            db.execute('INSERT INTO device_aliases VALUES (?,?)', ('fedcba9876543210', 'Outside inventory'))
+        source.write_text(row.replace('23,', '24,'), encoding='ascii')
+        seed_aliases(self.root)
+        result = self.client.get('/api/status').json()
+        self.assertEqual(result['inventory_status'], 'registered')
+        self.assertEqual(result['inventory'], [{'plate': 'p01', 'device_ref': '0123456789abcdef', 'alias': 'Custom'}])
 
     def test_evidence_filtered(self):
         self.evidence(password='SECRET')

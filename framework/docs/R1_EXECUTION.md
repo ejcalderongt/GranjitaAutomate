@@ -861,3 +861,16 @@ Validacion: 499 pytest y 28 subtests PASS; 497 unittest PASS en repeticion.
 La primera suite unittest fallo en test_rate_gate_spaces_request_starts por
 su umbral temporal; se conservo el log y no se modifico codigo ni tests.
 Credenciales aisladas, guardia sin accesos y hashes G/Q antes/despues identicos.
+
+### Inventario por identidad fisica
+
+La API de 3CFarmBox documenta `updateDevices` con `name` y `sort`.
+El panel usa alias locales por `device_ref`. No se enviaron cambios a Panda.
+Ejecutar `python -m core.device_aliases` coteja el inventario con el mapa
+DPAPI e importa los alias faltantes a `data/device_aliases.db`. Los alias
+personalizados existentes se conservan. `GET /api/status` consulta la tabla
+`device_aliases` y muestra cada alias junto a su etiqueta de inventario.
+
+El flujo combinado toma el numero visual vigente de la fila vinculada por
+serial fisico y transporte. Un vinculo ausente, ambiguo o con otra ruta
+impide admitir el lote. El CSV conserva su valor anterior como referencia.

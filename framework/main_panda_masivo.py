@@ -346,7 +346,20 @@ async def ejecutar_flujo_nativo(args,*,placas=None,run_id=None,combined_policy=N
     # Revalidacion fisica de lectura antes de admitir el lote.
     _,live,_=await obtener_inventario(Database())
     verified={row['numero_panda']:row['serial_fisico'] for row in live if row['estado']=='vinculado'}
-    eligible=[p for p in placas if verified.get(p['panda_id'])==p['serial']]
+    if combined_policy is not None:
+        eligible=[]
+        for plate in placas:
+            matches=[row for row in live if row['estado']=='vinculado'
+                     and row['serial_fisico']==plate['serial']]
+            if len(matches)!=1 or matches[0].get('transporte')!=plate['transporte']:
+                continue
+            number=matches[0]['numero_panda']
+            if sum(row['numero_panda']==number for row in live)==1:
+                eligible.append({**plate,'panda_id':number})
+        if len({p['panda_id'] for p in eligible})!=len(eligible):
+            return EXIT_FARM_ABORT_PRECHECK
+    else:
+        eligible=[p for p in placas if verified.get(p['panda_id'])==p['serial']]
     log.info('Vinculos fisicos actuales %s Excluidas %s',len(eligible),len(placas)-len(eligible))
     if combined_policy is not None and len(eligible)!=args.expected_count:
         return EXIT_FARM_ABORT_PRECHECK

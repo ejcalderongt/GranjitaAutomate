@@ -11,6 +11,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
 from config.farm_policy import FarmPolicy
 from config.farm_preflight import load_synthetic_fixture, run_farm_preflight, write_evidence
+from core.device_aliases import read_aliases
 
 ROOT = Path(__file__).resolve().parents[1]
 SAFE_NAME = re.compile(r'farm_preflight_[A-Za-z0-9_-]{1,100}\.json')
@@ -101,8 +102,14 @@ def create_app(root=ROOT, checker=None):
                 break
             except (ValueError, OSError):
                 continue
+        try:
+            inventory = await asyncio.to_thread(read_aliases, root)
+            inventory_status = 'registered' if inventory else 'empty'
+        except (OSError, ValueError, KeyError, sqlite3.Error):
+            inventory, inventory_status = [], 'unavailable'
         return {**state, 'stages': {'IA': 'prepared', 'UI': 'local_only', 'E2': 'pending_live_validation'},
                 'last_preflight': latest, 'last_run': None,
+                'inventory': inventory, 'inventory_status': inventory_status,
                 'allowed_actions': ['verify', 'stop'], 'real_execution_authorized': False}
 
     @app.get('/api/evidence')

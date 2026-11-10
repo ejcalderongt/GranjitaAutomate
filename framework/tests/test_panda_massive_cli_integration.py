@@ -85,7 +85,9 @@ def combined_rig(root):
         return kwargs['run_id']
     client=Mock(preparar=AsyncMock(return_value={}))
     state.client=client
-    live=[{'numero_panda':number,'serial_fisico':serial,'estado':'vinculado'} for number,serial in zip(ids,serials)]
+    live=[{'numero_panda':number,'serial_fisico':serial,'estado':'vinculado','transporte':transport}
+          for number,serial,transport in zip(ids,serials,transports)]
+    state.live=live
     with ExitStack() as stack:
         for name,value in (('ROOT',root),('load_project_environment',Mock()),
                            ('load_latest_map',Mock(return_value=mapping)),
@@ -123,6 +125,23 @@ class PandaMassiveCLIIntegrationTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(await m.main_async(rig.args),2)
             rig.ejecutar_qa_panda.assert_not_awaited()
             rig.PandaClient.assert_not_called()
+
+    async def test_combined_rebinds_renumbered_hardware(self):
+        with combined_rig(self.root) as rig:
+            rig.live[0]['numero_panda']='24'
+            rig.live.append({'numero_panda':'02','serial_fisico':'other','estado':'vinculado',
+                             'transporte':'other-route'})
+            self.assertEqual(await m.main_async(rig.args),0)
+            expected=rig.PandaClient.call_args.kwargs['expected_identities']
+            self.assertEqual(expected['24'],rig.mapping['plates'][0]['device_serial_plain'])
+            self.assertNotIn('02',expected)
+            rig.client.preparar.assert_awaited_once_with(['24','03','04'])
+
+    async def test_combined_rejects_renumbering_with_changed_route(self):
+        with combined_rig(self.root) as rig:
+            rig.live[0].update(numero_panda='24',transporte='other-route')
+            self.assertEqual(await m.main_async(rig.args),4)
+            rig.ejecutar_qa_panda.assert_not_awaited()
 
     async def test_cli_combined_excludes_failed_plates(self):
         with combined_rig(self.root) as rig:
