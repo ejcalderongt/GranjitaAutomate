@@ -508,16 +508,19 @@ def now():
     return datetime.now(timezone.utc).isoformat()
 
 
-def record_native_metrics(db, run_id, stage, completed=True):
-    """Persist one uninspected native-run sample; missing incidents remain NULL."""
+def record_native_metrics(db, run_id, stage, completed=True, *, incident_counts=None):
+    """Persist a native sample, leaving unobserved incident counts as NULL."""
     if not completed:
         return False
     if not re.fullmatch(r'[A-Za-z0-9_-]{1,80}', run_id) or type(stage) is not int:
         raise ValueError('Metricas de corrida invalidas')
+    counts=(None,None,None) if incident_counts is None else tuple(incident_counts)
+    if len(counts)!=3 or any(value is not None and (type(value) is not int or value<0) for value in counts):
+        raise ValueError('Metricas de corrida invalidas')
     with db:
         db.execute('''INSERT INTO farm_stage_metrics
             (run_id,stage,captcha_count,softblock_count,logout_count,recorded_at)
-            VALUES (?,?,NULL,NULL,NULL,?)''', (run_id, stage, now()))
+            VALUES (?,?,?,?,?,?)''', (run_id, stage, *counts, now()))
     return True
 
 

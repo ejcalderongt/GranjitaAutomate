@@ -383,6 +383,17 @@ async def ejecutar_flujo_nativo(args,*,placas=None,run_id=None,combined_policy=N
     writes=expected_native_writes(args.expected_count,args.cycles) if combined_policy is not None else None
     paths={'telemetria_panda.db':Path(args.db),'telemetry_qa.db':Path(args.db).with_name('telemetry_qa.db')}
     before={};audits={}
+    vision_observations=[]
+    def record_observation(observation):
+        vision_observations.append(observation)
+        path=ROOT/'runs'/('vision_run_'+run_id+'.json')
+        path.parent.mkdir(parents=True,exist_ok=True)
+        temporary=path.with_suffix('.tmp')
+        temporary.write_text(json.dumps({'run_id':run_id,'rpm':args.rpm,
+            'observations':vision_observations},ensure_ascii=True,indent=2),encoding='ascii')
+        temporary.replace(path)
+        log.info('Vision QA cuenta=%s resultado=%s json_valido=%s',observation['account_id'],
+            observation['outcome'],str(observation['schema_valid']).lower())
     try:
         if writes is not None:
             before={name:snapshot(path) for name,path in paths.items()}
@@ -399,6 +410,8 @@ async def ejecutar_flujo_nativo(args,*,placas=None,run_id=None,combined_policy=N
                     if not os.getenv('OPENAI_API_KEY'):
                         raise ValueError('Clave OpenAI ausente')
                     options['client']=await stack.enter_async_context(AsyncOpenAI(timeout=25,max_retries=0))
+                    if combined_policy is not None:
+                        options['on_observation']=record_observation
                 await ejecutar_qa_panda(client,devices,cycles=args.cycles,hold_seconds=args.hold_seconds,
                     concurrency=args.concurrency,allow_upload=args.allow_vision_upload,stop=stop,
                     db_path=args.db,run_id=run_id,device_metadata={p['panda_id']:p for p in eligible},
@@ -411,9 +424,27 @@ async def ejecutar_flujo_nativo(args,*,placas=None,run_id=None,combined_policy=N
                         database=name,expected_writes=writes[name]) for name in paths}
                     if any(item['status']!='PASS' for item in audits.values()):
                         return EXIT_FARM_ABORT_PRECHECK
+                    incident_counts=None
+                    if args.allow_vision_upload:
+                        expected={(f'panda_{device}',str(cycle)) for device in devices
+                                  for cycle in range(1,args.cycles+1)}
+                        actual={(row['account_id'],row['cycle_id']) for row in vision_observations}
+                        if (actual!=expected or len(vision_observations)!=len(expected)
+                                or any(row['outcome']!='success' or not row['schema_valid']
+                                       or not row['api_called']
+                                       or any(type(row[key]) is not int or row[key]<0
+                                              for key in ('input_tokens','output_tokens'))
+                                       for row in vision_observations)):
+                            log.error('Evidencia de Vision incompleta')
+                            return EXIT_FARM_ABORT_PRECHECK
+                        incident_counts=tuple(sum(row['incidents'][key] is True for row in vision_observations)
+                                              for key in ('captcha','softblock','logged_out'))
                     db=sqlite3.connect(args.db,timeout=5)
                     try:
-                        record_native_metrics(db,run_id,combined_policy.stage,completed=True)
+                        if incident_counts is None:
+                            record_native_metrics(db,run_id,combined_policy.stage,completed=True)
+                        else:
+                            record_native_metrics(db,run_id,combined_policy.stage,incident_counts=incident_counts)
                     finally:
                         db.close()
                     after={name:snapshot(path) for name,path in paths.items()}

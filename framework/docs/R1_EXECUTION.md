@@ -772,6 +772,36 @@ Pytest y unittest terminaron con codigo 0 (541 pruebas en unittest).
 Las suites conservaron los hashes de las bases operativas y los logs.
 Evidencia: runs/e3_native_20261110T035637036746Z/verified.json y suites.json.
 
+### E-4: Integracion de Vision
+
+Fecha local: 2026-11-09, America/Guatemala. Una corrida de 41.027 segundos,
+codigo 0, un ciclo, concurrencia 1 y tres analisis validos con gpt-4o-mini.
+OpenAI respondio HTTP 200 a las tres solicitudes. El esquema JSON valido
+las tres respuestas. Las capturas analizadas no mostraron captchas,
+softblocks ni deslogueos. La observacion corresponde a esas tres capturas.
+
+| Placa | Analisis | Tokens entrada | Tokens salida | USD estimado |
+|---|---|---|---|---|
+| p01 | 1 | 37148 | 154 | 0.0056646 |
+| p02 | 1 | 37148 | 107 | 0.0056364 |
+| p03 | 1 | 37148 | 112 | 0.0056394 |
+| Total | 3 | 111444 | 373 | 0.0169404 |
+
+Tarifas USD por millon de tokens: 0.15 entrada, 0.075 entrada cacheada y
+0.60 salida. La API reporto cero tokens cacheados. Fuente:
+https://developers.openai.com/api/docs/models/gpt-4o-mini
+
+RateGate fijo 30 RPM, con un minimo de 2 s entre inicios. Los intervalos
+medidos fueron 8.047 s y 5.656 s, sin solapamiento de solicitudes.
+Ambas auditorias SQLite pasaron con tres inserciones cada una. La muestra
+de etapa registro (0, 0, 0) a partir de los indicadores evaluados. C5 paso
+al releer el historial. Los hashes protegidos se conservaron.
+
+Pytest y unittest terminaron con codigo 0. Unittest ejecuto 541 pruebas.
+Las suites conservaron los hashes de las bases y los logs.
+Decision: E-4 cerrado, listo_para_E5_y_Escalado.
+Evidencia: runs/e4_native_20261110T044222250803Z/verified.json y suites.json.
+
 ### Bloqueo de conectividad externa con Proxy-Cheap (E-2)
 
 Fecha UTC: 2026-11-08T05:39:27+00:00. Commit base: 2d7b42d.
