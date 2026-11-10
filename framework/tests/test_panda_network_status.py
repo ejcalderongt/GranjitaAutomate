@@ -33,11 +33,13 @@ class PandaNetworkStatusTests(unittest.TestCase):
         with patch('core.panda_network.leer_identidad_fisica', return_value='fake-device'), \
                 patch('core.panda_network.foreground', side_effect=[False, True]), \
                 patch('core.panda_network.shell_route', side_effect=[
-                    '', '', 'es-GT\n', 'America/Guatemala', ''
+                    'com.zhiliaoapp.musically/com.example.SplashActivity', '', '', 'es-GT\n',
+                    'America/Guatemala', ''
                 ]) as shell:
             self.assertEqual(prepare_plate(self.plate,'ES','Europe/Madrid'),
                              {'app':'ok','locale':'manual','timezone':'manual'})
-            self.assertIn('com.zhiliaoapp.musically',shell.call_args_list[1].args)
+            self.assertEqual(shell.call_args_list[2].args[-2:],
+                             ('-n','com.zhiliaoapp.musically/com.example.SplashActivity'))
 
     def test_prepare_uses_supported_manual_timezone_and_verifies(self):
         with patch('core.panda_network.leer_identidad_fisica', return_value='fake-device'), \

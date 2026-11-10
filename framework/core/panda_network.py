@@ -48,6 +48,18 @@ def foreground(route):
     return any(re.search(r'\b' + re.escape(PACKAGE) + '/', line) for line in result.splitlines())
 
 
+def open_tiktok(route):
+    launcher = ('-a', 'android.intent.action.MAIN', '-c', 'android.intent.category.LAUNCHER')
+    resolved = shell_route(route, 'cmd', 'package', 'resolve-activity', '--brief',
+                           *launcher, PACKAGE, timeout=5)
+    components = [line.strip() for line in resolved.splitlines()
+                  if re.fullmatch(re.escape(PACKAGE) + r'/[A-Za-z0-9_.$]+', line.strip())]
+    if len(components) != 1:
+        return
+    shell_route(route, 'input', 'keyevent', 'KEYCODE_WAKEUP', timeout=4)
+    shell_route(route, 'am', 'start', '-W', *launcher, '-n', components[0], timeout=12)
+
+
 def prepare_plate(plate, country, target_zone):
     route = plate_route(plate)
     state = {'app':'unchecked','locale':'unchecked','timezone':'unchecked'}
@@ -58,9 +70,7 @@ def prepare_plate(plate, country, target_zone):
         return state
     try:
         if not foreground(route):
-            shell_route(route, 'input', 'keyevent', 'KEYCODE_WAKEUP', timeout=4)
-            shell_route(route, 'am', 'start', '-W', '-a', 'android.intent.action.MAIN',
-                        '-c', 'android.intent.category.LAUNCHER', '-p', PACKAGE, timeout=12)
+            open_tiktok(route)
         state['app'] = 'ok' if foreground(route) else 'manual'
     except ADB_FAILURES:
         state['app'] = 'manual'
