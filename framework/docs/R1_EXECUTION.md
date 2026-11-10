@@ -736,6 +736,18 @@ operativos sigue pendiente para la etapa autorizada de E-3.
 
 Evidencia: runs/e3_admission_plan_20261110T033642760729Z.json.
 
+#### Revalidacion dinamica del inventario
+
+Fecha local: 2026-11-09, America/Guatemala.
+Los IDs visuales de Panda son dinamicos. El CSV se sincroniza por identidad fisica antes de cada corrida.
+La lectura en vivo de Panda y ADB confirmo 07, 06 y 22 para p01, p02 y p03,
+en el orden del mapa DPAPI. El CSV ya coincidia con esa lectura.
+
+El preflight real de confirmacion termino con codigo 0 y decision
+proceed_with_warnings. La persistencia se hizo en una copia SQLite dentro
+de runs/ y los hashes operativos permanecieron iguales.
+Evidencia: runs/e3_resync_20261110T034342397408Z/admission.json y preflight.json.
+
 ### Bloqueo de conectividad externa con Proxy-Cheap (E-2)
 
 Fecha UTC: 2026-11-08T05:39:27+00:00. Commit base: 2d7b42d.
