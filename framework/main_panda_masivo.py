@@ -21,13 +21,15 @@ from config.proxies import ProxyManager
 from config.farm_policy import (load_farm_policy, EXIT_OK, EXIT_CONFIG_ERROR,
     EXIT_FARM_ABORT_FAIL, EXIT_FARM_ABORT_WARN, EXIT_FARM_ABORT_PRECHECK, EXIT_MESSAGES)
 from config.farm_preflight import (load_synthetic_fixture, run_farm_preflight, decide,
-    write_evidence, build_real_context, record_native_metrics)
+    write_evidence, build_real_context, record_native_metrics, timezone_country)
 from core.browser import ROOT
 from core.database import Database
 from core.device_map import load_latest_map
 from core.mass_orchestrator import bloquear_granja
 from core.panda_api import PandaClient
 from core.panda_inventory import obtener_inventario
+from core.panda_lab_status import NETWORK_OK, current_timestamp, estimated_cost, write_status
+from core.panda_network import check_devices
 from core.project_env import load_project_environment
 from main_panda import ejecutar_qa_panda
 from scripts.evidence_invariants import snapshot, compare, declare_run_writes
@@ -123,6 +125,7 @@ async def ejecutar_preflight_y_lote(args):
     run_id='panda-masivo-'+uuid4().hex
     policy=None;ctx={'synthetic':False};verdicts=[];cancelled=False
     code=EXIT_FARM_ABORT_PRECHECK
+    report=None
     try:
         validar_parametros(args)
         if not getattr(args,'inventory_explicit',False):
@@ -133,6 +136,26 @@ async def ejecutar_preflight_y_lote(args):
         policy=load_farm_policy()
         if len(plates)!=policy.stage:
             raise ValueError('Seleccion de placas incompleta')
+        prepare=getattr(args,'prepare_devices',False)
+        if prepare:
+            zone=args.device_timezone
+            if not policy.country or (zone and timezone_country(zone)!=policy.country):
+                raise ValueError('Zona horaria incompatible con la politica')
+            with bloquear_granja(ROOT/'sessions/farm.lock'):
+                network=await check_devices(plates,prepare=(policy.country,zone))
+        else:
+            network=await check_devices(plates)
+        report={'checked_at':current_timestamp(),'state':'preflight','devices':network,
+                'started':False,'estimated_usd':0}
+        write_status(ROOT,run_id,report)
+        failed=[row['plate'] for row in network if row['network'] not in NETWORK_OK]
+        if failed:
+            log.warning('Placas excluidas por red o identidad: %s', ', '.join(failed))
+            return code  # La etapa requiere la cuota completa de placas verificadas.
+        pending=[row['plate'] for row in network
+                 if prepare and any(row.get(field)!='ok' for field in ('app','locale','timezone'))]
+        if pending:
+            log.warning('Placas con ajustes manuales: %s', ', '.join(pending))
         if args.preflight_proxy:
             code=await ejecutar_preflight_proxy_solo(args)
             if code!=EXIT_OK:
@@ -162,11 +185,20 @@ async def ejecutar_preflight_y_lote(args):
         if len(plates)!=args.expected_count:
             code=EXIT_FARM_ABORT_PRECHECK
             return code
-        code=await ejecutar_flujo_nativo(args,placas=plates,run_id=run_id,combined_policy=policy)
+        if pending or not args.ready:
+            log.warning('Falta acreditar la preparacion y admision manual del lote')
+            code=EXIT_FARM_ABORT_PRECHECK
+            return code
+        code=await ejecutar_flujo_nativo(args,placas=plates,run_id=run_id,combined_policy=policy,
+                                       lab_report=report)
         if code==130:
             cancelled=True;verdicts=[]
         return code
     except (KeyboardInterrupt,asyncio.CancelledError):
+        if report is not None and report['state']=='incident':
+            log.error('Corrida detenida por incidente visual')
+            code=EXIT_FARM_ABORT_FAIL
+            return code
         cancelled=True;verdicts=[];code=130
         return code
     except ValueError:
@@ -177,6 +209,10 @@ async def ejecutar_preflight_y_lote(args):
         return code
     finally:
         write_evidence(ROOT,run_id,policy,verdicts,code,cancelled=cancelled,ctx=ctx)
+        if report is not None:
+            if report['state']!='incident':
+                report['state']='completed' if code==0 else 'cancelled' if cancelled else 'blocked'
+            write_status(ROOT,run_id,report)
 
 
 class RateGate:
@@ -307,6 +343,10 @@ async def ejecutar_preflight_farm_solo(args) -> int:
 
 
 async def main_async(args):
+    prepare=getattr(args,'prepare_devices',False)
+    if (getattr(args,'device_timezone',None) and not prepare
+            or prepare and not (args.execute_read_only and args.preflight_farm and args.preflight_proxy)):
+        return EXIT_CONFIG_ERROR
     if getattr(args, 'stage', None) is not None:
         if any(getattr(args, name, False) for name in
                ('preflight_proxy', 'preflight_farm', 'execute_read_only', 'ready', 'allow_vision_upload')):
@@ -331,7 +371,7 @@ async def main_async(args):
     return await ejecutar_flujo_nativo(args)
 
 
-async def ejecutar_flujo_nativo(args,*,placas=None,run_id=None,combined_policy=None):
+async def ejecutar_flujo_nativo(args,*,placas=None,run_id=None,combined_policy=None,lab_report=None):
     validar_parametros(args)
     gate=RateGate(args.rpm)
     if placas is None:
@@ -398,6 +438,9 @@ async def ejecutar_flujo_nativo(args,*,placas=None,run_id=None,combined_policy=N
     before={};audits={}
     vision_observations=[]
     def record_observation(observation):
+        if lab_report is not None and observation['outcome']=='incident':
+            stop.set()
+            lab_report['state']='incident'
         vision_observations.append(observation)
         path=ROOT/'runs'/('vision_run_'+run_id+'.json')
         path.parent.mkdir(parents=True,exist_ok=True)
@@ -425,6 +468,10 @@ async def ejecutar_flujo_nativo(args,*,placas=None,run_id=None,combined_policy=N
                     options['client']=await stack.enter_async_context(AsyncOpenAI(timeout=25,max_retries=0))
                     if combined_policy is not None:
                         options['on_observation']=record_observation
+                if lab_report is not None:
+                    lab_report.update(state='running',started=True,
+                                      estimated_usd=None if args.allow_vision_upload else 0)
+                    write_status(ROOT,run_id,lab_report)
                 await ejecutar_qa_panda(client,devices,cycles=args.cycles,hold_seconds=args.hold_seconds,
                     concurrency=args.concurrency,allow_upload=args.allow_vision_upload,stop=stop,
                     db_path=args.db,run_id=run_id,device_metadata={p['panda_id']:p for p in eligible},
@@ -468,9 +515,20 @@ async def ejecutar_flujo_nativo(args,*,placas=None,run_id=None,combined_policy=N
                     completed=True
     except (KeyboardInterrupt,asyncio.CancelledError):
         stop.set()
+        if lab_report is not None and lab_report['state']=='incident':
+            counts=tuple(sum((row.get('incidents') or {}).get(key) is True
+                             for row in vision_observations)
+                         for key in ('captcha','softblock','logged_out'))
+            db=sqlite3.connect(args.db,timeout=5)
+            try:
+                record_native_metrics(db,run_id,combined_policy.stage,incident_counts=counts)
+            finally:
+                db.close()
         raise
     finally:
         signal.signal(signal.SIGINT,old)
+        if lab_report is not None and vision_observations:
+            lab_report['estimated_usd']=estimated_cost(vision_observations)
         if combined_policy is not None:
             if before and not completed:
                 try:
@@ -524,6 +582,9 @@ def main():
     parser.add_argument('--preflight-farm',action='store_true',default=False,
         help='Ejecuta C1 a C5 sinteticos; junto a preflight-proxy usa adaptadores reales de lectura')
     parser.add_argument('--ready',action='store_true')
+    parser.add_argument('--prepare-devices',action='store_true',
+        help='Abre TikTok y comprueba los ajustes Android en el preflight combinado')
+    parser.add_argument('--device-timezone',help='Zona IANA esperada al preparar placas')
     parser.add_argument('--allow-vision-upload',action='store_true')
     handler=logging.StreamHandler()
     handler.setFormatter(ASCIIFormatter('%(asctime)s %(name)s %(message)s'))

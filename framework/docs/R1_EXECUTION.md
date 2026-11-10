@@ -885,3 +885,23 @@ con DPAPI y `onlySerial`, y envia cada cambio al transporte vigente.
 Un numero ocupado o una identidad ambigua impiden la operacion.
 El comando relee Panda para confirmar cada cambio y omite los ya aplicados.
 Ejecutar sin `--apply` para comprobar la asignacion tras una reconexion.
+
+### Preparacion del escalado a diez placas
+
+El flujo combinado verifica desde cada Android que puede llegar a
+`ipv4.icanhazip.com`. Usa HTTPS con curl cuando esta disponible y ping
+como prueba de conectividad basica en su ausencia. El panel indica el metodo.
+Una placa sin identidad o red verificable queda excluida. Si el lote queda
+por debajo de la cuota, no entra a Vision.
+
+`--prepare-devices --device-timezone Europe/Madrid` abre TikTok en las
+placas vinculadas, comprueba el foco y coteja region y zona horaria.
+Solo aplica una zona manual si Android ofrece el comando y el dispositivo
+ya admite zona manual. Los ajustes no confirmados se marcan en el panel.
+`--ready` requiere que el operador confirme el feed de prueba.
+Los candidatos privados se guardan en un CSV bajo `runs/`.
+
+El panel muestra la ultima comprobacion por placa y un coste estimado de
+Vision a partir del uso informado. Conserva la evidencia bajo Avanzado.
+Un incidente visual detiene la cola y queda registrado en las metricas
+de etapa para bloquear la promocion.

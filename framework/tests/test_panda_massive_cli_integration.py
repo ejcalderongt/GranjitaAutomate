@@ -54,6 +54,9 @@ def combined_rig(root):
     async def proxy(_):
         state.events.append('proxy')
         return 0
+    async def network(plates):
+        return [{'plate':p['map_plate'],'device_ref':p['device_ref'],
+                 'alias':p['alias'],'network':'https_ok'} for p in plates]
     async def context(policy,manager,run_id,verified,selected_plates=None):
         state.events.append('context')
         state.selected=selected_plates
@@ -92,6 +95,7 @@ def combined_rig(root):
         for name,value in (('ROOT',root),('load_project_environment',Mock()),
                            ('load_latest_map',Mock(return_value=mapping)),
                            ('load_farm_policy',Mock(return_value=FarmPolicy(country='ES'))),
+                           ('check_devices',AsyncMock(side_effect=network)),
                            ('ejecutar_preflight_proxy_solo',AsyncMock(side_effect=proxy)),
                            ('build_real_context',AsyncMock(side_effect=context)),
                            ('run_farm_preflight',AsyncMock(side_effect=farm)),
@@ -110,6 +114,41 @@ class PandaMassiveCLIIntegrationTests(unittest.IsolatedAsyncioTestCase):
         self.folder=tempfile.TemporaryDirectory()
         self.addCleanup(self.folder.cleanup)
         self.root=Path(self.folder.name)
+
+    async def test_failed_device_network_blocks_before_proxy_and_vision(self):
+        with combined_rig(self.root) as rig:
+            check=rig.check_devices.side_effect
+            async def disconnected(plates):
+                rows=await check(plates)
+                rows[1]['network']='network_failed'
+                return rows
+            rig.check_devices.side_effect=disconnected
+            rig.args.allow_vision_upload=True
+            self.assertEqual(await m.main_async(rig.args),4)
+            rig.ejecutar_preflight_proxy_solo.assert_not_awaited()
+            rig.ejecutar_qa_panda.assert_not_awaited()
+            status=json.loads(next((self.root/'runs').glob('lab_status_*.json')).read_text())
+            self.assertEqual(status['state'],'blocked')
+            self.assertEqual(status['devices'][1]['network'],'network_failed')
+
+    async def test_visual_incident_sets_stop_and_blocks_promotion(self):
+        with combined_rig(self.root) as rig:
+            rig.args.allow_vision_upload=True
+            async def incident(client,devices,**kwargs):
+                kwargs['vision_options']['on_observation']({
+                    'account_id':'panda_02','outcome':'incident','schema_valid':True,
+                    'incidents':{'captcha':True,'softblock':False,'logged_out':False},
+                    'model':'gpt-4o-mini','api_called':True,'input_tokens':100,'output_tokens':20})
+                self.assertTrue(kwargs['stop'].is_set())
+                raise asyncio.CancelledError
+            rig.ejecutar_qa_panda.side_effect=incident
+            with patch.dict(m.os.environ,{'OPENAI_API_KEY':'synthetic'}):
+                self.assertEqual(await m.main_async(rig.args),2)
+            status=json.loads(next((self.root/'runs').glob('lab_status_*.json')).read_text())
+            self.assertEqual(status['state'],'incident')
+            self.assertGreater(status['estimated_usd'],0)
+            with closing(sqlite3.connect(rig.args.db)) as db:
+                self.assertEqual(db.execute('SELECT captcha_count FROM farm_stage_metrics').fetchall(),[(1,)])
 
     async def test_cli_combined_flags_run_preflight_before_native(self):
         with combined_rig(self.root) as rig:

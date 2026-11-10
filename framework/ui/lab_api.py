@@ -12,6 +12,7 @@ from fastapi.responses import FileResponse
 from config.farm_policy import FarmPolicy
 from config.farm_preflight import load_synthetic_fixture, run_farm_preflight, write_evidence
 from core.device_aliases import read_aliases
+from core.panda_lab_status import read_dashboard
 
 ROOT = Path(__file__).resolve().parents[1]
 SAFE_NAME = re.compile(r'farm_preflight_[A-Za-z0-9_-]{1,100}\.json')
@@ -107,9 +108,11 @@ def create_app(root=ROOT, checker=None):
             inventory_status = 'registered' if inventory else 'empty'
         except (OSError, ValueError, KeyError, sqlite3.Error):
             inventory, inventory_status = [], 'unavailable'
+        dashboard = await asyncio.to_thread(read_dashboard, root, inventory)
         return {**state, 'stages': {'IA': 'prepared', 'UI': 'local_only', 'E2': 'pending_live_validation'},
                 'last_preflight': latest, 'last_run': None,
                 'inventory': inventory, 'inventory_status': inventory_status,
+                'dashboard': dashboard,
                 'allowed_actions': ['verify', 'stop'], 'real_execution_authorized': False}
 
     @app.get('/api/evidence')

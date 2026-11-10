@@ -1,9 +1,50 @@
 <!doctype html>
-<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Laboratorio | Control local</title><link rel="stylesheet" href="/static/style.css"></head>
-<body><header><span class="mark">LAB / 2026</span><span class="badge">Solo local</span></header>
-<main><p class="eyebrow">CONTROL DEL LABORATORIO</p><h1>Preparar. Verificar. Observar.</h1><p class="intro">Verificacion sintetica y evidencia filtrada. Las ejecuciones reales requieren una autorizacion posterior.</p>
-<section class="cards"><article><span>Estado</span><h2 id="status">Cargando</h2><p id="reason"></p></article><article><span>Dispositivos y red</span><h2>Sin acceso</h2><p>Este panel no conecta placas ni consulta el proxy.</p></article><article><span>Etapas</span><h2>Preparacion local</h2><p>IA preparada / E-2 pendiente de validacion real</p></article></section>
-<section class="bar"><div><h2>Verificar sin red</h2><p>Fixture sintetico y base en memoria. No representa una corrida fisica.</p></div><button id="verify">Iniciar verificacion</button><button id="stop" class="secondary">Detener</button></section>
-<section aria-labelledby="inventory-title"><h2 id="inventory-title">Inventario por hardware</h2><p>Alias registrados en SQLite. Este listado no indica conexion en vivo.</p><ul id="inventory"></ul><p id="inventory-status"></p></section>
-<section class="evidence"><div><p class="eyebrow">TRAZABILIDAD</p><h2>Evidencia disponible</h2><p>Solo informes de preflight con campos permitidos. Secretos y texto libre no se muestran.</p><div id="files"></div></div><pre id="detail">Selecciona un informe.</pre></section><p id="error" role="alert"></p></main>
-<footer>Laboratorio controlado. Sin acciones sociales, dispositivos o Vision en este panel.</footer><script src="/static/app.js"></script></body></html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AGX | Laboratorio QA</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header><span class="mark">AGX / LABORATORIO QA</span><span class="badge">Panel local</span></header>
+<main>
+  <p class="eyebrow">RESUMEN DE OPERACIONES</p>
+  <h1>Estado del laboratorio</h1>
+  <p id="checked-at">Esperando la primera comprobacion de placas.</p>
+  <section class="cards" aria-label="Indicadores del laboratorio">
+    <article><span>Estado general</span><h2 id="overall">Sin comprobar</h2></article>
+    <article><span>Placas online</span><h2 id="online">--</h2></article>
+    <article><span>Placas listas</span><h2 id="ready">--</h2></article>
+    <article><span>Alertas</span><h2 id="alerts">--</h2></article>
+    <article><span>Coste estimado</span><h2 id="cost">--</h2></article>
+  </section>
+  <section class="panel" aria-labelledby="inventory-title">
+    <h2 id="inventory-title">Inventario por hardware</h2>
+    <p>Estado segun la ultima comprobacion. El ID de inventario es estable.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Alias</th><th>ID</th><th>Red OK</th><th>TikTok</th><th>Region Android</th><th>Zona horaria</th><th>Ultima corrida</th><th>Estado</th></tr></thead>
+        <tbody id="inventory"></tbody>
+      </table>
+    </div>
+    <p id="inventory-status"></p>
+  </section>
+  <details class="panel" id="advanced">
+    <summary>Avanzado</summary>
+    <section class="bar">
+      <div><h2>Verificacion sintetica</h2><p id="reason"></p><strong id="status"></strong></div>
+      <button id="verify">Iniciar verificacion</button>
+      <button id="stop" class="secondary">Detener</button>
+    </section>
+    <section class="evidence">
+      <div><h2>Evidencia de preflight</h2><div id="files"></div></div>
+      <pre id="detail">Selecciona un informe.</pre>
+    </section>
+  </details>
+  <p id="error" role="alert"></p>
+</main>
+<footer>Las ejecuciones fisicas se controlan desde la terminal.</footer>
+<script src="/static/app.js"></script>
+</body>
+</html>
