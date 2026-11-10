@@ -1,7 +1,9 @@
 import asyncio
+from contextlib import closing
 import json
 from pathlib import Path
 import sqlite3
+import sys
 import tempfile
 import unittest
 from types import SimpleNamespace as NS
@@ -62,3 +64,59 @@ class StageScalingTests(unittest.TestCase):
             native.assert_not_awaited()
             report=json.loads(next((Path(folder)/'runs').glob('stage_plan_*.json')).read_text())
             self.assertFalse(report['executes_next_stage'])
+
+    def run_cli_plan(self, root, db_path, stage, limits):
+        import main_panda_masivo as main
+        before = set((root/'runs').glob('stage_plan_*.json'))
+        argv = ['main_panda_masivo.py', '--stage', str(stage), '--stage-limits', str(limits), '--db', str(db_path)]
+        with patch.object(main, 'ROOT', root), patch.object(sys, 'argv', argv), \
+                patch.object(main, 'ejecutar_flujo_nativo', new=AsyncMock()) as native:
+            code = main.main()
+            native.assert_not_awaited()
+        created = set((root/'runs').glob('stage_plan_*.json')) - before
+        self.assertEqual(len(created), 1)
+        report = json.loads(created.pop().read_text(encoding='ascii'))
+        self.assertFalse(report['executes_next_stage'])
+        return code, report
+
+    def test_cli_simulates_promotion_from_3_and_ten_successful_plates(self):
+        self.history(3)
+        self.db.execute('INSERT INTO farm_preflight_runs VALUES (?,?,?,?,?,?,?)',
+                        ('stub-10', 'stub-10', 10, 'start', 'finish', 'proceed', 0))
+        self.db.execute('INSERT INTO farm_preflight_verdicts(run_id,"constraint",status) VALUES (?,?,?)',
+                        ('stub-10', 'C4', 'PASS'))
+        self.db.executemany('''INSERT INTO farm_stage_metrics
+            (run_id,stage,captcha_count,softblock_count,logout_count) VALUES (?,?,?,?,?)''',
+                            [('stub-10', 10, 0, 0, 0) for _ in range(10)])
+        self.db.commit()
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            db_path = root/'history.db'
+            with closing(sqlite3.connect(db_path)) as db:
+                self.db.backup(db)
+            limits = root/'limits.json'
+            limits.write_text('{"3":{"min_samples":1},"10":{"min_samples":10},"34":{"min_samples":1}}', encoding='ascii')
+            code, stage3 = self.run_cli_plan(root, db_path, 3, limits)
+            self.assertEqual((code, stage3['decision'], stage3['next_stage']), (0, 'promote', 10))
+            code, stage10 = self.run_cli_plan(root, db_path, 10, limits)
+            self.assertEqual((code, stage10['decision'], stage10['samples']), (0, 'promote', 10))
+            self.assertEqual(stage10['stage_limits']['10']['min_samples'], 10)
+            self.db.execute('DELETE FROM farm_stage_metrics WHERE id=(SELECT MAX(id) FROM farm_stage_metrics)')
+            self.db.commit()
+            with closing(sqlite3.connect(db_path)) as db:
+                self.db.backup(db)
+            code, blocked = self.run_cli_plan(root, db_path, 10, limits)
+            self.assertEqual((code, blocked['reason'], blocked['next_stage']), (2, 'incomplete_metrics', None))
+
+    def test_cli_captcha_at_stage_3_aborts_without_promoting(self):
+        self.history(3, (1, 0, 0))
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            db_path = root/'history.db'
+            with closing(sqlite3.connect(db_path)) as db:
+                self.db.backup(db)
+            limits = root/'limits.json'
+            limits.write_text('{"3":{"min_samples":1},"10":{"min_samples":10},"34":{"min_samples":1}}', encoding='ascii')
+            code, report = self.run_cli_plan(root, db_path, 3, limits)
+            self.assertEqual((code, report['decision'], report['reason'], report['next_stage']),
+                             (2, 'abort', 'observed_incident', None))

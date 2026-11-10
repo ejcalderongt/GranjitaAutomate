@@ -1,4 +1,5 @@
 """Offline, read-only promotion decisions. Never starts a device or network run."""
+from contextlib import closing
 from dataclasses import asdict, dataclass
 import json
 from pathlib import Path
@@ -84,7 +85,7 @@ def stage_plan(database, stage, limits_path=None):
     if not path.is_file():
         result = StageDecision(stage, 'blocked', None, 'history_unavailable', 0)
     else:
-        with sqlite3.connect(path.as_uri() + '?mode=ro', uri=True) as db:
+        with closing(sqlite3.connect(path.as_uri() + '?mode=ro', uri=True)) as db:
             result = evaluate_stage(db, stage, limits[stage])
     return {**asdict(result), 'mode': 'offline_planning', 'executes_next_stage': False,
             'stage_limits': {str(k): asdict(v) for k, v in limits.items()},

@@ -802,6 +802,25 @@ Las suites conservaron los hashes de las bases y los logs.
 Decision: E-4 cerrado, listo_para_E5_y_Escalado.
 Evidencia: runs/e4_native_20261110T044222250803Z/verified.json y suites.json.
 
+### E-5 y E-6: Validacion local y escalado simulado
+
+Fecha local: 2026-11-10, America/Guatemala.
+El panel FastAPI se inicio en 127.0.0.1:8000. La prueba HTTP obtuvo 200
+en /, /api/status y /api/evidence. El estado inicial fue idle y el panel
+expuso solo las acciones de verificacion sintetica y parada.
+
+La prueba CLI con historial temporal aprobo la promocion 3 -> 10 y la
+evaluacion de 10 muestras limpias en etapa 10. --stage-limits exigio las
+10 muestras y bloqueo la promocion con 9. Un captcha en etapa 3 devolvio
+codigo 2, decision abort y next_stage=null. Los planes mantuvieron
+executes_next_stage=false y el stub de ejecucion nativa no fue invocado.
+
+Se cerro explicitamente la conexion SQLite de lectura del plan para
+liberar el archivo al terminar, incluido en Windows.
+Pytest y unittest terminaron con codigo 0. Unittest ejecuto 543 pruebas.
+Las suites conservaron los hashes de las bases y los logs.
+Evidencia: runs/e5_e6_20261110T150824023301Z/http_smoke.json y suites.json.
+
 ### Bloqueo de conectividad externa con Proxy-Cheap (E-2)
 
 Fecha UTC: 2026-11-08T05:39:27+00:00. Commit base: 2d7b42d.
