@@ -48,6 +48,16 @@ class VisionContractV1Tests(unittest.TestCase):
 
 
 class VisionUsageLoggingTests(unittest.IsolatedAsyncioTestCase):
+    async def test_used_hardware_iteration_stops_before_inventory(self):
+        from scripts import validar_vision_v1 as runner
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / 'C_p01_i3.json').write_text('{}', encoding='ascii')
+            with patch('core.panda_inventory.obtener_inventario') as inventory:
+                with self.assertRaisesRegex(ValueError, 'Existing evidence'):
+                    await runner.hardware_phase(None, root, 'fewshot', 'C', None, iteration=3)
+                inventory.assert_not_called()
+
     async def test_invalid_contract_keeps_raw_text_and_known_usage(self):
         from scripts import validar_vision_v1 as runner
         content = json.dumps({**EXAMPLE, 'captcha': None})

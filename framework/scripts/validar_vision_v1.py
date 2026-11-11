@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import time
+from uuid import uuid4
 
 from openai import AsyncOpenAI
 from pydantic import BaseModel, ConfigDict, Field
@@ -172,7 +173,7 @@ async def phase_b(client, directory, variant):
                      positive_control_type='synthetic browser UI; not a real account challenge')
 
 
-async def hardware_phase(client, directory, variant, phase, inventory):
+async def hardware_phase(client, directory, variant, phase, inventory, *, iteration=1):
     from core.database import Database
     from core.device_map import _derive_ref
     from core.mass_orchestrator import bloquear_granja
@@ -181,6 +182,11 @@ async def hardware_phase(client, directory, variant, phase, inventory):
     from main_panda_masivo import canonical_selection
     from types import SimpleNamespace
     limit = 10 if phase == 'C' else 34
+    if not 1 <= iteration <= 3:
+        raise ValueError('Branch iteration limit exceeded')
+    if any((directory / f'{phase}_p{index:02d}_i{iteration}.json').exists()
+           for index in range(1, limit + 1)):
+        raise ValueError('Existing evidence cannot be replaced')
     if phase == 'D' and not json.loads((directory / 'C_summary.json').read_text())['pass']:
         raise ValueError('Phase C has not passed')
     accepted = json.loads((directory / 'B_summary.json').read_text())
@@ -209,7 +215,7 @@ async def hardware_phase(client, directory, variant, phase, inventory):
                 break
     if len(selected) != limit:
         raise ValueError('Hardware quota not met')
-    panda = PandaClient(screenshots=directory / ('screenshots_' + phase),
+    panda = PandaClient(screenshots=directory / f'screenshots_{phase}_i{iteration}_{uuid4().hex}',
                         expected_identities={row['numero_panda']: row['serial_fisico'] for _, _, row in selected})
     save(directory / (phase + '_inventory.json'), {
         'plates': [{'plate': plate, 'device_ref': ref, 'panda_id': row['numero_panda']}
@@ -223,7 +229,8 @@ async def hardware_phase(client, directory, variant, phase, inventory):
             raise ValueError('Panda binding failed')
         for plate, ref, row in selected:
             image = await panda.capturar_pantalla_dispositivo_async(row['numero_panda'])
-            result = await inspect(client, directory, image, f'{phase}_{plate}_i1', variant, phase=phase)
+            result = await inspect(client, directory, image, f'{phase}_{plate}_i{iteration}', variant,
+                                   phase=phase, iteration=iteration)
             result['device_ref'] = ref
             save(directory / (result['name'] + '.json'), result)
             records.append(result)
@@ -232,10 +239,12 @@ async def hardware_phase(client, directory, variant, phase, inventory):
                 if phase == 'D':
                     break  # Completed request usage is persisted before stopping the batch.
         passed = len(records) == limit and all(r['verdict'] == 'PASS' and r['cost_confirmed'] for r in records)
-    return summarize(directory, phase, records, passed, expected=limit,
+    summary = summarize(directory, phase, records, passed, expected=limit, iteration=iteration,
                      completed=len(records), failures=[r['name'] for r in records if r['verdict'] != 'PASS'
                                                        or not r['cost_confirmed']],
                      unprocessed=[plate for plate, _, _ in selected[len(records):]])
+    save(directory / f'{phase}_i{iteration}_summary.json', summary)
+    return summary
 
 
 async def main(args):
@@ -253,13 +262,16 @@ async def main(args):
             raise ValueError('No selected contract')
         if args.phase == 'B':
             return (await phase_b(client, directory, chosen))['pass']
-        return (await hardware_phase(client, directory, chosen, args.phase, args.inventory))['pass']
+        return (await hardware_phase(client, directory, chosen, args.phase, args.inventory,
+                                     iteration=args.iteration))['pass']
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--phase', choices=['A', 'B', 'C', 'D'], required=True)
     parser.add_argument('--report', type=Path, required=True)
+    parser.add_argument('--iteration', type=int, choices=[1, 2, 3], default=1,
+                        help='Hardware branch iteration; existing evidence cannot be replaced')
     parser.add_argument('--inventory', type=Path,
                         default=ROOT / 'runs/lab_stage10_20261110T161649Z.csv')
     args = parser.parse_args()

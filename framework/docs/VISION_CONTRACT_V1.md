@@ -24,6 +24,9 @@ response and usage are persisted before parsing, along with the schema,
 prompt text, image path, image hash and evaluation. Retries are disabled.
 Existing evidence is never replaced and the per-branch limit is three.
 The original run and original diagnostic are preserved.
+For a fresh hardware recheck after operator intervention, select an unused
+`--iteration 2` or `--iteration 3`. Each capture batch has its own directory.
+Reusing an occupied iteration is rejected before inventory or screenshot calls.
 
 Phase A compares the nullable baseline, mandatory fields plus a complete
 example, and an observation-first prompt. Phase B compares clean archived
